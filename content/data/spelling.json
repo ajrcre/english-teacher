@@ -1,0 +1,3458 @@
+[
+ {
+  "test": 1,
+  "word": "manage",
+  "sentence": "Can you manage to finish your homework before dinner?",
+  "he": "להסתדר"
+ },
+ {
+  "test": 1,
+  "word": "remind",
+  "sentence": "Please remind me to bring my football to school tomorrow.",
+  "he": "להזכיר"
+ },
+ {
+  "test": 1,
+  "word": "slice",
+  "sentence": "Mom gave me a big slice of warm apple pie.",
+  "he": "פרוסה"
+ },
+ {
+  "test": 1,
+  "word": "proper",
+  "sentence": "It is important to use proper grammar in your essay.",
+  "he": "ראוי"
+ },
+ {
+  "test": 1,
+  "word": "savage",
+  "sentence": "The wild animal showed a savage fight for its food.",
+  "he": "פראי"
+ },
+ {
+  "test": 1,
+  "word": "respond",
+  "sentence": "Please respond to my email when you have time.",
+  "he": "להשיב"
+ },
+ {
+  "test": 1,
+  "word": "spice",
+  "sentence": "Cinnamon is my favorite spice to add to oatmeal.",
+  "he": "תבלין"
+ },
+ {
+  "test": 1,
+  "word": "property",
+  "sentence": "Please do not touch items that are private property.",
+  "he": "רכוש"
+ },
+ {
+  "test": 1,
+  "word": "package",
+  "sentence": "A big package arrived at our front door this morning.",
+  "he": "חבילה"
+ },
+ {
+  "test": 1,
+  "word": "repent",
+  "sentence": "He felt bad and wanted to repent for his mistake.",
+  "he": "להתחרט"
+ },
+ {
+  "test": 1,
+  "word": "notice",
+  "sentence": "Did you notice the colorful bird sitting on the branch?",
+  "he": "להבחין"
+ },
+ {
+  "test": 1,
+  "word": "consist",
+  "sentence": "Healthy meals should consist of fruits, vegetables, and grains.",
+  "he": "להיות מורכב"
+ },
+ {
+  "test": 1,
+  "word": "postage",
+  "sentence": "Don't forget to pay the postage before sending the letter.",
+  "he": "דמי דואר"
+ },
+ {
+  "test": 1,
+  "word": "record",
+  "sentence": "The teacher will record your test score in her book.",
+  "he": "לרשום"
+ },
+ {
+  "test": 1,
+  "word": "police",
+  "sentence": "The police helped the lost child find his way home.",
+  "he": "משטרה"
+ },
+ {
+  "test": 1,
+  "word": "conduct",
+  "sentence": "The students will conduct a fun science experiment today.",
+  "he": "לבצע"
+ },
+ {
+  "test": 1,
+  "word": "report",
+  "sentence": "I need to write a short report about my holiday.",
+  "he": "דיווח"
+ },
+ {
+  "test": 1,
+  "word": "import",
+  "sentence": "Many countries import fruits that do not grow locally.",
+  "he": "לייבא"
+ },
+ {
+  "test": 1,
+  "word": "export",
+  "sentence": "Local farmers export fresh apples to other places.",
+  "he": "לייצא"
+ },
+ {
+  "test": 1,
+  "word": "forty",
+  "sentence": "There are forty students in our school music band.",
+  "he": "ארבעים"
+ },
+ {
+  "test": 2,
+  "word": "damage",
+  "sentence": "The heavy rain caused serious damage to the roof.",
+  "he": "נזק"
+ },
+ {
+  "test": 2,
+  "word": "silent",
+  "sentence": "The classroom was completely silent during the math test.",
+  "he": "שקט"
+ },
+ {
+  "test": 2,
+  "word": "purple",
+  "sentence": "My sister loves to wear her warm purple sweater.",
+  "he": "סגול"
+ },
+ {
+  "test": 2,
+  "word": "former",
+  "sentence": "Our former teacher came to visit us yesterday afternoon.",
+  "he": "לשעבר"
+ },
+ {
+  "test": 2,
+  "word": "voyage",
+  "sentence": "The old ship went on a long voyage across the sea.",
+  "he": "מסע"
+ },
+ {
+  "test": 2,
+  "word": "parent",
+  "sentence": "Every parent came to school for the teacher meeting.",
+  "he": "הורה"
+ },
+ {
+  "test": 2,
+  "word": "furnish",
+  "sentence": "We bought new chairs to furnish our living room.",
+  "he": "לרהט"
+ },
+ {
+  "test": 2,
+  "word": "organ",
+  "sentence": "The heart is an important organ in the human body.",
+  "he": "איבר"
+ },
+ {
+  "test": 2,
+  "word": "advantage",
+  "sentence": "Learning English gives students a big advantage in life.",
+  "he": "יתרון"
+ },
+ {
+  "test": 2,
+  "word": "absent",
+  "sentence": "Tom was absent from school today because he was sick.",
+  "he": "נעדר"
+ },
+ {
+  "test": 2,
+  "word": "curtain",
+  "sentence": "My mother hung a bright yellow curtain in my bedroom.",
+  "he": "וילון"
+ },
+ {
+  "test": 2,
+  "word": "orchard",
+  "sentence": "We picked fresh red apples in the fruit orchard.",
+  "he": "פרדס"
+ },
+ {
+  "test": 2,
+  "word": "wages",
+  "sentence": "Workers receive their weekly wages at the end of Friday.",
+  "he": "שכר"
+ },
+ {
+  "test": 2,
+  "word": "serpent",
+  "sentence": "The fairy tale described a huge green serpent in the cave.",
+  "he": "נחש"
+ },
+ {
+  "test": 2,
+  "word": "Saturday",
+  "sentence": "We like to ride our bicycles in the park every Saturday.",
+  "he": "יום שבת"
+ },
+ {
+  "test": 2,
+  "word": "coward",
+  "sentence": "He is not a coward because he helped his friends.",
+  "he": "פחדן"
+ },
+ {
+  "test": 2,
+  "word": "prevent",
+  "sentence": "Washing your hands helps to prevent the spread of germs.",
+  "he": "למנוע"
+ },
+ {
+  "test": 2,
+  "word": "silence",
+  "sentence": "There was complete silence when the principal entered the room.",
+  "he": "דממה"
+ },
+ {
+  "test": 2,
+  "word": "remarkable",
+  "sentence": "She did a remarkable job on her science project today.",
+  "he": "יוצא מן הכלל"
+ },
+ {
+  "test": 2,
+  "word": "blanket",
+  "sentence": "It was cold, so I pulled a warm blanket over me.",
+  "he": "שמיכה"
+ },
+ {
+  "test": 3,
+  "word": "also",
+  "sentence": "My brother likes sports, and I also enjoy playing soccer.",
+  "he": "גם"
+ },
+ {
+  "test": 3,
+  "word": "harvest",
+  "sentence": "Farmers gather apples during the autumn harvest every year.",
+  "he": "קציר"
+ },
+ {
+  "test": 3,
+  "word": "perhaps",
+  "sentence": "If it stops raining, perhaps we can go outside.",
+  "he": "אולי"
+ },
+ {
+  "test": 3,
+  "word": "pitch",
+  "sentence": "The player will pitch the baseball to the batter.",
+  "he": "לזרוק"
+ },
+ {
+  "test": 3,
+  "word": "almost",
+  "sentence": "I have almost finished reading this exciting storybook today.",
+  "he": "כמעט"
+ },
+ {
+  "test": 3,
+  "word": "garment",
+  "sentence": "She bought a lovely warm garment for the winter.",
+  "he": "בגד"
+ },
+ {
+  "test": 3,
+  "word": "permit",
+  "sentence": "You need a special permit to fish in this lake.",
+  "he": "אישור"
+ },
+ {
+  "test": 3,
+  "word": "stitch",
+  "sentence": "My grandmother showed me how to sew a small stitch.",
+  "he": "תפר"
+ },
+ {
+  "test": 3,
+  "word": "already",
+  "sentence": "We have already eaten our dinner, so we are full.",
+  "he": "כבר"
+ },
+ {
+  "test": 3,
+  "word": "alarm",
+  "sentence": "My morning alarm rang at seven o'clock this morning.",
+  "he": "שעון מעורר"
+ },
+ {
+  "test": 3,
+  "word": "perfect",
+  "sentence": "She got a perfect score on her English vocabulary test.",
+  "he": "מושלם"
+ },
+ {
+  "test": 3,
+  "word": "kitchen",
+  "sentence": "Mom is making delicious soup in the bright kitchen.",
+  "he": "מטבח"
+ },
+ {
+  "test": 3,
+  "word": "always",
+  "sentence": "He always brushes his teeth before going to bed.",
+  "he": "תמיד"
+ },
+ {
+  "test": 3,
+  "word": "farther",
+  "sentence": "We walked farther down the trail to see the river.",
+  "he": "רחוק יותר"
+ },
+ {
+  "test": 3,
+  "word": "sermon",
+  "sentence": "The crowd listened quietly to the leader's wise sermon.",
+  "he": "דרשה"
+ },
+ {
+  "test": 3,
+  "word": "stretch",
+  "sentence": "Remember to stretch your legs before you start running.",
+  "he": "למתוח"
+ },
+ {
+  "test": 3,
+  "word": "murder",
+  "sentence": "The detective solved the mystery of the town murder.",
+  "he": "רצח"
+ },
+ {
+  "test": 3,
+  "word": "altogether",
+  "sentence": "There were ten people altogether at the birthday party.",
+  "he": "סך הכל"
+ },
+ {
+  "test": 3,
+  "word": "although",
+  "sentence": "Although it was cold, we still went for a walk.",
+  "he": "למרות ש"
+ },
+ {
+  "test": 3,
+  "word": "comfort",
+  "sentence": "A warm hug from a friend brings great comfort.",
+  "he": "נחמה"
+ },
+ {
+  "test": 4,
+  "word": "tease",
+  "sentence": "Do not tease your little brother when he makes a mistake.",
+  "he": "להציק"
+ },
+ {
+  "test": 4,
+  "word": "oven",
+  "sentence": "Mom baked delicious chocolate cookies in the warm oven.",
+  "he": "תנור"
+ },
+ {
+  "test": 4,
+  "word": "linen",
+  "sentence": "We put fresh linen sheets on the bed this morning.",
+  "he": "מצעים"
+ },
+ {
+  "test": 4,
+  "word": "hotel",
+  "sentence": "Our family stayed at a nice hotel near the beach.",
+  "he": "מלון"
+ },
+ {
+  "test": 4,
+  "word": "weave",
+  "sentence": "Birds weave small twigs together to make their nests.",
+  "he": "לארוג"
+ },
+ {
+  "test": 4,
+  "word": "woven",
+  "sentence": "She wore a beautiful woven hat to the sunny beach.",
+  "he": "ארוג"
+ },
+ {
+  "test": 4,
+  "word": "often",
+  "sentence": "We often go to the park after finishing our homework.",
+  "he": "לעיתים קרובות"
+ },
+ {
+  "test": 4,
+  "word": "camel",
+  "sentence": "A camel can travel long distances in the hot desert.",
+  "he": "גמל"
+ },
+ {
+  "test": 4,
+  "word": "preach",
+  "sentence": "Our teacher likes to preach about kindness and honesty.",
+  "he": "להטיף"
+ },
+ {
+  "test": 4,
+  "word": "golden",
+  "sentence": "The princess wore a golden crown on her head.",
+  "he": "מוזהב"
+ },
+ {
+  "test": 4,
+  "word": "hasten",
+  "sentence": "We must hasten so we do not miss the bus.",
+  "he": "להזדרז"
+ },
+ {
+  "test": 4,
+  "word": "label",
+  "sentence": "Please put a clear label with your name on the box.",
+  "he": "תווית"
+ },
+ {
+  "test": 4,
+  "word": "beneath",
+  "sentence": "The cat hid beneath the warm blanket on the sofa.",
+  "he": "מתחת ל"
+ },
+ {
+  "test": 4,
+  "word": "dozen",
+  "sentence": "My dad bought a dozen fresh eggs from the market.",
+  "he": "תריסר"
+ },
+ {
+  "test": 4,
+  "word": "listen",
+  "sentence": "Always listen carefully to the instructions from the teacher.",
+  "he": "להקשיב"
+ },
+ {
+  "test": 4,
+  "word": "angel",
+  "sentence": "The little child looked like a sweet angel in white.",
+  "he": "מלאך"
+ },
+ {
+  "test": 4,
+  "word": "cargo",
+  "sentence": "The large ship carried heavy cargo across the ocean.",
+  "he": "מטען"
+ },
+ {
+  "test": 4,
+  "word": "artist",
+  "sentence": "The talented artist painted a colorful picture of flowers.",
+  "he": "אמן"
+ },
+ {
+  "test": 4,
+  "word": "enjoy",
+  "sentence": "I hope you enjoy reading this interesting new book.",
+  "he": "ליהנות"
+ },
+ {
+  "test": 4,
+  "word": "enjoyed",
+  "sentence": "We really enjoyed our fun trip to the zoo yesterday.",
+  "he": "נהנינו"
+ },
+ {
+  "test": 5,
+  "word": "cheap",
+  "sentence": "This simple blue pen is very cheap to buy.",
+  "he": "זול"
+ },
+ {
+  "test": 5,
+  "word": "armor",
+  "sentence": "The brave knight wore strong steel armor in battle.",
+  "he": "שריון"
+ },
+ {
+  "test": 5,
+  "word": "intend",
+  "sentence": "I intend to complete all my homework before dinner.",
+  "he": "מתכוון"
+ },
+ {
+  "test": 5,
+  "word": "castle",
+  "sentence": "The king lived in a large stone castle.",
+  "he": "טירה"
+ },
+ {
+  "test": 5,
+  "word": "seam",
+  "sentence": "The thread along the side seam came undone.",
+  "he": "תפר"
+ },
+ {
+  "test": 5,
+  "word": "parlor",
+  "sentence": "We served ice cream to our guests in the parlor.",
+  "he": "חדר אורחים"
+ },
+ {
+  "test": 5,
+  "word": "inspect",
+  "sentence": "The teacher will inspect our clean desks today.",
+  "he": "לבדוק"
+ },
+ {
+  "test": 5,
+  "word": "thistle",
+  "sentence": "The sharp thistle plant has pretty purple flowers.",
+  "he": "דרדר"
+ },
+ {
+  "test": 5,
+  "word": "eagle",
+  "sentence": "A large eagle flew high above the mountain.",
+  "he": "עיט"
+ },
+ {
+  "test": 5,
+  "word": "color",
+  "sentence": "What is your favorite color to draw with?",
+  "he": "צבע"
+ },
+ {
+  "test": 5,
+  "word": "interest",
+  "sentence": "Science books always hold my full interest.",
+  "he": "עניין"
+ },
+ {
+  "test": 5,
+  "word": "whistle",
+  "sentence": "The coach will whistle when the game ends.",
+  "he": "לשרוק"
+ },
+ {
+  "test": 5,
+  "word": "eager",
+  "sentence": "The eager students were ready to start the lesson.",
+  "he": "נלהב"
+ },
+ {
+  "test": 5,
+  "word": "favor",
+  "sentence": "Can you please do me a quick favor?",
+  "he": "טובה"
+ },
+ {
+  "test": 5,
+  "word": "kingdom",
+  "sentence": "The prince ruled over a peaceful kingdom.",
+  "he": "ממלכה"
+ },
+ {
+  "test": 5,
+  "word": "whisper",
+  "sentence": "Please speak softly and whisper in the library.",
+  "he": "ללחוש"
+ },
+ {
+  "test": 5,
+  "word": "favorite",
+  "sentence": "Chocolate cake is my favorite dessert of all.",
+  "he": "אהוב"
+ },
+ {
+  "test": 5,
+  "word": "bacon",
+  "sentence": "My family eats crispy turkey bacon for breakfast.",
+  "he": "בייקון"
+ },
+ {
+  "test": 5,
+  "word": "apron",
+  "sentence": "Mom put on a clean apron before baking.",
+  "he": "סינר"
+ },
+ {
+  "test": 5,
+  "word": "grasp",
+  "sentence": "Try to grasp the handle with both hands.",
+  "he": "לאחוז"
+ },
+ {
+  "test": 6,
+  "word": "grown",
+  "sentence": "The boy has grown so much this year.",
+  "he": "גדל"
+ },
+ {
+  "test": 6,
+  "word": "fare",
+  "sentence": "We paid the bus fare with our cards.",
+  "he": "דמי נסיעה"
+ },
+ {
+  "test": 6,
+  "word": "stain",
+  "sentence": "I got a red juice stain on my shirt.",
+  "he": "כתם"
+ },
+ {
+  "test": 6,
+  "word": "explain",
+  "sentence": "Can you explain the rules of the game?",
+  "he": "להסביר"
+ },
+ {
+  "test": 6,
+  "word": "blown",
+  "sentence": "The wind has blown the leaves away.",
+  "he": "העיפה"
+ },
+ {
+  "test": 6,
+  "word": "bare",
+  "sentence": "The trees are bare during the cold winter.",
+  "he": "חשופים"
+ },
+ {
+  "test": 6,
+  "word": "contain",
+  "sentence": "This bottle can contain two liters of water.",
+  "he": "להכיל"
+ },
+ {
+  "test": 6,
+  "word": "expect",
+  "sentence": "We expect our friends to arrive very soon.",
+  "he": "מצפים"
+ },
+ {
+  "test": 6,
+  "word": "widow",
+  "sentence": "The kind widow lives in a small house.",
+  "he": "אלמנה"
+ },
+ {
+  "test": 6,
+  "word": "dare",
+  "sentence": "Do you dare to jump into the pool?",
+  "he": "מעז"
+ },
+ {
+  "test": 6,
+  "word": "captain",
+  "sentence": "The captain guided the ship into the harbor.",
+  "he": "קפטן"
+ },
+ {
+  "test": 6,
+  "word": "express",
+  "sentence": "Art helps people express their thoughts and feelings.",
+  "he": "להביע"
+ },
+ {
+  "test": 6,
+  "word": "velvet",
+  "sentence": "Her soft dress is made of red velvet.",
+  "he": "קטיפה"
+ },
+ {
+  "test": 6,
+  "word": "stare",
+  "sentence": "It is not polite to stare at people.",
+  "he": "לנעוץ מבט"
+ },
+ {
+  "test": 6,
+  "word": "Britain",
+  "sentence": "London is the capital city of Great Britain.",
+  "he": "בריטניה"
+ },
+ {
+  "test": 6,
+  "word": "extent",
+  "sentence": "We do not know the full extent of damage.",
+  "he": "היקף"
+ },
+ {
+  "test": 6,
+  "word": "human",
+  "sentence": "The human body needs water to stay healthy.",
+  "he": "אנושי"
+ },
+ {
+  "test": 6,
+  "word": "woman",
+  "sentence": "That kind woman helped me find my bag.",
+  "he": "אישה"
+ },
+ {
+  "test": 6,
+  "word": "women",
+  "sentence": "Three women are talking happily in the garden.",
+  "he": "נשים"
+ },
+ {
+  "test": 6,
+  "word": "spare",
+  "sentence": "Do you have a spare pencil for me?",
+  "he": "רזרבי"
+ },
+ {
+  "test": 7,
+  "word": "idle",
+  "sentence": "The car engine was idle while we waited outside.",
+  "he": "פועל בסרק"
+ },
+ {
+  "test": 7,
+  "word": "paddle",
+  "sentence": "We used a wooden paddle to row the boat.",
+  "he": "משוט"
+ },
+ {
+  "test": 7,
+  "word": "playmate",
+  "sentence": "Maya invited her favorite playmate to play at home.",
+  "he": "חבר למשחק"
+ },
+ {
+  "test": 7,
+  "word": "hoof",
+  "sentence": "The horse raised its front hoof before moving forward.",
+  "he": "פרסה"
+ },
+ {
+  "test": 7,
+  "word": "island",
+  "sentence": "They traveled by boat to visit the beautiful island.",
+  "he": "אי"
+ },
+ {
+  "test": 7,
+  "word": "meddle",
+  "sentence": "Please do not meddle in things that are private.",
+  "he": "להתערב"
+ },
+ {
+  "test": 7,
+  "word": "newspaper",
+  "sentence": "My grandfather reads the morning newspaper with his coffee.",
+  "he": "עיתון"
+ },
+ {
+  "test": 7,
+  "word": "smooth",
+  "sentence": "The surface of the stone is completely smooth.",
+  "he": "חלק"
+ },
+ {
+  "test": 7,
+  "word": "share",
+  "sentence": "It is nice to share your snacks with friends.",
+  "he": "לחלוק"
+ },
+ {
+  "test": 7,
+  "word": "middle",
+  "sentence": "Put the cake in the middle of the table.",
+  "he": "אמצע"
+ },
+ {
+  "test": 7,
+  "word": "platform",
+  "sentence": "We waited on the train platform for our ride.",
+  "he": "רציף"
+ },
+ {
+  "test": 7,
+  "word": "stoop",
+  "sentence": "He sat on the front stoop of his house.",
+  "he": "מדרגות כניסה"
+ },
+ {
+  "test": 7,
+  "word": "pantry",
+  "sentence": "Mom stored the cereal boxes inside the kitchen pantry.",
+  "he": "מזווה"
+ },
+ {
+  "test": 7,
+  "word": "cripple",
+  "sentence": "A heavy frost can cripple the young orange crops.",
+  "he": "לשתק"
+ },
+ {
+  "test": 7,
+  "word": "fortnight",
+  "sentence": "They will stay at the beach house for a fortnight.",
+  "he": "שבועיים"
+ },
+ {
+  "test": 7,
+  "word": "stooped",
+  "sentence": "The tall teacher stooped down to speak to him.",
+  "he": "התכופף"
+ },
+ {
+  "test": 7,
+  "word": "fountain",
+  "sentence": "We drank cold water from the park fountain today.",
+  "he": "ברזייה"
+ },
+ {
+  "test": 7,
+  "word": "mountain",
+  "sentence": "They climbed up the high mountain during their trip.",
+  "he": "הר"
+ },
+ {
+  "test": 7,
+  "word": "certain",
+  "sentence": "Are you certain that the test is happening tomorrow?",
+  "he": "בטוח"
+ },
+ {
+  "test": 7,
+  "word": "extra",
+  "sentence": "I brought an extra pencil in case you need one.",
+  "he": "נוסף"
+ },
+ {
+  "test": 8,
+  "word": "draper",
+  "sentence": "The draper sells soft fabrics and curtains in his shop.",
+  "he": "מוכר בדים"
+ },
+ {
+  "test": 8,
+  "word": "county",
+  "sentence": "We visited a small farm in a quiet county yesterday.",
+  "he": "מחוז"
+ },
+ {
+  "test": 8,
+  "word": "limit",
+  "sentence": "There is a speed limit on the road near our school.",
+  "he": "מגבלה"
+ },
+ {
+  "test": 8,
+  "word": "Wales",
+  "sentence": "My friend moved to Wales to study at a university.",
+  "he": "וויילס"
+ },
+ {
+  "test": 8,
+  "word": "grate",
+  "sentence": "Please grate the cheese before putting it on the pizza.",
+  "he": "לגרר"
+ },
+ {
+  "test": 8,
+  "word": "country",
+  "sentence": "Israel is a beautiful country with a very long history.",
+  "he": "מדינה"
+ },
+ {
+  "test": 8,
+  "word": "spirit",
+  "sentence": "The team showed great spirit and won the final game.",
+  "he": "רוח"
+ },
+ {
+  "test": 8,
+  "word": "Scotland",
+  "sentence": "Scotland is famous for its green hills and old castles.",
+  "he": "סקוטלנד"
+ },
+ {
+  "test": 8,
+  "word": "scale",
+  "sentence": "Step on the scale to check your weight today.",
+  "he": "מאזניים"
+ },
+ {
+  "test": 8,
+  "word": "cousin",
+  "sentence": "My cousin came to visit us for the weekend.",
+  "he": "בן דוד"
+ },
+ {
+  "test": 8,
+  "word": "timid",
+  "sentence": "The timid little cat hid under the sofa from guests.",
+  "he": "ביישן"
+ },
+ {
+  "test": 8,
+  "word": "England",
+  "sentence": "London is the capital city of England in Europe.",
+  "he": "אנגליה"
+ },
+ {
+  "test": 8,
+  "word": "escape",
+  "sentence": "The rabbit managed to escape from the wooden cage.",
+  "he": "לברוח"
+ },
+ {
+  "test": 8,
+  "word": "message",
+  "sentence": "I sent a short message to my mom after school.",
+  "he": "הודעה"
+ },
+ {
+  "test": 8,
+  "word": "public",
+  "sentence": "Many people read books at the public library in town.",
+  "he": "ציבורי"
+ },
+ {
+  "test": 8,
+  "word": "English",
+  "sentence": "We practice speaking English together in class every day.",
+  "he": "אנגלית"
+ },
+ {
+  "test": 8,
+  "word": "settle",
+  "sentence": "The birds will settle in their nests before night falls.",
+  "he": "להתיישב"
+ },
+ {
+  "test": 8,
+  "word": "midday",
+  "sentence": "We ate our lunch outside under the warm midday sun.",
+  "he": "צהריים"
+ },
+ {
+  "test": 8,
+  "word": "midnight",
+  "sentence": "The fireworks started at midnight to welcome the new year.",
+  "he": "חצות"
+ },
+ {
+  "test": 8,
+  "word": "choose",
+  "sentence": "You can choose your favorite game to play today.",
+  "he": "לבחור"
+ },
+ {
+  "test": 9,
+  "word": "laugh",
+  "sentence": "The funny joke made all the kids laugh.",
+  "he": "לצחוק"
+ },
+ {
+  "test": 9,
+  "word": "lately",
+  "sentence": "I have not seen my best friend lately.",
+  "he": "לאחרונה"
+ },
+ {
+  "test": 9,
+  "word": "motor",
+  "sentence": "The electric motor in the toy car runs fast.",
+  "he": "מנוע"
+ },
+ {
+  "test": 9,
+  "word": "servant",
+  "sentence": "The king asked his faithful servant to bring water.",
+  "he": "משרת"
+ },
+ {
+  "test": 9,
+  "word": "laughed",
+  "sentence": "We all laughed at the silly clown in school.",
+  "he": "צחק"
+ },
+ {
+  "test": 9,
+  "word": "safely",
+  "sentence": "The yellow school bus arrived safely this morning.",
+  "he": "בבטחה"
+ },
+ {
+  "test": 9,
+  "word": "visitor",
+  "sentence": "A special visitor came to our classroom today.",
+  "he": "אורח"
+ },
+ {
+  "test": 9,
+  "word": "merchant",
+  "sentence": "The spice merchant sold goods at the market.",
+  "he": "סוחר"
+ },
+ {
+  "test": 9,
+  "word": "laughter",
+  "sentence": "The room was filled with happy laughter and joy.",
+  "he": "צחוק"
+ },
+ {
+  "test": 9,
+  "word": "nicely",
+  "sentence": "Please ask nicely if you want a second slice.",
+  "he": "בנימוס"
+ },
+ {
+  "test": 9,
+  "word": "victory",
+  "sentence": "The basketball team celebrated their big victory yesterday.",
+  "he": "ניצחון"
+ },
+ {
+  "test": 9,
+  "word": "distant",
+  "sentence": "We heard the sound of distant thunder outside.",
+  "he": "רחוק"
+ },
+ {
+  "test": 9,
+  "word": "linger",
+  "sentence": "Students often linger in the hall after class ends.",
+  "he": "להתמהמה"
+ },
+ {
+  "test": 9,
+  "word": "lovely",
+  "sentence": "She sang a lovely song at the school concert.",
+  "he": "מקסים"
+ },
+ {
+  "test": 9,
+  "word": "inform",
+  "sentence": "Please inform the teacher if you need help.",
+  "he": "ליידע"
+ },
+ {
+  "test": 9,
+  "word": "important",
+  "sentence": "Eating a healthy breakfast is very important every day.",
+  "he": "חשוב"
+ },
+ {
+  "test": 9,
+  "word": "lonely",
+  "sentence": "The new student felt lonely until we talked.",
+  "he": "בודד"
+ },
+ {
+  "test": 9,
+  "word": "likely",
+  "sentence": "It is likely to rain later this afternoon.",
+  "he": "סביר"
+ },
+ {
+  "test": 9,
+  "word": "likeness",
+  "sentence": "The painting shows a clear likeness to my brother.",
+  "he": "דמיון"
+ },
+ {
+  "test": 9,
+  "word": "weakness",
+  "sentence": "Eating fresh cookies is my one true weakness.",
+  "he": "חולשה"
+ },
+ {
+  "test": 10,
+  "word": "though",
+  "sentence": "She was tired, though she still finished her homework.",
+  "he": "אף על פי ש"
+ },
+ {
+  "test": 10,
+  "word": "arrive",
+  "sentence": "We will arrive at the train station on time.",
+  "he": "להגיע"
+ },
+ {
+  "test": 10,
+  "word": "evening",
+  "sentence": "Our family eats dinner together every evening at six.",
+  "he": "ערב"
+ },
+ {
+  "test": 10,
+  "word": "object",
+  "sentence": "I saw a shiny metal object on the floor.",
+  "he": "חפץ"
+ },
+ {
+  "test": 10,
+  "word": "through",
+  "sentence": "The cat ran through the open garden gate quickly.",
+  "he": "דרך"
+ },
+ {
+  "test": 10,
+  "word": "advice",
+  "sentence": "My teacher gave me good advice about my exam.",
+  "he": "עצה"
+ },
+ {
+  "test": 10,
+  "word": "event",
+  "sentence": "The school sports day is an exciting annual event.",
+  "he": "אירוע"
+ },
+ {
+  "test": 10,
+  "word": "subject",
+  "sentence": "English is my favorite school subject this year.",
+  "he": "מקצוע"
+ },
+ {
+  "test": 10,
+  "word": "empire",
+  "sentence": "We learned about the ancient Roman Empire in history.",
+  "he": "אימפריה"
+ },
+ {
+  "test": 10,
+  "word": "adventure",
+  "sentence": "Going camping in the forest was a fun adventure.",
+  "he": "הרפתקה"
+ },
+ {
+  "test": 10,
+  "word": "equator",
+  "sentence": "Countries near the equator have warm weather all year.",
+  "he": "קו המשווה"
+ },
+ {
+  "test": 10,
+  "word": "robin",
+  "sentence": "A little robin built a nest in our tree.",
+  "he": "אדום-חזה"
+ },
+ {
+  "test": 10,
+  "word": "admire",
+  "sentence": "I admire my older sister for her hard work.",
+  "he": "להעריץ"
+ },
+ {
+  "test": 10,
+  "word": "nature",
+  "sentence": "We love walking in nature on sunny weekends.",
+  "he": "טבע"
+ },
+ {
+  "test": 10,
+  "word": "enough",
+  "sentence": "Do we have enough apples to make a pie?",
+  "he": "מספיק"
+ },
+ {
+  "test": 10,
+  "word": "holiday",
+  "sentence": "Our family is planning a fun summer holiday together.",
+  "he": "חופשה"
+ },
+ {
+  "test": 10,
+  "word": "constant",
+  "sentence": "The constant sound of rain helped me fall asleep.",
+  "he": "בלתי פוסק"
+ },
+ {
+  "test": 10,
+  "word": "admit",
+  "sentence": "He was honest enough to admit his mistake.",
+  "he": "להודות"
+ },
+ {
+  "test": 10,
+  "word": "amuse",
+  "sentence": "The funny clown will amuse the children at school.",
+  "he": "לשעשע"
+ },
+ {
+  "test": 10,
+  "word": "ashamed",
+  "sentence": "She felt ashamed after lying to her best friend.",
+  "he": "מתבייש"
+ },
+ {
+  "test": 11,
+  "word": "sailor",
+  "sentence": "The brave sailor spent months traveling across the blue ocean.",
+  "he": "מלח"
+ },
+ {
+  "test": 11,
+  "word": "sparrow",
+  "sentence": "A tiny sparrow landed on the fence to eat seeds.",
+  "he": "ציפור דרור"
+ },
+ {
+  "test": 11,
+  "word": "village",
+  "sentence": "My grandparents live in a small and quiet mountain village.",
+  "he": "כפר"
+ },
+ {
+  "test": 11,
+  "word": "ought",
+  "sentence": "You ought to study well before taking the English test.",
+  "he": "צריך"
+ },
+ {
+  "test": 11,
+  "word": "tailor",
+  "sentence": "The skillful tailor fixed my pants so they fit perfectly.",
+  "he": "חייט"
+ },
+ {
+  "test": 11,
+  "word": "swallow",
+  "sentence": "Chew your food well before you try to swallow it.",
+  "he": "לבלוע"
+ },
+ {
+  "test": 11,
+  "word": "cabbage",
+  "sentence": "My mom added fresh cabbage to the hot soup today.",
+  "he": "כרוב"
+ },
+ {
+  "test": 11,
+  "word": "bought",
+  "sentence": "We bought fresh apples and oranges at the local market.",
+  "he": "קנינו"
+ },
+ {
+  "test": 11,
+  "word": "railway",
+  "sentence": "The fast train traveled along the new railway track yesterday.",
+  "he": "מסילת רכבת"
+ },
+ {
+  "test": 11,
+  "word": "valley",
+  "sentence": "The small river flows through the wide green valley below.",
+  "he": "עמק"
+ },
+ {
+  "test": 11,
+  "word": "carrot",
+  "sentence": "The rabbit ate a fresh orange carrot in the garden.",
+  "he": "גזר"
+ },
+ {
+  "test": 11,
+  "word": "brought",
+  "sentence": "She brought delicious cupcakes for the class birthday party today.",
+  "he": "הביאה"
+ },
+ {
+  "test": 11,
+  "word": "daily",
+  "sentence": "Drinking water is an important part of my daily routine.",
+  "he": "יומי"
+ },
+ {
+  "test": 11,
+  "word": "valleys",
+  "sentence": "There are many wide valleys between these high snowy mountains.",
+  "he": "עמקים"
+ },
+ {
+  "test": 11,
+  "word": "gallop",
+  "sentence": "I watched the brown horse gallop across the open field.",
+  "he": "לדהור"
+ },
+ {
+  "test": 11,
+  "word": "fought",
+  "sentence": "The two puppies fought playfully over the small red ball.",
+  "he": "רבו"
+ },
+ {
+  "test": 11,
+  "word": "rough",
+  "sentence": "The surface of the old tree trunk felt very rough.",
+  "he": "מחוספס"
+ },
+ {
+  "test": 11,
+  "word": "tough",
+  "sentence": "This math problem was tough, but I solved it eventually.",
+  "he": "קשה"
+ },
+ {
+  "test": 11,
+  "word": "rainy",
+  "sentence": "We stayed inside and read books on the rainy afternoon.",
+  "he": "גשום"
+ },
+ {
+  "test": 11,
+  "word": "rocky",
+  "sentence": "Walking on the rocky beach hurt my feet a little.",
+  "he": "סלעי"
+ },
+ {
+  "test": 12,
+  "word": "thought",
+  "sentence": "I thought about the answer for a long time.",
+  "he": "חשבתי"
+ },
+ {
+  "test": 12,
+  "word": "alone",
+  "sentence": "She does not like to walk home alone at night.",
+  "he": "לבד"
+ },
+ {
+  "test": 12,
+  "word": "nasty",
+  "sentence": "The bad smell in the room was very nasty.",
+  "he": "מגעיל"
+ },
+ {
+  "test": 12,
+  "word": "vanish",
+  "sentence": "The magician made the white rabbit vanish into thin air.",
+  "he": "להיעלם"
+ },
+ {
+  "test": 12,
+  "word": "ragged",
+  "sentence": "He wore a ragged coat with many holes in it.",
+  "he": "בלוי"
+ },
+ {
+  "test": 12,
+  "word": "across",
+  "sentence": "We walked across the street to get to the park.",
+  "he": "מעבר ל-"
+ },
+ {
+  "test": 12,
+  "word": "hasty",
+  "sentence": "Do not make a hasty decision without thinking first.",
+  "he": "נחפז"
+ },
+ {
+  "test": 12,
+  "word": "banish",
+  "sentence": "The king decided to banish the criminal from the land.",
+  "he": "לגרש"
+ },
+ {
+  "test": 12,
+  "word": "scatter",
+  "sentence": "Please do not scatter your books all over the floor.",
+  "he": "לפזר"
+ },
+ {
+  "test": 12,
+  "word": "among",
+  "sentence": "I found my missing pen among the papers on my desk.",
+  "he": "בין"
+ },
+ {
+  "test": 12,
+  "word": "shady",
+  "sentence": "We sat under a shady tree on a hot day.",
+  "he": "מוצל"
+ },
+ {
+  "test": 12,
+  "word": "perish",
+  "sentence": "Without water, many plants will perish in the summer heat.",
+  "he": "להיכחד"
+ },
+ {
+  "test": 12,
+  "word": "brass",
+  "sentence": "The old door handle was made of shiny brass metal.",
+  "he": "פליז"
+ },
+ {
+  "test": 12,
+  "word": "against",
+  "sentence": "Our team played against another school in the game yesterday.",
+  "he": "נגד"
+ },
+ {
+  "test": 12,
+  "word": "study",
+  "sentence": "Students need to study hard for the English exam today.",
+  "he": "ללמוד"
+ },
+ {
+  "test": 12,
+  "word": "parish",
+  "sentence": "People gathered at the local parish church on Sunday morning.",
+  "he": "קהילה"
+ },
+ {
+  "test": 12,
+  "word": "fancy",
+  "sentence": "She wore a fancy dress to her sister's birthday party.",
+  "he": "מהודר"
+ },
+ {
+  "test": 12,
+  "word": "ugly",
+  "sentence": "The old broken building looked very dark and ugly.",
+  "he": "מכוער"
+ },
+ {
+  "test": 12,
+  "word": "polish",
+  "sentence": "My brother will polish his black shoes before the party.",
+  "he": "לצחצח"
+ },
+ {
+  "test": 12,
+  "word": "Welsh",
+  "sentence": "My new friend in class is proud of her Welsh heritage.",
+  "he": "ולשי"
+ },
+ {
+  "test": 13,
+  "word": "lawn",
+  "sentence": "We played soccer on the green lawn after school today.",
+  "he": "מדשאה"
+ },
+ {
+  "test": 13,
+  "word": "lays",
+  "sentence": "The white hen lays an egg every single morning.",
+  "he": "מטילה"
+ },
+ {
+  "test": 13,
+  "word": "beauty",
+  "sentence": "We stopped to admire the natural beauty of the lake.",
+  "he": "יופי"
+ },
+ {
+  "test": 13,
+  "word": "glance",
+  "sentence": "She took a quick glance at her watch during class.",
+  "he": "מבט חטוף"
+ },
+ {
+  "test": 13,
+  "word": "dawn",
+  "sentence": "The birds start singing loudly at the crack of dawn.",
+  "he": "זריחה"
+ },
+ {
+  "test": 13,
+  "word": "laying",
+  "sentence": "He is laying his new rug on the bedroom floor.",
+  "he": "מניח"
+ },
+ {
+  "test": 13,
+  "word": "beautiful",
+  "sentence": "She drew a beautiful picture of flowers for her mother.",
+  "he": "יפה"
+ },
+ {
+  "test": 13,
+  "word": "advance",
+  "sentence": "The soldiers began to advance slowly toward the hill.",
+  "he": "להתקדם"
+ },
+ {
+  "test": 13,
+  "word": "famous",
+  "sentence": "The famous singer will perform in our city next month.",
+  "he": "מפורסם"
+ },
+ {
+  "test": 13,
+  "word": "laid",
+  "sentence": "She gently laid the sleeping baby in the warm crib.",
+  "he": "הניחה"
+ },
+ {
+  "test": 13,
+  "word": "careful",
+  "sentence": "Please be very careful when you carry the heavy glasses.",
+  "he": "זהיר"
+ },
+ {
+  "test": 13,
+  "word": "distance",
+  "sentence": "We could see the blue ocean from a great distance.",
+  "he": "מרחק"
+ },
+ {
+  "test": 13,
+  "word": "dangerous",
+  "sentence": "Running across the busy street is very dangerous for kids.",
+  "he": "מסוכן"
+ },
+ {
+  "test": 13,
+  "word": "thankful",
+  "sentence": "I am thankful for all the help from my friends.",
+  "he": "אסיר תודה"
+ },
+ {
+  "test": 13,
+  "word": "carefully",
+  "sentence": "He painted the small wooden box very carefully yesterday morning.",
+  "he": "בזהירות"
+ },
+ {
+  "test": 13,
+  "word": "France",
+  "sentence": "Our class learned about the history and culture of France.",
+  "he": "צרפת"
+ },
+ {
+  "test": 13,
+  "word": "faithfully",
+  "sentence": "The loyal dog waited faithfully by the door for hours.",
+  "he": "בנאמנות"
+ },
+ {
+  "test": 13,
+  "word": "welcome",
+  "sentence": "They gave a warm welcome to the new student today.",
+  "he": "קבלת פנים"
+ },
+ {
+  "test": 13,
+  "word": "until",
+  "sentence": "We stayed at the library until it closed at five.",
+  "he": "עד"
+ },
+ {
+  "test": 13,
+  "word": "unable",
+  "sentence": "She was unable to find her lost keys anywhere inside.",
+  "he": "לא מסוגלת"
+ },
+ {
+  "test": 14,
+  "word": "protect",
+  "sentence": "We must wear sunscreen to protect our skin.",
+  "he": "להגן"
+ },
+ {
+  "test": 14,
+  "word": "stumble",
+  "sentence": "Watch your step so you do not stumble.",
+  "he": "למעוד"
+ },
+ {
+  "test": 14,
+  "word": "tight",
+  "sentence": "These new shoes feel a bit too tight.",
+  "he": "צמוד"
+ },
+ {
+  "test": 14,
+  "word": "bucket",
+  "sentence": "Fill the plastic bucket with warm soapy water.",
+  "he": "דלי"
+ },
+ {
+  "test": 14,
+  "word": "monster",
+  "sentence": "The scary monster lived in a deep cave.",
+  "he": "מפלצת"
+ },
+ {
+  "test": 14,
+  "word": "grumble",
+  "sentence": "Hungry children often grumble before lunch time arrives.",
+  "he": "לרטון"
+ },
+ {
+  "test": 14,
+  "word": "slight",
+  "sentence": "There is a slight chance of rain today.",
+  "he": "קל"
+ },
+ {
+  "test": 14,
+  "word": "trumpet",
+  "sentence": "He learned how to play the loud trumpet.",
+  "he": "חצוצרה"
+ },
+ {
+  "test": 14,
+  "word": "bough",
+  "sentence": "The heavy bird rested on a thick bough.",
+  "he": "ענף"
+ },
+ {
+  "test": 14,
+  "word": "thimble",
+  "sentence": "She used a metal thimble while sewing clothes.",
+  "he": "אצבעון"
+ },
+ {
+  "test": 14,
+  "word": "delight",
+  "sentence": "Eating fresh ice cream is a total delight.",
+  "he": "תענוג"
+ },
+ {
+  "test": 14,
+  "word": "shrub",
+  "sentence": "They planted a green shrub in the garden.",
+  "he": "שיח"
+ },
+ {
+  "test": 14,
+  "word": "plough",
+  "sentence": "The farmer used his tractor to plough the field.",
+  "he": "לחרוש"
+ },
+ {
+  "test": 14,
+  "word": "tremble",
+  "sentence": "Cold temperatures can make your hands tremble wildly.",
+  "he": "לרעוד"
+ },
+ {
+  "test": 14,
+  "word": "mighty",
+  "sentence": "The mighty lion roared loudly across the forest.",
+  "he": "אדיר"
+ },
+ {
+  "test": 14,
+  "word": "liberty",
+  "sentence": "The new laws gave people more personal liberty.",
+  "he": "חירות"
+ },
+ {
+  "test": 14,
+  "word": "scramble",
+  "sentence": "The kids scramble up the hill during recess.",
+  "he": "לטפס במהירות"
+ },
+ {
+  "test": 14,
+  "word": "bundle",
+  "sentence": "She carried a heavy bundle of old sticks.",
+  "he": "חבילה"
+ },
+ {
+  "test": 14,
+  "word": "kindle",
+  "sentence": "We need dry twigs to kindle the fire.",
+  "he": "להדליק"
+ },
+ {
+  "test": 14,
+  "word": "noble",
+  "sentence": "Helping sick animals is a very noble deed.",
+  "he": "אצילי"
+ },
+ {
+  "test": 15,
+  "word": "error",
+  "sentence": "I made a small error on my math homework.",
+  "he": "שגיאה"
+ },
+ {
+  "test": 15,
+  "word": "chalk",
+  "sentence": "The teacher wrote the math problem with white chalk.",
+  "he": "גיר"
+ },
+ {
+  "test": 15,
+  "word": "gaze",
+  "sentence": "We love to gaze at the bright stars at night.",
+  "he": "להביט"
+ },
+ {
+  "test": 15,
+  "word": "discover",
+  "sentence": "Scientists hope to discover a new planet in space.",
+  "he": "לגלות"
+ },
+ {
+  "test": 15,
+  "word": "terror",
+  "sentence": "The sudden loud noise filled the dog with terror.",
+  "he": "אימה"
+ },
+ {
+  "test": 15,
+  "word": "stalk",
+  "sentence": "The green stalk of the sunflower is very tall.",
+  "he": "גבעול"
+ },
+ {
+  "test": 15,
+  "word": "blaze",
+  "sentence": "The campfire started to blaze brightly in the dark.",
+  "he": "לבעור"
+ },
+ {
+  "test": 15,
+  "word": "distinct",
+  "sentence": "The stripes on the zebra are clear and distinct.",
+  "he": "מובחן"
+ },
+ {
+  "test": 15,
+  "word": "ribbon",
+  "sentence": "She tied a blue ribbon around her birthday gift.",
+  "he": "סרט"
+ },
+ {
+  "test": 15,
+  "word": "salt",
+  "sentence": "Please pass the salt so I can flavor my soup.",
+  "he": "מלח"
+ },
+ {
+  "test": 15,
+  "word": "razor",
+  "sentence": "My father bought a new electric razor for shaving.",
+  "he": "סכין גילוח"
+ },
+ {
+  "test": 15,
+  "word": "discuss",
+  "sentence": "The students will discuss their new project after lunch.",
+  "he": "לדון"
+ },
+ {
+  "test": 15,
+  "word": "cotton",
+  "sentence": "This comfortable shirt is made of soft white cotton.",
+  "he": "כותנה"
+ },
+ {
+  "test": 15,
+  "word": "alter",
+  "sentence": "She had to alter the length of her dress.",
+  "he": "לשנות"
+ },
+ {
+  "test": 15,
+  "word": "lazy",
+  "sentence": "My lazy cat likes to sleep on the sofa.",
+  "he": "עצלן"
+ },
+ {
+  "test": 15,
+  "word": "distress",
+  "sentence": "The lost puppy barked in distress during the storm.",
+  "he": "מצוקה"
+ },
+ {
+  "test": 15,
+  "word": "Scottish",
+  "sentence": "We learned about traditional Scottish music in class today.",
+  "he": "סקוטי"
+ },
+ {
+  "test": 15,
+  "word": "mutton",
+  "sentence": "They ordered a traditional meal with fresh mutton meat.",
+  "he": "בשר כבש"
+ },
+ {
+  "test": 15,
+  "word": "blossom",
+  "sentence": "The flowers begin to blossom early in the spring.",
+  "he": "לפרוח"
+ },
+ {
+  "test": 15,
+  "word": "correct",
+  "sentence": "Make sure your answers are correct before submitting.",
+  "he": "נכון"
+ },
+ {
+  "test": 16,
+  "word": "size",
+  "sentence": "What size shoe do you wear to school?",
+  "he": "מידה"
+ },
+ {
+  "test": 16,
+  "word": "nation",
+  "sentence": "People from every nation came to the game.",
+  "he": "אומה"
+ },
+ {
+  "test": 16,
+  "word": "company",
+  "sentence": "My uncle works for a large tech company.",
+  "he": "חברה"
+ },
+ {
+  "test": 16,
+  "word": "rubber",
+  "sentence": "The ball is made of soft yellow rubber.",
+  "he": "גומי"
+ },
+ {
+  "test": 16,
+  "word": "prize",
+  "sentence": "She won a big prize in the math contest.",
+  "he": "פרס"
+ },
+ {
+  "test": 16,
+  "word": "station",
+  "sentence": "We waited at the bus station for an hour.",
+  "he": "תחנה"
+ },
+ {
+  "test": 16,
+  "word": "companion",
+  "sentence": "The loyal dog was a wonderful companion for him.",
+  "he": "בן לוויה"
+ },
+ {
+  "test": 16,
+  "word": "bullet",
+  "sentence": "The museum displayed an ancient metal bullet.",
+  "he": "קליע"
+ },
+ {
+  "test": 16,
+  "word": "dislike",
+  "sentence": "I really dislike eating cold vegetables for dinner.",
+  "he": "לא אוהב"
+ },
+ {
+  "test": 16,
+  "word": "dictation",
+  "sentence": "The teacher read a short dictation for the test.",
+  "he": "הכתבה"
+ },
+ {
+  "test": 16,
+  "word": "astonish",
+  "sentence": "Her high test scores will astonish her parents.",
+  "he": "להדהים"
+ },
+ {
+  "test": 16,
+  "word": "quarrel",
+  "sentence": "The two brothers had a silly quarrel about toys.",
+  "he": "מריבה"
+ },
+ {
+  "test": 16,
+  "word": "disgrace",
+  "sentence": "Cheating on the exam is a total disgrace.",
+  "he": "בושה"
+ },
+ {
+  "test": 16,
+  "word": "motion",
+  "sentence": "The continuous motion of the ocean waves relaxed us.",
+  "he": "תנועה"
+ },
+ {
+  "test": 16,
+  "word": "publish",
+  "sentence": "The writer hopes to publish her new story soon.",
+  "he": "לפרסם"
+ },
+ {
+  "test": 16,
+  "word": "barrel",
+  "sentence": "They stored rain water inside a wooden barrel.",
+  "he": "חבית"
+ },
+ {
+  "test": 16,
+  "word": "question",
+  "sentence": "Please raise your hand if you have a question.",
+  "he": "שאלה"
+ },
+ {
+  "test": 16,
+  "word": "appear",
+  "sentence": "Bright stars will appear in the sky at night.",
+  "he": "להופיע"
+ },
+ {
+  "test": 16,
+  "word": "quart",
+  "sentence": "I bought a quart of milk from the store.",
+  "he": "קווארט"
+ },
+ {
+  "test": 16,
+  "word": "quarter",
+  "sentence": "He ate a quarter of the apple pie today.",
+  "he": "רבע"
+ },
+ {
+  "test": 17,
+  "word": "horrid",
+  "sentence": "The bad weather made it a horrid day for outdoor play.",
+  "he": "נורא"
+ },
+ {
+  "test": 17,
+  "word": "belief",
+  "sentence": "It is my belief that hard work leads to success.",
+  "he": "אמונה"
+ },
+ {
+  "test": 17,
+  "word": "wharf",
+  "sentence": "The wooden boat was tied to the old wharf yesterday.",
+  "he": "רציף"
+ },
+ {
+  "test": 17,
+  "word": "caught",
+  "sentence": "My brother caught the ball before it touched the ground.",
+  "he": "תפס"
+ },
+ {
+  "test": 17,
+  "word": "coffee",
+  "sentence": "My parents drink hot coffee every morning with their breakfast.",
+  "he": "קפה"
+ },
+ {
+  "test": 17,
+  "word": "believe",
+  "sentence": "I truly believe that we will win the game today.",
+  "he": "להאמין"
+ },
+ {
+  "test": 17,
+  "word": "wharves",
+  "sentence": "Many big ships were parked near the city wharves.",
+  "he": "רציפים"
+ },
+ {
+  "test": 17,
+  "word": "taught",
+  "sentence": "Our math teacher taught us how to solve this puzzle.",
+  "he": "לימד"
+ },
+ {
+  "test": 17,
+  "word": "occur",
+  "sentence": "Mistakes can occur when you work too fast without checking.",
+  "he": "להתרחש"
+ },
+ {
+  "test": 17,
+  "word": "grieve",
+  "sentence": "The family needed time to grieve after their dog died.",
+  "he": "להתאבל"
+ },
+ {
+  "test": 17,
+  "word": "niece",
+  "sentence": "My aunt came to visit her favorite little niece today.",
+  "he": "אחיינית"
+ },
+ {
+  "test": 17,
+  "word": "daughter",
+  "sentence": "She is the proud daughter of a very smart doctor.",
+  "he": "בת"
+ },
+ {
+  "test": 17,
+  "word": "occurred",
+  "sentence": "The small accident occurred on the street near our school.",
+  "he": "תרחש"
+ },
+ {
+  "test": 17,
+  "word": "ourselves",
+  "sentence": "We cleaned the whole classroom all by ourselves after school.",
+  "he": "בעצמנו"
+ },
+ {
+  "test": 17,
+  "word": "piece",
+  "sentence": "Would you like a piece of delicious chocolate cake now?",
+  "he": "חתיכה"
+ },
+ {
+  "test": 17,
+  "word": "naughty",
+  "sentence": "The naughty puppy hid my shoe under the big bed.",
+  "he": "שובב"
+ },
+ {
+  "test": 17,
+  "word": "occupy",
+  "sentence": "These new books will occupy your time during the flight.",
+  "he": "לתפוס"
+ },
+ {
+  "test": 17,
+  "word": "hollow",
+  "sentence": "The old owl lives inside a hollow tree trunk.",
+  "he": "חלול"
+ },
+ {
+  "test": 17,
+  "word": "forgotten",
+  "sentence": "I had forgotten my umbrella so I got very wet.",
+  "he": "שכחתי"
+ },
+ {
+  "test": 17,
+  "word": "combine",
+  "sentence": "We will combine blue and yellow to make green paint.",
+  "he": "לשלב"
+ },
+ {
+  "test": 18,
+  "word": "stir",
+  "sentence": "Please use a spoon to stir the warm soup.",
+  "he": "לערבב"
+ },
+ {
+  "test": 18,
+  "word": "knit",
+  "sentence": "My grandmother taught me how to knit a scarf.",
+  "he": "לסרוג"
+ },
+ {
+  "test": 18,
+  "word": "potato",
+  "sentence": "We baked a large sweet potato for lunch today.",
+  "he": "תפוח אדמה"
+ },
+ {
+  "test": 18,
+  "word": "value",
+  "sentence": "This old coin has a very high value.",
+  "he": "ערך"
+ },
+ {
+  "test": 18,
+  "word": "stirred",
+  "sentence": "She stirred the sweet tea before drinking it.",
+  "he": "ערבבה"
+ },
+ {
+  "test": 18,
+  "word": "knitting",
+  "sentence": "Mom is knitting a soft warm blanket for baby.",
+  "he": "סורגת"
+ },
+ {
+  "test": 18,
+  "word": "potatoes",
+  "sentence": "We bought fresh potatoes and carrots at the market.",
+  "he": "תפוחי אדמה"
+ },
+ {
+  "test": 18,
+  "word": "continue",
+  "sentence": "We will continue reading the story after lunch.",
+  "he": "להמשיך"
+ },
+ {
+  "test": 18,
+  "word": "mirror",
+  "sentence": "Look in the mirror to check your hair.",
+  "he": "מראה"
+ },
+ {
+  "test": 18,
+  "word": "knight",
+  "sentence": "The brave knight wore strong shiny armor.",
+  "he": "אביר"
+ },
+ {
+  "test": 18,
+  "word": "tomato",
+  "sentence": "Add one red tomato to the fresh salad.",
+  "he": "עגבנייה"
+ },
+ {
+  "test": 18,
+  "word": "statue",
+  "sentence": "We saw a tall stone statue in the park.",
+  "he": "פסל"
+ },
+ {
+  "test": 18,
+  "word": "bonnet",
+  "sentence": "The baby wore a white bonnet on her head.",
+  "he": "מצנפת"
+ },
+ {
+  "test": 18,
+  "word": "skill",
+  "sentence": "Drawing well is a very useful artistic skill.",
+  "he": "מיומנות"
+ },
+ {
+  "test": 18,
+  "word": "tomatoes",
+  "sentence": "Ripe red tomatoes grow quickly in our garden.",
+  "he": "עגבניות"
+ },
+ {
+  "test": 18,
+  "word": "thread",
+  "sentence": "Put the thin thread through the small needle.",
+  "he": "חוט"
+ },
+ {
+  "test": 18,
+  "word": "office",
+  "sentence": "My father works in a big clean office.",
+  "he": "משרד"
+ },
+ {
+  "test": 18,
+  "word": "officer",
+  "sentence": "The police officer helped the lost dog find home.",
+  "he": "שוטר"
+ },
+ {
+  "test": 18,
+  "word": "different",
+  "sentence": "My brother and I go to different schools.",
+  "he": "שונים"
+ },
+ {
+  "test": 18,
+  "word": "skirt",
+  "sentence": "She wore a blue skirt to school today.",
+  "he": "חצאית"
+ },
+ {
+  "test": 19,
+  "word": "instead",
+  "sentence": "I wanted apple juice, but I drank water instead.",
+  "he": "במקום"
+ },
+ {
+  "test": 19,
+  "word": "tunnel",
+  "sentence": "The dark tunnel goes under the mountain for trains.",
+  "he": "מנהרה"
+ },
+ {
+  "test": 19,
+  "word": "pleasant",
+  "sentence": "We enjoyed a pleasant walk in the sunny park yesterday.",
+  "he": "נעים"
+ },
+ {
+  "test": 19,
+  "word": "groan",
+  "sentence": "The tired student let out a loud groan at homework.",
+  "he": "אנחה"
+ },
+ {
+  "test": 19,
+  "word": "steadily",
+  "sentence": "The rain fell steadily on the roof all night long.",
+  "he": "בהתמדה"
+ },
+ {
+  "test": 19,
+  "word": "suppose",
+  "sentence": "I suppose we can go to the playground after school.",
+  "he": "מניח"
+ },
+ {
+  "test": 19,
+  "word": "pleasure",
+  "sentence": "It was a real pleasure to meet your friendly dog.",
+  "he": "תענוג"
+ },
+ {
+  "test": 19,
+  "word": "coach",
+  "sentence": "Our basketball coach taught us how to throw the ball.",
+  "he": "מאמן"
+ },
+ {
+  "test": 19,
+  "word": "weary",
+  "sentence": "After the long hike, the tired kids felt very weary.",
+  "he": "עייף"
+ },
+ {
+  "test": 19,
+  "word": "cunning",
+  "sentence": "The cunning fox found a sneaky way into the farm.",
+  "he": "ערמומי"
+ },
+ {
+  "test": 19,
+  "word": "measure",
+  "sentence": "Use a ruler to measure the length of your desk.",
+  "he": "למדוד"
+ },
+ {
+  "test": 19,
+  "word": "toast",
+  "sentence": "I had warm buttered toast for breakfast this morning.",
+  "he": "טוסט"
+ },
+ {
+  "test": 19,
+  "word": "wearily",
+  "sentence": "The tired traveler walked wearily to his hotel room.",
+  "he": "בעייפות"
+ },
+ {
+  "test": 19,
+  "word": "muddy",
+  "sentence": "Wear your boots because the path is very muddy.",
+  "he": "בוצי"
+ },
+ {
+  "test": 19,
+  "word": "treasure",
+  "sentence": "The pirates buried a chest full of treasure here.",
+  "he": "אוצר"
+ },
+ {
+  "test": 19,
+  "word": "throat",
+  "sentence": "Drink warm tea if your throat feels sore today.",
+  "he": "גרון"
+ },
+ {
+  "test": 19,
+  "word": "foe",
+  "sentence": "The hero defeated his strong foe in the story.",
+  "he": "אויב"
+ },
+ {
+  "test": 19,
+  "word": "poetry",
+  "sentence": "Our English class loves reading simple poetry together.",
+  "he": "שירה"
+ },
+ {
+  "test": 19,
+  "word": "butcher",
+  "sentence": "My mother bought fresh chicken from the local butcher.",
+  "he": "קצב"
+ },
+ {
+  "test": 19,
+  "word": "shilling",
+  "sentence": "The old British coin was called a shilling.",
+  "he": "שילינג"
+ },
+ {
+  "test": 20,
+  "word": "defeat",
+  "sentence": "Our team worked hard to defeat the other players today.",
+  "he": "להביס"
+ },
+ {
+  "test": 20,
+  "word": "obey",
+  "sentence": "Good dogs learn to obey simple rules from their owners.",
+  "he": "לציית"
+ },
+ {
+  "test": 20,
+  "word": "dwelling",
+  "sentence": "The cozy cave was a safe dwelling for the bear.",
+  "he": "משכן"
+ },
+ {
+  "test": 20,
+  "word": "group",
+  "sentence": "A small group of students finished the project early.",
+  "he": "קבוצה"
+ },
+ {
+  "test": 20,
+  "word": "tiger",
+  "sentence": "We saw a big tiger resting under the tree.",
+  "he": "טיגריס"
+ },
+ {
+  "test": 20,
+  "word": "obeyed",
+  "sentence": "The young boy obeyed his teacher and sat down quietly.",
+  "he": "ציית"
+ },
+ {
+  "test": 20,
+  "word": "wedding",
+  "sentence": "My sister wore a white dress to the lovely wedding.",
+  "he": "חתונה"
+ },
+ {
+  "test": 20,
+  "word": "wound",
+  "sentence": "The doctor put a clean bandage on my small wound.",
+  "he": "פצע"
+ },
+ {
+  "test": 20,
+  "word": "reward",
+  "sentence": "She received a nice reward for finding the lost cat.",
+  "he": "פרס"
+ },
+ {
+  "test": 20,
+  "word": "swept",
+  "sentence": "Dad swept the kitchen floor after we cooked dinner together.",
+  "he": "טאטא"
+ },
+ {
+  "test": 20,
+  "word": "herring",
+  "sentence": "Grandpa likes to eat fresh herring with bread for lunch.",
+  "he": "הרינג"
+ },
+ {
+  "test": 20,
+  "word": "youth",
+  "sentence": "The local youth center offers many fun activities for kids.",
+  "he": "נוער"
+ },
+ {
+  "test": 20,
+  "word": "shoe",
+  "sentence": "I need to tie my left shoe before running outside.",
+  "he": "נעל"
+ },
+ {
+  "test": 20,
+  "word": "crept",
+  "sentence": "The quiet cat crept slowly toward the tiny brown mouse.",
+  "he": "התגנב"
+ },
+ {
+  "test": 20,
+  "word": "vessel",
+  "sentence": "A large sailing vessel moved across the blue ocean water.",
+  "he": "כלי שיט"
+ },
+ {
+  "test": 20,
+  "word": "calm",
+  "sentence": "Take a deep breath and stay calm during the test.",
+  "he": "רגוע"
+ },
+ {
+  "test": 20,
+  "word": "prettier",
+  "sentence": "This yellow flower is prettier than the red one today.",
+  "he": "יפה יותר"
+ },
+ {
+  "test": 20,
+  "word": "prettiest",
+  "sentence": "She wore the prettiest dress in the entire clothing store.",
+  "he": "הכי יפה"
+ },
+ {
+  "test": 20,
+  "word": "beginning",
+  "sentence": "We read a great story at the beginning of class.",
+  "he": "התחלה"
+ },
+ {
+  "test": 20,
+  "word": "journey",
+  "sentence": "They started their long journey to the mountains this morning.",
+  "he": "מסע"
+ },
+ {
+  "test": 21,
+  "word": "recall",
+  "sentence": "I cannot recall where I left my keys today.",
+  "he": "לזכור"
+ },
+ {
+  "test": 21,
+  "word": "demand",
+  "sentence": "Customers demand good service when they shop here.",
+  "he": "דורשים"
+ },
+ {
+  "test": 21,
+  "word": "feather",
+  "sentence": "The soft feather fell slowly from the bird.",
+  "he": "נוצה"
+ },
+ {
+  "test": 21,
+  "word": "fleet",
+  "sentence": "The company owns a large fleet of blue trucks.",
+  "he": "צי"
+ },
+ {
+  "test": 21,
+  "word": "result",
+  "sentence": "Her high test score was the result of hard study.",
+  "he": "תוצאה"
+ },
+ {
+  "test": 21,
+  "word": "deliver",
+  "sentence": "The driver will deliver the package to our house.",
+  "he": "למסור"
+ },
+ {
+  "test": 21,
+  "word": "leather",
+  "sentence": "My dad bought a warm leather jacket for winter.",
+  "he": "עור"
+ },
+ {
+  "test": 21,
+  "word": "screen",
+  "sentence": "Please do not touch the computer screen with sticky fingers.",
+  "he": "מסך"
+ },
+ {
+  "test": 21,
+  "word": "beyond",
+  "sentence": "The small village lies just beyond those high green hills.",
+  "he": "מעבר ל-"
+ },
+ {
+  "test": 21,
+  "word": "depend",
+  "sentence": "You can always depend on your best friend for help.",
+  "he": "לסמוך"
+ },
+ {
+  "test": 21,
+  "word": "weather",
+  "sentence": "The weather is very sunny and warm today.",
+  "he": "מזג אוויר"
+ },
+ {
+  "test": 21,
+  "word": "greedy",
+  "sentence": "The greedy dog took all the food for himself.",
+  "he": "חמדן"
+ },
+ {
+  "test": 21,
+  "word": "shiver",
+  "sentence": "The cold wind made me shiver during the walk.",
+  "he": "לרעוד"
+ },
+ {
+  "test": 21,
+  "word": "delay",
+  "sentence": "Heavy rain caused a long delay for our train.",
+  "he": "עיכוב"
+ },
+ {
+  "test": 21,
+  "word": "breath",
+  "sentence": "Take a deep breath before you start to speak.",
+  "he": "נשימה"
+ },
+ {
+  "test": 21,
+  "word": "freedom",
+  "sentence": "Birds enjoy total freedom when flying in the sky.",
+  "he": "חופש"
+ },
+ {
+  "test": 21,
+  "word": "health",
+  "sentence": "Eating fresh fruit is good for your overall health.",
+  "he": "בריאות"
+ },
+ {
+  "test": 21,
+  "word": "healthy",
+  "sentence": "Drinking water helps you stay healthy and strong.",
+  "he": "בריא"
+ },
+ {
+  "test": 21,
+  "word": "wealthy",
+  "sentence": "The wealthy queen lived in a beautiful castle.",
+  "he": "עשיר"
+ },
+ {
+  "test": 21,
+  "word": "meant",
+  "sentence": "I meant to call you earlier this morning.",
+  "he": "התכוונתי"
+ },
+ {
+  "test": 22,
+  "word": "drown",
+  "sentence": "Heavy rain can drown the small plants in the garden.",
+  "he": "להטביע"
+ },
+ {
+  "test": 22,
+  "word": "aim",
+  "sentence": "You should aim carefully when you throw the basketball.",
+  "he": "לכוון"
+ },
+ {
+  "test": 22,
+  "word": "guilty",
+  "sentence": "He felt guilty after breaking his sister's favorite toy.",
+  "he": "אשם"
+ },
+ {
+  "test": 22,
+  "word": "season",
+  "sentence": "Autumn is my favorite season because of the cool weather.",
+  "he": "עונה"
+ },
+ {
+  "test": 22,
+  "word": "drowned",
+  "sentence": "The loud noise drowned out the teacher's soft voice.",
+  "he": "החריש"
+ },
+ {
+  "test": 22,
+  "word": "claim",
+  "sentence": "They claim that their team will win the football match.",
+  "he": "לטעון"
+ },
+ {
+  "test": 22,
+  "word": "guide",
+  "sentence": "A friendly tour guide showed us around the ancient museum.",
+  "he": "מדריך"
+ },
+ {
+  "test": 22,
+  "word": "reason",
+  "sentence": "She explained the main reason for her absence from school.",
+  "he": "סיבה"
+ },
+ {
+  "test": 22,
+  "word": "powder",
+  "sentence": "Add a little baking powder to make the cake soft.",
+  "he": "אבקה"
+ },
+ {
+  "test": 22,
+  "word": "praise",
+  "sentence": "Teachers often praise students who work hard in class.",
+  "he": "לשבח"
+ },
+ {
+  "test": 22,
+  "word": "guest",
+  "sentence": "Our special guest gave a great presentation at school today.",
+  "he": "אורח"
+ },
+ {
+  "test": 22,
+  "word": "crimson",
+  "sentence": "The sky turned a deep crimson color during the sunset.",
+  "he": "ארגמן"
+ },
+ {
+  "test": 22,
+  "word": "petrol",
+  "sentence": "My father stopped at the station to buy some petrol.",
+  "he": "בנזין"
+ },
+ {
+  "test": 22,
+  "word": "dairy",
+  "sentence": "Milk and cheese are popular dairy products we eat daily.",
+  "he": "חלבי"
+ },
+ {
+  "test": 22,
+  "word": "warn",
+  "sentence": "Signs on the road warn drivers to go slow here.",
+  "he": "להזהיר"
+ },
+ {
+  "test": 22,
+  "word": "iron",
+  "sentence": "This heavy gate is made from strong black iron.",
+  "he": "ברזל"
+ },
+ {
+  "test": 22,
+  "word": "deer",
+  "sentence": "We saw a gentle deer standing near the green trees.",
+  "he": "אייל"
+ },
+ {
+  "test": 22,
+  "word": "steer",
+  "sentence": "Use both hands to steer the bicycle down the street.",
+  "he": "לנווט"
+ },
+ {
+  "test": 22,
+  "word": "queer",
+  "sentence": "There was a queer sound coming from the old clock.",
+  "he": "מוזר"
+ },
+ {
+  "test": 22,
+  "word": "engage",
+  "sentence": "Good games engage children and help them learn new skills.",
+  "he": "לשתף"
+ },
+ {
+  "test": 23,
+  "word": "medal",
+  "sentence": "She won a gold medal in the running race.",
+  "he": "מדליה"
+ },
+ {
+  "test": 23,
+  "word": "relate",
+  "sentence": "I can relate to your feeling of excitement today.",
+  "he": "להתחבר"
+ },
+ {
+  "test": 23,
+  "word": "desire",
+  "sentence": "He has a strong desire to learn new sports.",
+  "he": "רצון"
+ },
+ {
+  "test": 23,
+  "word": "bathe",
+  "sentence": "We bathe the dog after he plays outside.",
+  "he": "לרחוץ"
+ },
+ {
+  "test": 23,
+  "word": "metal",
+  "sentence": "The key is made of strong gray metal.",
+  "he": "מתכת"
+ },
+ {
+  "test": 23,
+  "word": "retire",
+  "sentence": "My grandfather will retire from work next year.",
+  "he": "לפרוש"
+ },
+ {
+  "test": 23,
+  "word": "deserve",
+  "sentence": "You work hard and deserve a good rest.",
+  "he": "מגיע"
+ },
+ {
+  "test": 23,
+  "word": "vase",
+  "sentence": "Put the pretty flowers into the blue vase.",
+  "he": "אגרטל"
+ },
+ {
+  "test": 23,
+  "word": "mental",
+  "sentence": "Solving puzzles is great for your mental health.",
+  "he": "שכלי"
+ },
+ {
+  "test": 23,
+  "word": "restore",
+  "sentence": "The painter will restore the old wooden picture frame.",
+  "he": "לשחזר"
+ },
+ {
+  "test": 23,
+  "word": "behave",
+  "sentence": "Please behave nicely when visiting your grandmother today.",
+  "he": "להתנהג"
+ },
+ {
+  "test": 23,
+  "word": "rare",
+  "sentence": "This blue butterfly is very rare in our garden.",
+  "he": "נדיר"
+ },
+ {
+  "test": 23,
+  "word": "board",
+  "sentence": "The teacher wrote the lesson on the green board.",
+  "he": "לוח"
+ },
+ {
+  "test": 23,
+  "word": "refuse",
+  "sentence": "I refuse to eat cold soup for dinner.",
+  "he": "לסרב"
+ },
+ {
+  "test": 23,
+  "word": "bravery",
+  "sentence": "The firefighter showed great bravery during the fire.",
+  "he": "אומץ לב"
+ },
+ {
+  "test": 23,
+  "word": "square",
+  "sentence": "A square has four equal sides and four corners.",
+  "he": "ריבוע"
+ },
+ {
+  "test": 23,
+  "word": "Britain",
+  "sentence": "London is a large and famous city in Britain.",
+  "he": "בריטניה"
+ },
+ {
+  "test": 23,
+  "word": "British",
+  "sentence": "My uncle likes to drink traditional British tea.",
+  "he": "בריטי"
+ },
+ {
+  "test": 23,
+  "word": "Irish",
+  "sentence": "We listened to cheerful Irish music at the festival.",
+  "he": "אירי"
+ },
+ {
+  "test": 23,
+  "word": "Ireland",
+  "sentence": "Dublin is the capital city of Ireland.",
+  "he": "אירלנד"
+ },
+ {
+  "test": 24,
+  "word": "December",
+  "sentence": "We celebrate my sister's birthday in December every year.",
+  "he": "דצמבר"
+ },
+ {
+  "test": 24,
+  "word": "attend",
+  "sentence": "All students must attend the morning assembly today.",
+  "he": "לנכוח"
+ },
+ {
+  "test": 24,
+  "word": "edge",
+  "sentence": "Do not leave your glass near the edge of the table.",
+  "he": "קצה"
+ },
+ {
+  "test": 24,
+  "word": "flour",
+  "sentence": "We need two cups of flour to bake this cake.",
+  "he": "קמח"
+ },
+ {
+  "test": 24,
+  "word": "October",
+  "sentence": "The new school year usually starts in October here.",
+  "he": "אוקטובר"
+ },
+ {
+  "test": 24,
+  "word": "attack",
+  "sentence": "The brave dog will attack anyone who threatens its owner.",
+  "he": "לתקוף"
+ },
+ {
+  "test": 24,
+  "word": "hedge",
+  "sentence": "My grandfather trims the green hedge around his garden.",
+  "he": "גדר חיה"
+ },
+ {
+  "test": 24,
+  "word": "sour",
+  "sentence": "This fresh lemon juice tastes very sour to me.",
+  "he": "חמוץ"
+ },
+ {
+  "test": 24,
+  "word": "Germany",
+  "sentence": "My family is planning a fun trip to Germany this summer.",
+  "he": "גרמניה"
+ },
+ {
+  "test": 24,
+  "word": "wreck",
+  "sentence": "The heavy storm did not wreck our small wooden boat.",
+  "he": "להרוס"
+ },
+ {
+  "test": 24,
+  "word": "badge",
+  "sentence": "The police officer proudly wore a shiny gold badge.",
+  "he": "תג"
+ },
+ {
+  "test": 24,
+  "word": "trout",
+  "sentence": "The fisherman caught a large trout in the cold river.",
+  "he": "פורל"
+ },
+ {
+  "test": 24,
+  "word": "herd",
+  "sentence": "A large herd of cows walked slowly across the field.",
+  "he": "עדר"
+ },
+ {
+  "test": 24,
+  "word": "wrong",
+  "sentence": "She gave the wrong answer to the hard math question.",
+  "he": "לא נכון"
+ },
+ {
+  "test": 24,
+  "word": "judge",
+  "sentence": "The fair judge decided who won the art contest.",
+  "he": "שופט"
+ },
+ {
+  "test": 24,
+  "word": "stout",
+  "sentence": "The stout old tree survived the strong winter winds.",
+  "he": "חזק ומוצק"
+ },
+ {
+  "test": 24,
+  "word": "lodge",
+  "sentence": "We stayed in a cozy wooden lodge near the mountain.",
+  "he": "בקתה"
+ },
+ {
+  "test": 24,
+  "word": "bridge",
+  "sentence": "We walked across the old stone bridge to cross the river.",
+  "he": "גשר"
+ },
+ {
+  "test": 24,
+  "word": "sword",
+  "sentence": "The brave knight carried a sharp metal sword in the story.",
+  "he": "חרב"
+ },
+ {
+  "test": 24,
+  "word": "check",
+  "sentence": "Please check your answers before you hand in the test.",
+  "he": "לבדוק"
+ },
+ {
+  "test": 25,
+  "word": "suit",
+  "sentence": "He had to wear a nice suit for the wedding.",
+  "he": "חליפה"
+ },
+ {
+  "test": 25,
+  "word": "member",
+  "sentence": "Dan is a new member of our school chess club.",
+  "he": "חבר"
+ },
+ {
+  "test": 25,
+  "word": "wore",
+  "sentence": "She wore a warm coat because it was cold.",
+  "he": "לבשה"
+ },
+ {
+  "test": 25,
+  "word": "using",
+  "sentence": "The students are using computers in the lesson today.",
+  "he": "משתמשים"
+ },
+ {
+  "test": 25,
+  "word": "fruit",
+  "sentence": "I like to eat fresh fruit after my lunch.",
+  "he": "פרי"
+ },
+ {
+  "test": 25,
+  "word": "remember",
+  "sentence": "Please remember to bring your notebook to class tomorrow.",
+  "he": "לזכור"
+ },
+ {
+  "test": 25,
+  "word": "score",
+  "sentence": "Our team got a high score in the game.",
+  "he": "ניקוד"
+ },
+ {
+  "test": 25,
+  "word": "during",
+  "sentence": "We must stay quiet during the quiet reading hour.",
+  "he": "במהלך"
+ },
+ {
+  "test": 25,
+  "word": "orange",
+  "sentence": "She picked a sweet orange from the big tree.",
+  "he": "תפוז"
+ },
+ {
+  "test": 25,
+  "word": "remembered",
+  "sentence": "He remembered his key and unlocked the front door.",
+  "he": "זכר"
+ },
+ {
+  "test": 25,
+  "word": "whom",
+  "sentence": "To whom should I give this lost school notebook?",
+  "he": "למי"
+ },
+ {
+  "test": 25,
+  "word": "duty",
+  "sentence": "It is my duty to clean my bedroom today.",
+  "he": "חובה"
+ },
+ {
+  "test": 25,
+  "word": "banana",
+  "sentence": "He sliced a sweet banana into his breakfast cereal.",
+  "he": "בננה"
+ },
+ {
+  "test": 25,
+  "word": "memory",
+  "sentence": "I have a happy memory of our family trip.",
+  "he": "זיכרון"
+ },
+ {
+  "test": 25,
+  "word": "whether",
+  "sentence": "I do not know whether it will rain today.",
+  "he": "אם"
+ },
+ {
+  "test": 25,
+  "word": "truth",
+  "sentence": "You should always tell the truth to your parents.",
+  "he": "אמת"
+ },
+ {
+  "test": 25,
+  "word": "bowl",
+  "sentence": "She ate warm soup from a large blue bowl.",
+  "he": "קערה"
+ },
+ {
+  "test": 25,
+  "word": "factory",
+  "sentence": "My uncle works in a toy factory in town.",
+  "he": "מפעל"
+ },
+ {
+  "test": 25,
+  "word": "basement",
+  "sentence": "We store old boxes down in the dark basement.",
+  "he": "מרתף"
+ },
+ {
+  "test": 25,
+  "word": "pavement",
+  "sentence": "Always watch the pavement when walking along the street.",
+  "he": "מדרכה"
+ },
+ {
+  "test": 26,
+  "word": "worship",
+  "sentence": "Many people gather at the temple to worship every week.",
+  "he": "לסגוד"
+ },
+ {
+  "test": 26,
+  "word": "giant",
+  "sentence": "The story features a giant who lives in a huge castle.",
+  "he": "ענק"
+ },
+ {
+  "test": 26,
+  "word": "coin",
+  "sentence": "I found a shiny gold coin on the sidewalk today.",
+  "he": "מטבע"
+ },
+ {
+  "test": 26,
+  "word": "earnest",
+  "sentence": "She made an earnest effort to finish her homework on time.",
+  "he": "כנה"
+ },
+ {
+  "test": 26,
+  "word": "worse",
+  "sentence": "My cold got worse after I walked in the rain.",
+  "he": "גרוע יותר"
+ },
+ {
+  "test": 26,
+  "word": "engine",
+  "sentence": "The mechanic fixed the car engine so it runs smoothly.",
+  "he": "מנוע"
+ },
+ {
+  "test": 26,
+  "word": "noisy",
+  "sentence": "The classroom was very noisy during the fun game.",
+  "he": "רועש"
+ },
+ {
+  "test": 26,
+  "word": "search",
+  "sentence": "We will search for the lost keys in the garden.",
+  "he": "לחפש"
+ },
+ {
+  "test": 26,
+  "word": "worst",
+  "sentence": "That was the worst movie I have ever seen.",
+  "he": "הכי גרוע"
+ },
+ {
+  "test": 26,
+  "word": "divide",
+  "sentence": "Please divide the birthday cake into eight equal slices.",
+  "he": "לחלק"
+ },
+ {
+  "test": 26,
+  "word": "sign",
+  "sentence": "Look at the street sign to find the correct direction.",
+  "he": "שלט"
+ },
+ {
+  "test": 26,
+  "word": "French",
+  "sentence": "We learned a few simple French words in class today.",
+  "he": "צרפתית"
+ },
+ {
+  "test": 26,
+  "word": "worry",
+  "sentence": "Do not worry about the test because you prepared well.",
+  "he": "לדאוג"
+ },
+ {
+  "test": 26,
+  "word": "mistake",
+  "sentence": "I made a small mistake on my math worksheet.",
+  "he": "טעות"
+ },
+ {
+  "test": 26,
+  "word": "signal",
+  "sentence": "The traffic signal turned green so the cars could go.",
+  "he": "אות"
+ },
+ {
+  "test": 26,
+  "word": "honest",
+  "sentence": "An honest student always tells the truth to the teacher.",
+  "he": "ישר"
+ },
+ {
+  "test": 26,
+  "word": "city",
+  "sentence": "Jerusalem is a beautiful city with a long history.",
+  "he": "עיר"
+ },
+ {
+  "test": 26,
+  "word": "cities",
+  "sentence": "Many large cities have high buildings and busy streets.",
+  "he": "ערים"
+ },
+ {
+  "test": 26,
+  "word": "circle",
+  "sentence": "Draw a neat circle on your paper with a pencil.",
+  "he": "עיגול"
+ },
+ {
+  "test": 26,
+  "word": "palace",
+  "sentence": "The king and queen live in a beautiful stone palace.",
+  "he": "ארמון"
+ },
+ {
+  "test": 27,
+  "word": "eight",
+  "sentence": "There are eight students sitting around the round table.",
+  "he": "שמונה"
+ },
+ {
+  "test": 27,
+  "word": "figure",
+  "sentence": "Can you help me figure out this math problem?",
+  "he": "להבין"
+ },
+ {
+  "test": 27,
+  "word": "exchange",
+  "sentence": "We can exchange books after we finish reading them.",
+  "he": "להחליף"
+ },
+ {
+  "test": 27,
+  "word": "reply",
+  "sentence": "Please send a quick reply to my email message.",
+  "he": "תשובה"
+ },
+ {
+  "test": 27,
+  "word": "weight",
+  "sentence": "The heavy box was too much weight for him.",
+  "he": "משקל"
+ },
+ {
+  "test": 27,
+  "word": "scripture",
+  "sentence": "They studied an ancient holy scripture in class today.",
+  "he": "כתבי קודש"
+ },
+ {
+  "test": 27,
+  "word": "except",
+  "sentence": "Everyone came to the party except for my friend.",
+  "he": "חוץ מ"
+ },
+ {
+  "test": 27,
+  "word": "drying",
+  "sentence": "The wet clothes are drying in the warm sun.",
+  "he": "מתייבשים"
+ },
+ {
+  "test": 27,
+  "word": "weigh",
+  "sentence": "You should weigh the apples before buying them today.",
+  "he": "לשקול"
+ },
+ {
+  "test": 27,
+  "word": "creature",
+  "sentence": "The cute little creature ran into the green forest.",
+  "he": "יצור"
+ },
+ {
+  "test": 27,
+  "word": "excuse",
+  "sentence": "Please excuse me for being late to class today.",
+  "he": "לסלוח"
+ },
+ {
+  "test": 27,
+  "word": "carrying",
+  "sentence": "She is carrying a heavy backpack to her school.",
+  "he": "נושאת"
+ },
+ {
+  "test": 27,
+  "word": "dumb",
+  "sentence": "Making that silly mistake was a really dumb idea.",
+  "he": "טיפשי"
+ },
+ {
+  "test": 27,
+  "word": "entertain",
+  "sentence": "The funny clown will entertain the kids at school.",
+  "he": "לבדר"
+ },
+ {
+  "test": 27,
+  "word": "piano",
+  "sentence": "She plays beautiful music on her new piano every day.",
+  "he": "פסנתר"
+ },
+ {
+  "test": 27,
+  "word": "foggy",
+  "sentence": "It was too foggy to see the distant mountains.",
+  "he": "ערפילי"
+ },
+ {
+  "test": 27,
+  "word": "pour",
+  "sentence": "Please pour some fresh milk into my glass now.",
+  "he": "למזוג"
+ },
+ {
+  "test": 27,
+  "word": "court",
+  "sentence": "We played basketball on the school court after class.",
+  "he": "מגרש"
+ },
+ {
+  "test": 27,
+  "word": "shoulder",
+  "sentence": "He tapped me on the shoulder to get attention.",
+  "he": "כתף"
+ },
+ {
+  "test": 27,
+  "word": "huge",
+  "sentence": "They saw a huge elephant during their zoo trip.",
+  "he": "ענקי"
+ },
+ {
+  "test": 28,
+  "word": "seldom",
+  "sentence": "We seldom watch TV because we love playing outside.",
+  "he": "לעיתים רחוקות"
+ },
+ {
+  "test": 28,
+  "word": "throne",
+  "sentence": "The king sat on his golden throne in the palace.",
+  "he": "כס מלכות"
+ },
+ {
+  "test": 28,
+  "word": "area",
+  "sentence": "This play area is safe for all the young children.",
+  "he": "אזור"
+ },
+ {
+  "test": 28,
+  "word": "local",
+  "sentence": "We bought fresh bread from our local bakery today.",
+  "he": "מקומי"
+ },
+ {
+  "test": 28,
+  "word": "quite",
+  "sentence": "The math test was quite easy for most students.",
+  "he": "למדי"
+ },
+ {
+  "test": 28,
+  "word": "choke",
+  "sentence": "Eat your food slowly so you do not choke.",
+  "he": "להיחנק"
+ },
+ {
+  "test": 28,
+  "word": "idea",
+  "sentence": "Maya had a wonderful idea for the school project.",
+  "he": "רעיון"
+ },
+ {
+  "test": 28,
+  "word": "several",
+  "sentence": "I borrowed several interesting books from the library yesterday.",
+  "he": "כמה"
+ },
+ {
+  "test": 28,
+  "word": "wicked",
+  "sentence": "The wicked witch hid deep inside the dark forest.",
+  "he": "מרושע"
+ },
+ {
+  "test": 28,
+  "word": "clothes",
+  "sentence": "She folded her clean clothes and put them away.",
+  "he": "בגדים"
+ },
+ {
+  "test": 28,
+  "word": "family",
+  "sentence": "Our family likes to eat dinner together every evening.",
+  "he": "משפחה"
+ },
+ {
+  "test": 28,
+  "word": "second",
+  "sentence": "He finished the fun race in second place today.",
+  "he": "שני"
+ },
+ {
+  "test": 28,
+  "word": "selfish",
+  "sentence": "Sharing your toys shows that you are not selfish.",
+  "he": "אנוכי"
+ },
+ {
+  "test": 28,
+  "word": "owe",
+  "sentence": "I owe my brother five dollars for the snack.",
+  "he": "חייב"
+ },
+ {
+  "test": 28,
+  "word": "people",
+  "sentence": "Many people gathered in the park to enjoy sunshine.",
+  "he": "אנשים"
+ },
+ {
+  "test": 28,
+  "word": "fortune",
+  "sentence": "Hard work brought the kind builder a large fortune.",
+  "he": "הון"
+ },
+ {
+  "test": 28,
+  "word": "cruel",
+  "sentence": "It is bad to be cruel to small animals.",
+  "he": "אכזרי"
+ },
+ {
+  "test": 28,
+  "word": "Tuesday",
+  "sentence": "We have a fun music class every Tuesday afternoon.",
+  "he": "יום שלישי"
+ },
+ {
+  "test": 28,
+  "word": "Wednesday",
+  "sentence": "Our science teacher gives us homework every Wednesday morning.",
+  "he": "יום רביעי"
+ },
+ {
+  "test": 28,
+  "word": "disgust",
+  "sentence": "He looked at the rotten apple with clear disgust.",
+  "he": "גועל"
+ },
+ {
+  "test": 29,
+  "word": "picnic",
+  "sentence": "We ate sandwiches at our family picnic in the park.",
+  "he": "פיקניק"
+ },
+ {
+  "test": 29,
+  "word": "aunt",
+  "sentence": "My aunt bought me a great book for my birthday.",
+  "he": "דודה"
+ },
+ {
+  "test": 29,
+  "word": "pencil",
+  "sentence": "Please use a sharp pencil to write your answers down.",
+  "he": "עיפרון"
+ },
+ {
+  "test": 29,
+  "word": "holy",
+  "sentence": "Jerusalem is a famous and holy city for many religions.",
+  "he": "קדוש"
+ },
+ {
+  "test": 29,
+  "word": "arithmetic",
+  "sentence": "We learned how to add numbers in our arithmetic class.",
+  "he": "חשבון"
+ },
+ {
+  "test": 29,
+  "word": "saucer",
+  "sentence": "She placed the warm teacup carefully on the small saucer.",
+  "he": "תחתית לספל"
+ },
+ {
+  "test": 29,
+  "word": "ocean",
+  "sentence": "Big whales swim in the deep blue waters of the ocean.",
+  "he": "אוקיינוס"
+ },
+ {
+  "test": 29,
+  "word": "pony",
+  "sentence": "The small pony loved to eat apples from my hand.",
+  "he": "פוני"
+ },
+ {
+  "test": 29,
+  "word": "flood",
+  "sentence": "Heavy rain caused a flood in the streets near school.",
+  "he": "שיטפון"
+ },
+ {
+  "test": 29,
+  "word": "farewell",
+  "sentence": "They waved goodbye and said farewell to all their friends.",
+  "he": "פרידה"
+ },
+ {
+  "test": 29,
+  "word": "collar",
+  "sentence": "Our dog wears a comfortable red collar around his neck.",
+  "he": "קולר"
+ },
+ {
+  "test": 29,
+  "word": "navy",
+  "sentence": "My uncle sails large ships in the national navy.",
+  "he": "חיל הים"
+ },
+ {
+  "test": 29,
+  "word": "wooden",
+  "sentence": "My grandfather built a strong wooden table for our room.",
+  "he": "מעץ"
+ },
+ {
+  "test": 29,
+  "word": "else",
+  "sentence": "Do you want anything else to drink with your dinner?",
+  "he": "עוד"
+ },
+ {
+  "test": 29,
+  "word": "clumsy",
+  "sentence": "I dropped my glass because I felt very clumsy today.",
+  "he": "מסורבל"
+ },
+ {
+  "test": 29,
+  "word": "losing",
+  "sentence": "Our basketball team is losing the game by two points.",
+  "he": "מפסיד"
+ }
+]
