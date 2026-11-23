@@ -3,8 +3,11 @@ import Link from "next/link";
 import { Art } from "@/components/Art";
 import { FocusPicker } from "@/components/FocusPicker";
 import { AdventureMap, type MapPlace } from "@/components/map/AdventureMap";
+import { PixelSprite } from "@/components/pixel/PixelSprite";
 import { PLACES } from "@/components/map/layout";
 import { StudentHeader } from "@/components/StudentHeader";
+import { stickerArt } from "@/lib/pixel/sprites/stickers";
+import { chests, pixelStar } from "@/lib/pixel/sprites/ui";
 import { DAILY_RULES } from "@/lib/services/practice";
 import { requireStudentPage } from "@/lib/student";
 import { cx, minutes } from "@/lib/ui";
@@ -13,7 +16,8 @@ export const metadata: Metadata = { title: "Home" };
 
 export default async function HomePage() {
   const { student, services } = await requireStudentPage();
-  const { units, stats, daily, test } = await services.practice.overview(student.id);
+  const [{ units, stats, daily, test }, album] = await Promise.all([services.practice.overview(student.id), services.rewards.album(student.id)]);
+  const lastSticker = [...album.stickers].reverse().find((st) => st.count > 0);
   const target = DAILY_RULES.dailyTargetSeconds;
   const pct = Math.min(1, daily.secondsToday / target);
   const roundsDone = daily.roundsToday;
@@ -25,7 +29,7 @@ export default async function HomePage() {
   return (
     <main className="night-sky min-h-dvh">
       <div className="mx-auto max-w-6xl px-4 pb-16 pt-5 sm:px-6">
-        <StudentHeader name={student.name} avatar={student.avatar} stats={stats} />
+        <StudentHeader name={student.name} avatar={student.avatar} frame={student.frame} stats={stats} />
 
         {test && (
           <section aria-labelledby="test-prep" className="mt-6 rounded-[var(--radius-card)] border border-amber-400/40 bg-ink-800 p-4 sm:p-5">
@@ -95,6 +99,24 @@ export default async function HomePage() {
               </div>
               <p className="mt-1 text-sm text-ink-300">{daily.mistakeCount ? "They come back until you've got them for good." : "Nothing to fix right now. Nice!"}</p>
             </Link>
+            <div className="grid grid-cols-2 gap-3">
+              <Link href="/shop" className="pixel-panel flex flex-col items-start gap-2 p-4 font-pixel transition hover:brightness-110">
+                <span className="text-xs uppercase tracking-widest text-[#ead39b]">Star shop</span>
+                <span className="flex items-center gap-2 text-2xl text-[#ece4d6]">
+                  <PixelSprite sprite={pixelStar} scale={3} />
+                  {stats.starsBalance}
+                </span>
+                <span className="text-xs text-[#a99cc4]">Avatars, frames, shields</span>
+              </Link>
+              <Link href="/album" className="pixel-panel flex flex-col items-start gap-2 p-4 font-pixel transition hover:brightness-110">
+                <span className="text-xs uppercase tracking-widest text-[#ead39b]">Sticker album</span>
+                <span className="flex items-center gap-2 text-2xl text-[#ece4d6]">
+                  <PixelSprite sprite={lastSticker ? stickerArt(lastSticker.id) : chests.wood.closed} scale={2} />
+                  {album.collected}/{album.total}
+                </span>
+                <span className="text-xs text-[#a99cc4]">Win chests to collect</span>
+              </Link>
+            </div>
             <div className="rounded-[var(--radius-card)] border border-white/10 bg-ink-800 p-5">
               {test ? (
                 <p className="text-sm text-ink-300">Test prep is on, so new material comes only from the test topics.</p>

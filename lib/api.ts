@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ZodError, type ZodType } from "zod";
 import { getSession, type SessionData } from "@/lib/auth/session";
 import { logger } from "@/lib/logger";
+import { RewardError } from "@/lib/services/rewards";
 
 export class HttpError extends Error {
   constructor(
@@ -33,7 +34,7 @@ export function handler<A extends unknown[]>(fn: (...args: A) => Promise<Respons
     try {
       return await fn(...args);
     } catch (error) {
-      if (error instanceof HttpError) return json({ error: error.message }, error.status);
+      if (error instanceof HttpError || error instanceof RewardError) return json({ error: error.message }, error.status);
       if (error instanceof ZodError) return json({ error: "Invalid request", issues: error.issues.slice(0, 5) }, 400);
       logger.error("request failed", { error: error instanceof Error ? error.message : String(error) });
       return json({ error: "Something went wrong" }, 500);

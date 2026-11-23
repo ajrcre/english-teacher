@@ -5,13 +5,20 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Art, StarGlyph } from "@/components/Art";
+import { BadgeIcon } from "@/components/pixel/BadgeIcon";
+import { PixelSprite } from "@/components/pixel/PixelSprite";
+import { ChestReveal } from "@/components/rewards/ChestReveal";
+import { BOSS_RULES, type ChestContents } from "@/lib/gamification/collection";
+import { bossFor } from "@/lib/pixel/sprites/bosses";
+import { heartEmpty, heartFull } from "@/lib/pixel/sprites/ui";
 import type { ClientItem, ItemResponse } from "@/lib/content/client";
 import { BADGE_BY_ID } from "@/lib/gamification/badges";
 import type { RewardEvent, Rewards } from "@/lib/gamification/engine";
 import type { SessionMode } from "@/lib/scheduling/sessionBuilder";
 import type { AnswerFeedback, DailyStatus, StatsSummary, SubmitResult } from "@/lib/services/practice";
-import { badgeArt, cx } from "@/lib/ui";
+import { cx } from "@/lib/ui";
 import { playSfx, setSoundEnabled, speakWord, type Sfx } from "../sound";
+import { BossArena, type BattleBeat } from "./BossArena";
 import { QuestionInput, RichSentence, SpeakerIcon, questionTitle } from "./inputs";
 
 type QueueItem = ClientItem & { lessonId: string; isNew: boolean; retry?: number; key: string };
@@ -35,18 +42,61 @@ interface Tally {
   badges: string[];
   levelUp: { level: number; title: string } | null;
   streak: number | null;
+  chest: ChestContents | null;
 }
+
+/** Boss battle state, only used in boss mode. */
+interface Battle {
+  hp: number;
+  hits: number;
+  heartsLeft: number;
+  /** Correct answers in a row during this battle (3+ = critical hits). */
+  run: number;
+  beat: BattleBeat | null;
+  message: string;
+  outcome: "won" | "lost" | null;
+}
+
+interface BossClaim {
+  status: "pending" | "done" | "error";
+  first?: boolean;
+  rewarded?: boolean;
+  heartsLeft?: number;
+  xp?: number;
+  stars?: number;
+  error?: string;
+}
+
+const EMPTY_TALLY: Tally = { answered: 0, correct: 0, xp: 0, stars: 0, fixed: 0, badges: [], levelUp: null, streak: null, chest: null };
 
 const MODE_LABEL: Record<SessionMode, string> = {
   review: "Round 1 · Review",
   explore: "Round 2 · Explore",
   lesson: "Lesson practice",
   mistakes: "Mistake gym",
+  boss: "Boss battle",
 };
 
 const MAX_RETRIES = 3;
 
-export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: SessionMode; lessonId?: string; lessonTitle?: string; soundOn: boolean }) {
+export function Runner({
+  mode,
+  lessonId,
+  lessonTitle,
+  soundOn,
+  unitId,
+  bossReady = false,
+}: {
+  mode: SessionMode;
+  lessonId?: string;
+  lessonTitle?: string;
+  soundOn: boolean;
+  /** The lesson's unit (boss battles use its boss and backdrop). */
+  unitId?: string;
+  /** Lesson practice: the lesson's boss is unlocked, so the summary offers the battle. */
+  bossReady?: boolean;
+}) {
+  const isBoss = mode === "boss" && !!unitId;
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -58,7 +108,12 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
   const [toast, setToast] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<RewardEvent | null>(null);
   const [doneBanner, setDoneBanner] = useState(false);
-  const [tally, setTally] = useState<Tally>({ answered: 0, correct: 0, xp: 0, stars: 0, fixed: 0, badges: [], levelUp: null, streak: null });
+  const [tally, setTally] = useState<Tally>(EMPTY_TALLY);
+  const [battle, setBattle] = useState<Battle | null>(null);
+  const [claim, setClaim] = useState<BossClaim | null>(null);
+  const [bossUnlocked, setBossUnlocked] = useState(bossReady);
+  /** Height of the feedback sheet, so the page can make room for it below the question. */
+  const [sheetHeight, setSheetHeight] = useState(0);
   const startedAt = useRef<number>(0);
   const celebrationQueue = useRef<RewardEvent[]>([]);
   /** Set when "Continue" was pressed but a celebration was shown first. */
@@ -89,13 +144,18 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
       setIndex(0);
       setDaily(data.daily);
       setDoneBanner(false);
-      setTally({ answered: 0, correct: 0, xp: 0, stars: 0, fixed: 0, badges: [], levelUp: null, streak: null });
+      setTally(EMPTY_TALLY);
+      setClaim(null);
+      if (mode === "boss" && unitId) {
+        const boss = bossFor(unitId);
+        setBattle({ hp: items.length, hits: 0, heartsLeft: BOSS_RULES.hearts, run: 0, beat: null, message: `${boss.name} appears! ${boss.intro}`, outcome: null });
+      }
       setPhase(items.length ? { kind: "answering" } : { kind: "empty" });
       startedAt.current = Date.now();
     } catch (e) {
       setPhase({ kind: "error", message: e instanceof Error ? e.message : "Could not start" });
     }
-  }, [mode, lessonId, router]);
+  }, [mode, lessonId, router, unitId]);
 
   useEffect(() => {
     // Initial phase is already "loading"; start(false) only updates state after the fetch resolves.
@@ -120,6 +180,7 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
       }
       if (e.kind === "mistake_fixed") setToast("Mistake fixed!");
       if (e.kind === "level_up" || e.kind === "badge" || e.kind === "star_lit") celebrationQueue.current.push(e);
+      if (e.kind === "chest") setTally((t) => ({ ...t, chest: e.contents }));
     }
     setTally((t) => ({
       ...t,
@@ -158,6 +219,7 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
       setDaily(data.daily);
       setTally((t) => ({ ...t, answered: t.answered + 1, correct: t.correct + (verdict === "correct" ? 1 : 0) }));
       applyRewards(data.rewards);
+      if (battle) setBattle(nextBeat(battle, verdict === "correct", bossFor(unitId!).name));
       // Re-practise mistakes later in this same session, until they are right.
       if (verdict !== "correct" && (current.retry ?? 0) < MAX_RETRIES) {
         setQueue((q) => {
@@ -177,14 +239,15 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
   const advance = useCallback(() => {
     setResponse(null);
     setToast(null);
-    if (index + 1 >= queue.length) {
+    if (battle?.outcome || index + 1 >= queue.length) {
       setPhase({ kind: "summary" });
       return;
     }
     setIndex(index + 1);
     setPhase({ kind: "answering" });
+    if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: "smooth" });
     startedAt.current = Date.now();
-  }, [index, queue.length]);
+  }, [index, queue.length, battle?.outcome]);
 
   const next = useCallback(() => {
     if (celebrationQueue.current.length && !celebration) {
@@ -211,14 +274,32 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
   useEffect(() => {
     if (phase.kind !== "summary" || completed.current) return;
     completed.current = true;
+    if (isBoss) {
+      if (battle?.outcome !== "won") return;
+      void (async () => {
+        const res = await fetch("/api/boss/complete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonId }) });
+        const data = (await res.json()) as { rewards: Rewards; stats: StatsSummary; heartsLeft: number; first: boolean; rewarded: boolean; error?: string };
+        if (!res.ok) {
+          setClaim({ status: "error", error: data.error ?? "Could not record the victory" });
+          return;
+        }
+        setStats(data.stats);
+        applyRewards(data.rewards);
+        playSfx("levelup");
+        setClaim({ status: "done", first: data.first, rewarded: data.rewarded, heartsLeft: data.heartsLeft, xp: data.rewards.xp, stars: data.rewards.stars });
+        if (celebrationQueue.current.length) showNextCelebration();
+      })();
+      return;
+    }
     void (async () => {
       const res = await fetch("/api/session/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, answered: tally.answered }),
+        body: JSON.stringify({ mode, answered: tally.answered, lessonId: lessonId ?? null }),
       });
       if (!res.ok) return;
-      const data = (await res.json()) as { rewards: Rewards; stats: StatsSummary; daily: DailyStatus; counted: boolean };
+      const data = (await res.json()) as { rewards: Rewards; stats: StatsSummary; daily: DailyStatus; counted: boolean; bossReady: boolean };
+      if (data.bossReady) setBossUnlocked(true);
       setStats(data.stats);
       setDaily(data.daily);
       applyRewards(data.rewards);
@@ -226,6 +307,30 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
       if (celebrationQueue.current.length) showNextCelebration();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.kind]);
+
+  // When feedback slides up, keep the question's answers in view above it: make room at the
+  // bottom of the page and scroll the right answer (or the question) just above the sheet.
+  useEffect(() => {
+    if (phase.kind !== "feedback") return;
+    const t = setTimeout(() => {
+      const sheet = document.getElementById("feedback-sheet");
+      if (!sheet) return;
+      const h = sheet.getBoundingClientRect().height;
+      setSheetHeight(h);
+      requestAnimationFrame(() => {
+        // The right answer and the student's pick, if they're marked; otherwise the question card.
+        const marked = [...document.querySelectorAll<HTMLElement>('main section [data-state="right"], main section [data-state="wrong"]')];
+        const targets = marked.length ? marked : [...document.querySelectorAll<HTMLElement>("main section.paper-card")];
+        if (!targets.length) return;
+        const rects = targets.map((t) => t.getBoundingClientRect());
+        const top = Math.min(...rects.map((r) => r.top));
+        const bottom = Math.max(...rects.map((r) => r.bottom));
+        const visibleBottom = window.innerHeight - h - 12;
+        if (bottom > visibleBottom) window.scrollBy({ top: Math.min(bottom - visibleBottom, Math.max(0, top - 72)), behavior: "smooth" });
+      });
+    }, 380);
+    return () => clearTimeout(t);
   }, [phase.kind]);
 
   // Enter = continue after feedback.
@@ -256,20 +361,27 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
 
   return (
     <main className="night-sky min-h-dvh">
-      <div className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 pb-40 pt-4 sm:px-6">
+      <div className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 pb-40 pt-4 sm:px-6" style={phase.kind === "feedback" && sheetHeight ? { paddingBottom: sheetHeight + 24 } : undefined}>
         <header className="flex items-center gap-3">
           <Link href="/home" className="grid h-10 w-10 place-items-center rounded-full bg-white/5 text-xl text-ink-200 hover:bg-white/10" aria-label="Close and go back">
             ×
           </Link>
+          {isBoss ? (
+            <p className="flex-1 text-center font-pixel text-lg tracking-widest text-[#ead39b]">BOSS BATTLE</p>
+          ) : (
           <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
             <motion.div className="h-full rounded-full bg-amber-400" animate={{ width: `${progress * 100}%` }} transition={{ type: "spring", stiffness: 120, damping: 20 }} />
           </div>
+          )}
           <div className="flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-bold" aria-label="XP this round">
             <StarGlyph className="h-4 w-4 text-amber-300" />
             {tally.xp}
           </div>
         </header>
         <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">{lessonTitle ?? MODE_LABEL[mode]}</p>
+        {battle && unitId && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+          <BossArena unitId={unitId} hp={battle.hp} hits={battle.hits} hearts={BOSS_RULES.hearts} heartsLeft={battle.heartsLeft} beat={battle.beat} message={battle.message} />
+        )}
 
         <AnimatePresence>
           {doneBanner && (
@@ -295,7 +407,7 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
 
         {current && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <AnimatePresence mode="wait">
-            <motion.section key={current.key} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.22 }} className="paper-card relative mt-5 p-5 sm:p-7">
+            <motion.section key={current.key} data-item={current.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.22 }} className="paper-card relative mt-5 p-5 sm:p-7">
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 {current.retry ? <Chip tone="rose">Second chance</Chip> : current.isNew ? <Chip tone="amber">New</Chip> : <Chip tone="ink">Review</Chip>}
               </div>
@@ -307,7 +419,8 @@ export function Runner({ mode, lessonId, lessonTitle, soundOn }: { mode: Session
           </AnimatePresence>
         )}
 
-        {phase.kind === "summary" && <Summary tally={tally} stats={stats} daily={daily} mode={mode} onAgain={() => void start()} />}
+        {phase.kind === "summary" && isBoss && battle && <BossResult unitId={unitId!} lessonId={lessonId!} battle={battle} claim={claim} tally={tally} onAgain={() => void start()} />}
+        {phase.kind === "summary" && !isBoss && <Summary tally={tally} stats={stats} daily={daily} mode={mode} lessonId={lessonId} bossReady={bossUnlocked} onAgain={() => void start()} />}
       </div>
 
       {/* Bottom action area: submit, or feedback panel. */}
@@ -363,9 +476,11 @@ function FeedbackPanel({ feedback, xp, onNext }: { feedback: AnswerFeedback; xp:
     partial: { bg: "bg-[#fdf3e2]", border: "border-amber-400", title: "text-amber-700", label: "Almost there" },
     wrong: { bg: "bg-[#fbecec]", border: "border-rose-400", title: "text-rose-600", label: "Not quite" },
   }[tone];
-  const showModel = feedback.verdict !== "correct" || feedback.byLlm || feedback.notes.length > 0;
+  // Skip the answer box when the feedback line already names the answer ("The answer is …").
+  const saysAnswer = !!feedback.modelAnswer && feedback.feedback.includes(`“${feedback.modelAnswer}”`);
+  const showModel = !saysAnswer && (feedback.verdict !== "correct" || feedback.byLlm || feedback.notes.length > 0);
   return (
-    <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 260, damping: 30 }} className={cx("fixed inset-x-0 bottom-0 z-30 max-h-[75dvh] overflow-y-auto border-t-4 text-text", palette.bg, palette.border)} role="status" aria-live="polite">
+    <motion.div id="feedback-sheet" initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", stiffness: 260, damping: 30 }} className={cx("fixed inset-x-0 bottom-0 z-30 max-h-[75dvh] overflow-y-auto border-t-4 text-text", palette.bg, palette.border)} role="status" aria-live="polite">
       <div className="mx-auto max-w-2xl p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center justify-between gap-3">
           <h2 className={cx("font-display text-2xl font-semibold", palette.title)}>{palette.label}</h2>
@@ -446,7 +561,7 @@ function Celebration({ event, onClose }: { event: RewardEvent; onClose: () => vo
     if (event.kind === "level_up") return { eyebrow: "Level up", title: `Level ${event.level}`, body: `You're now a ${event.title}.`, art: "/art/scenes/level-up.webp" };
     if (event.kind === "badge") {
       const b = BADGE_BY_ID.get(event.id);
-      return { eyebrow: "New badge", title: b?.title ?? "Badge", body: b?.description ?? "", art: badgeArt(b?.icon ?? event.id) };
+      return { eyebrow: "New badge", title: b?.title ?? "Badge", body: b?.description ?? "", art: "", badge: b };
     }
     if (event.kind === "star_lit") return { eyebrow: "Star lit", title: "A new star shines", body: "You mastered every question in a lesson!", art: "/art/scenes/star-lit.webp" };
     return null;
@@ -455,7 +570,11 @@ function Celebration({ event, onClose }: { event: RewardEvent; onClose: () => vo
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 grid place-items-center bg-ink-950/80 p-6 backdrop-blur-sm" onClick={onClose} role="dialog" aria-modal="true" aria-label={content.title}>
       <motion.div initial={{ scale: 0.85, y: 20 }} animate={{ scale: 1, y: 0 }} transition={{ type: "spring", stiffness: 220, damping: 18 }} className="w-full max-w-xs text-center" onClick={(e) => e.stopPropagation()}>
-        <Art src={content.art} alt="" className="mx-auto h-48 w-48 rounded-full object-cover shadow-[0_0_80px_rgb(242_169_59/0.45)]" fallback={<StarGlyph className="h-16 w-16 text-amber-400" />} />
+        {"badge" in content && content.badge ? (
+          <BadgeIcon badge={content.badge} size={192} className="shadow-[0_0_80px_rgb(242_169_59/0.45)]" />
+        ) : (
+          <Art src={content.art} alt="" className="mx-auto h-48 w-48 rounded-full object-cover shadow-[0_0_80px_rgb(242_169_59/0.45)]" fallback={<StarGlyph className="h-16 w-16 text-amber-400" />} />
+        )}
         <p className="eyebrow mt-6 text-amber-400">{content.eyebrow}</p>
         <h2 className="mt-1 font-display text-3xl font-semibold">{content.title}</h2>
         <p className="mt-2 text-ink-200">{content.body}</p>
@@ -467,7 +586,7 @@ function Celebration({ event, onClose }: { event: RewardEvent; onClose: () => vo
   );
 }
 
-function Summary({ tally, stats, daily, mode, onAgain }: { tally: Tally; stats: StatsSummary | null; daily: DailyStatus | null; mode: SessionMode; onAgain: () => void }) {
+function Summary({ tally, stats, daily, mode, lessonId, bossReady, onAgain }: { tally: Tally; stats: StatsSummary | null; daily: DailyStatus | null; mode: SessionMode; lessonId?: string; bossReady: boolean; onAgain: () => void }) {
   const accuracy = tally.answered ? Math.round((tally.correct / tally.answered) * 100) : 0;
   const nextMode: SessionMode | null = mode === "review" ? "explore" : null;
   return (
@@ -480,6 +599,11 @@ function Summary({ tally, stats, daily, mode, onAgain }: { tally: Tally; stats: 
         <Stat label="Accuracy" value={`${accuracy}%`} />
         <Stat label="Fixed" value={String(tally.fixed)} />
       </dl>
+      {tally.chest && (
+        <div className="mt-6">
+          <ChestReveal contents={tally.chest} />
+        </div>
+      )}
       {tally.badges.length > 0 && (
         <div className="mx-auto mt-5 flex max-w-md flex-wrap justify-center gap-3">
           {tally.badges.map((b) => (
@@ -496,6 +620,11 @@ function Summary({ tally, stats, daily, mode, onAgain }: { tally: Tally; stats: 
       )}
       {daily && <p className="mt-1 text-sm text-ink-300">{Math.round(daily.secondsToday / 60)} of 20 minutes today</p>}
       <div className="mx-auto mt-8 flex max-w-md flex-col gap-3">
+        {mode === "lesson" && bossReady && lessonId && (
+          <Link href={`/practice?mode=boss&lesson=${encodeURIComponent(lessonId)}`} className="pixel-btn text-lg">
+            ⚔ Face the boss
+          </Link>
+        )}
         {nextMode && !daily?.done ? (
           <Link href={`/practice?mode=${nextMode}`} className="btn btn-primary text-lg">
             Start Round 2
@@ -519,5 +648,74 @@ function Stat({ label, value }: { label: string; value: string }) {
       <dt className="text-xs uppercase tracking-wider text-ink-400">{label}</dt>
       <dd className="mt-1 font-display text-2xl font-semibold">{value}</dd>
     </div>
+  );
+}
+
+/** Works out the next moment of a boss battle after an answer. */
+function nextBeat(b: Battle, correct: boolean, bossName: string): Battle {
+  const id = (b.beat?.id ?? 0) + 1;
+  if (correct) {
+    const hits = b.hits + 1;
+    const run = b.run + 1;
+    const crit = run >= 3;
+    const left = b.hp - hits;
+    const message = left <= 0 ? `${bossName} is beaten! The star is free!` : crit ? `Critical hit! ${run} in a row! ${left} to go.` : left === 1 ? "Nova strikes! One more hit to win!" : `Nova strikes! ${left} hits to go.`;
+    return { ...b, hits, run, beat: { id, kind: crit ? "crit" : "hit" }, message, outcome: left <= 0 ? "won" : null };
+  }
+  const heartsLeft = b.heartsLeft - 1;
+  const message = heartsLeft <= 0 ? `${bossName} got away this time…` : `Ouch! ${bossName} hits back. ${heartsLeft === 1 ? "Last heart" : `${heartsLeft} hearts left`}. That question will come back.`;
+  return { ...b, heartsLeft, run: 0, beat: { id, kind: "hurt" }, message, outcome: heartsLeft <= 0 ? "lost" : null };
+}
+
+function BossResult({ unitId, lessonId, battle, claim, tally, onAgain }: { unitId: string; lessonId: string; battle: Battle; claim: BossClaim | null; tally: Tally; onAgain: () => void }) {
+  const boss = bossFor(unitId);
+  const won = battle.outcome === "won";
+  return (
+    <section className="mt-8 text-center font-pixel">
+      <div className="pixel-panel mx-auto max-w-sm p-5">
+        <div className="mx-auto grid place-items-center" style={{ filter: won ? undefined : "grayscale(0.4) brightness(0.8)" }}>
+          <PixelSprite sprite={boss.sprite} scale={5} fps={won ? 0 : 2} />
+        </div>
+        <h1 className="mt-3 text-3xl text-[#ead39b]">{won ? "Victory!" : "It got away!"}</h1>
+        <p className="mt-1 text-[#ece4d6]">{won ? `You beat ${boss.name} and won the star back.` : `${boss.name} escaped with the star. Practise a little and try again!`}</p>
+        <div className="mt-3 flex justify-center gap-1" aria-label={`${battle.heartsLeft} hearts left`}>
+          {Array.from({ length: BOSS_RULES.hearts }, (_, i) => (
+            <PixelSprite key={i} sprite={i < battle.heartsLeft ? heartFull : heartEmpty} scale={3} />
+          ))}
+        </div>
+        {won && (!claim || claim.status === "pending") && <p className="mt-3 text-[#a99cc4]">Counting your loot…</p>}
+        {won && claim?.status === "error" && <p className="mt-3 text-[#cf9f9b]">{claim.error}</p>}
+        {won && claim?.status === "done" && (
+          <p className="mt-3 text-lg text-[#ece4d6]">
+            {claim.rewarded ? (
+              <>
+                +{claim.xp} XP{claim.stars ? ` · +${claim.stars} stars` : ""}
+                {claim.first && battle.heartsLeft === BOSS_RULES.hearts && <span className="block text-sm text-[#ead39b]">Flawless! No hearts lost.</span>}
+              </>
+            ) : (
+              <span className="text-sm text-[#a99cc4]">You already beat this boss today. Come back tomorrow for more loot!</span>
+            )}
+          </p>
+        )}
+      </div>
+      {won && tally.chest && (
+        <div className="mt-6">
+          <ChestReveal contents={tally.chest} />
+        </div>
+      )}
+      <div className="mx-auto mt-8 flex max-w-sm flex-col gap-3">
+        {!won && (
+          <button className="pixel-btn text-lg" onClick={onAgain}>
+            Try again
+          </button>
+        )}
+        <Link href={`/practice?mode=lesson&lesson=${encodeURIComponent(lessonId)}`} className="pixel-btn pixel-btn-ghost">
+          Practise this lesson
+        </Link>
+        <Link href={`/unit/${unitId}`} className="btn btn-ghost font-sans">
+          Back to the unit
+        </Link>
+      </div>
+    </section>
   );
 }

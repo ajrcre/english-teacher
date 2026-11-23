@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Art, StarGlyph } from "@/components/Art";
+import { BossTile } from "@/components/pixel/BossTile";
 import { StudentHeader } from "@/components/StudentHeader";
 import { getCatalog } from "@/lib/content/catalog";
 import { requireStudentPage } from "@/lib/student";
@@ -23,7 +24,7 @@ export default async function UnitPage({ params }: { params: Promise<{ unitId: s
   return (
     <main className="night-sky min-h-dvh">
       <div className="mx-auto max-w-3xl px-4 pb-16 pt-5 sm:px-6">
-        <StudentHeader name={student.name} avatar={student.avatar} stats={stats} back={{ href: "/home", label: "Sky" }} />
+        <StudentHeader name={student.name} avatar={student.avatar} frame={student.frame} stats={stats} back={{ href: "/home", label: "Sky" }} />
 
         <section className="relative mt-6 overflow-hidden rounded-[var(--radius-card)] border border-white/10">
           <Art src={unitArt(unit.id)} alt="" className="aspect-[21/9] w-full object-cover" fallback={<span />} />
@@ -43,8 +44,8 @@ export default async function UnitPage({ params }: { params: Promise<{ unitId: s
             const pct = l.total ? l.mastered / l.total : 0;
             const lit = pct >= 1;
             return (
-              <li key={l.id}>
-                <Link href={`/practice?mode=lesson&lesson=${encodeURIComponent(l.id)}`} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-ink-800 p-4 transition hover:bg-ink-700">
+              <li key={l.id} className="flex items-stretch gap-2">
+                <Link href={`/practice?mode=lesson&lesson=${encodeURIComponent(l.id)}`} className="flex min-w-0 flex-1 items-center gap-4 rounded-2xl border border-white/10 bg-ink-800 p-4 transition hover:bg-ink-700">
                   <div className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full" style={{ background: lit ? accent : "rgb(255 255 255 / 0.06)" }}>
                     <StarGlyph className="h-6 w-6" filled={lit || pct > 0} />
                     {!lit && <span className="absolute -bottom-1 -right-1 rounded-full bg-ink-900 px-1.5 text-[10px] font-bold text-ink-300">{i + 1}</span>}
@@ -61,6 +62,7 @@ export default async function UnitPage({ params }: { params: Promise<{ unitId: s
                     <div>{l.total} items</div>
                   </div>
                 </Link>
+                <BossTile unitId={unit.id} lessonId={l.id} lessonTitle={l.title} boss={l.boss} />
               </li>
             );
           })}

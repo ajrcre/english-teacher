@@ -9,12 +9,15 @@ export interface BadgeContext {
     mistakesFixed: number;
     itemsMastered: number;
     answersCorrect: number;
+    bossesDefeated: number;
   };
   roundsToday: number;
   /** Lessons that became fully mastered by this event (lesson id -> unit id). */
   lessonsCompleted: { lessonId: string; unitId: string }[];
   /** Total lessons fully mastered so far (including this event). */
   lessonsMasteredTotal: number;
+  /** A boss was beaten without losing a heart. */
+  flawlessBoss: boolean;
 }
 
 export interface BadgeDef {
@@ -23,6 +26,8 @@ export interface BadgeDef {
   description: string;
   /** Art file in /public/art/badges/<icon>.webp */
   icon: string;
+  /** Pixel-art icon instead of a painted one (see components/pixel/BadgeIcon). */
+  pixel?: "sword" | "chest" | "heart";
   check: (ctx: BadgeContext) => boolean;
 }
 
@@ -49,6 +54,9 @@ export const BADGES: BadgeDef[] = [
   { id: "mastered-100", title: "Hundred Stars", description: "Master 100 items.", icon: "mastered-100", check: (c) => c.stats.itemsMastered >= 100 },
   { id: "mastered-500", title: "Galaxy", description: "Master 500 items.", icon: "mastered-500", check: (c) => c.stats.itemsMastered >= 500 },
   { id: "full-mission", title: "Full Mission", description: "Finish both rounds in one day.", icon: "full-mission", check: (c) => c.roundsToday >= 2 },
+  { id: "boss-1", title: "Shadow Tamer", description: "Win your first boss battle.", icon: "boss-1", pixel: "sword", check: (c) => c.stats.bossesDefeated >= 1 },
+  { id: "boss-10", title: "Hero of the Sky", description: "Win 10 different boss battles.", icon: "boss-10", pixel: "chest", check: (c) => c.stats.bossesDefeated >= 10 },
+  { id: "flawless", title: "Untouchable", description: "Win a boss battle without losing a heart.", icon: "flawless", pixel: "heart", check: (c) => c.flawlessBoss },
   unitBadge("number-the-stars", "Brave Like Annemarie", "Light a star in Number the Stars."),
   unitBadge("the-giver", "Receiver of Memory", "Light a star in The Giver."),
   unitBadge("short-stories", "Story Collector", "Light a star in Short Stories."),

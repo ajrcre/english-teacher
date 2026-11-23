@@ -4,6 +4,7 @@ import type { Catalog } from "@/lib/content/catalog";
 import { daysUntil, testIsActive, testItemIds } from "@/lib/content/testScope";
 import { LLM_GRADED_TYPES, type Item, type ItemType } from "@/lib/content/schema";
 import type { ProgressRow, Repositories, StatsRow } from "@/lib/db/repositories";
+import { BOSS_RULES, type ChestContents } from "@/lib/gamification/collection";
 import { GamificationEngine, type Rewards, type StatsState } from "@/lib/gamification/engine";
 import { levelInfo, type LevelInfo } from "@/lib/gamification/levels";
 import { GraderUnavailableError } from "@/lib/grading/graders/llmGraders";
@@ -11,8 +12,9 @@ import type { GraderRegistry } from "@/lib/grading/registry";
 import type { GradeResult, Verdict } from "@/lib/grading/types";
 import { logger } from "@/lib/logger";
 import type { ProgressState, Scheduler } from "@/lib/scheduling/leitner";
-import { buildSession, type ProgressLite, type SessionMode } from "@/lib/scheduling/sessionBuilder";
+import { bossEligibility, buildSession, type BossEligibility, type ProgressLite, type SessionMode } from "@/lib/scheduling/sessionBuilder";
 import { dayKey } from "@/lib/time";
+import { grantChest, RewardError } from "./rewards";
 
 export const DAILY_RULES = {
   dailyTargetSeconds: 20 * 60,
@@ -35,6 +37,8 @@ export interface DailyStatus {
 
 export interface StatsSummary extends LevelInfo {
   stars: number;
+  /** Stars left to spend in the shop. */
+  starsBalance: number;
   combo: number;
   streak: number;
   shields: number;
@@ -86,7 +90,7 @@ function toStatsState(row: StatsRow): StatsState {
 }
 
 export function summarize(stats: StatsState): StatsSummary {
-  return { ...levelInfo(stats.xp), stars: stats.stars, combo: stats.combo, streak: stats.streak, shields: stats.shields };
+  return { ...levelInfo(stats.xp), stars: stats.stars, starsBalance: Math.max(0, stats.stars - stats.starsSpent), combo: stats.combo, streak: stats.streak, shields: stats.shields };
 }
 
 /** Facade over content, scheduling, grading and rewards for one student's practice. */
@@ -98,6 +102,7 @@ export class PracticeService {
     private readonly scheduler: Scheduler,
     private readonly engine: GamificationEngine,
     private readonly clock: () => Date = () => new Date(),
+    private readonly random: () => number = Math.random,
   ) {}
 
   private today(): string {
@@ -176,7 +181,7 @@ export class PracticeService {
     const now = this.clock();
     const rows = await this.repos.progress.allProgress(studentId);
     const progress = new Map<string, ProgressLite>(rows.map((r) => [r.itemId, r]));
-    const [daily, pace, scope] = await Promise.all([this.dailyStatus(studentId, rows), this.paceByType(studentId), opts.mode === "lesson" ? null : this.activeScope(studentId)]);
+    const [daily, pace, scope] = await Promise.all([this.dailyStatus(studentId, rows), this.paceByType(studentId), opts.mode === "lesson" || opts.mode === "boss" ? null : this.activeScope(studentId)]);
     const plan = buildSession({
       mode: opts.mode,
       // With a test switched on, rounds use only what is on the test. Opening a lesson yourself is always allowed.
@@ -195,6 +200,7 @@ export class PracticeService {
       const ref = this.catalog.itemById.get(e.itemId)!;
       return { ...toClientItem(ref.item, seed), lessonId: e.lessonId, isNew: e.isNew };
     });
+    if (opts.mode === "boss" && opts.lessonId) await this.repos.rewards.startBossBattle(studentId, opts.lessonId, now);
     logger.info("session started", { studentId, mode: opts.mode, items: items.length, estimatedSeconds: plan.estimatedSeconds });
     return { mode: opts.mode, items, estimatedSeconds: plan.estimatedSeconds, daily, seed };
   }
@@ -284,6 +290,7 @@ export class PracticeService {
         llmCalls: result.byLlm ? 1 : 0,
       }),
       this.repos.progress.recordAttempt({
+        createdAt: now,
         studentId,
         itemId: item.id,
         lessonId: ref.lessonId,
@@ -318,7 +325,7 @@ export class PracticeService {
   async completeRound(studentId: string, input: { mode: SessionMode; answered: number }): Promise<{ rewards: Rewards; stats: StatsSummary; daily: DailyStatus; counted: boolean }> {
     const today = this.today();
     const statsRow = await this.repos.progress.getStats(studentId);
-    if (input.answered < DAILY_RULES.goalRoundMinAnswers) {
+    if (input.mode === "boss" || input.answered < DAILY_RULES.goalRoundMinAnswers) {
       return { rewards: { xp: 0, stars: 0, badges: [], events: [] }, stats: summarize(toStatsState(statsRow)), daily: await this.dailyStatus(studentId), counted: false };
     }
     const day = await this.repos.progress.bumpDay(studentId, today, { roundsCompleted: 1 });
@@ -329,6 +336,9 @@ export class PracticeService {
       toStatsState(statsRow),
       { today, alreadyEarned: earned, roundsToday: day.roundsCompleted },
     );
+    // Every counted round ends with a treasure chest.
+    const chest = await grantChest(this.repos, studentId, "wood", this.random);
+    this.addChest(stats, rewards, chest);
     await Promise.all([
       this.repos.progress.saveStats(studentId, stats),
       this.repos.progress.addBadges(studentId, rewards.badges),
@@ -338,17 +348,84 @@ export class PracticeService {
     return { rewards, stats: summarize(stats), daily: await this.dailyStatus(studentId, rows), counted: true };
   }
 
+  private addChest(stats: StatsState, rewards: Rewards, chest: ChestContents): void {
+    stats.stars += chest.stars;
+    rewards.stars += chest.stars;
+    rewards.events.push({ kind: "chest", contents: chest });
+  }
+
+  async bossStatus(studentId: string, lessonId: string): Promise<BossEligibility> {
+    const rows = await this.repos.progress.allProgress(studentId);
+    return bossEligibility(this.catalog.entries, new Map(rows.map((r) => [r.itemId, r])), lessonId);
+  }
+
+  /**
+   * Claims a boss victory. The server checks the battle from the recorded answers: the last
+   * `hp` correct boss answers for this lesson, within the time window, with fewer than
+   * `hearts` mistakes among them. Hearts left are worked out here, not trusted from the client.
+   */
+  async completeBoss(studentId: string, lessonId: string): Promise<{ rewards: Rewards; stats: StatsSummary; heartsLeft: number; first: boolean; rewarded: boolean }> {
+    const ref = this.catalog.lessonById.get(lessonId);
+    if (!ref) throw new RewardError(404, "Lesson not found");
+    const now = this.clock();
+    const today = this.today();
+    const rows = await this.repos.progress.allProgress(studentId);
+    const { hp } = bossEligibility(this.catalog.entries, new Map(rows.map((r) => [r.itemId, r])), lessonId);
+    if (hp < BOSS_RULES.minItems) throw new RewardError(409, "This lesson has no boss yet");
+
+    const record = await this.repos.rewards.boss(studentId, lessonId);
+    const windowStart = now.getTime() - BOSS_RULES.windowMinutes * 60_000;
+    if (!record?.battleStartedAt || record.battleStartedAt.getTime() < windowStart) throw new RewardError(409, "Start a boss battle first");
+    let correct = 0;
+    let wrong = 0;
+    for (const v of await this.repos.rewards.recentBossVerdicts(studentId, lessonId, record.battleStartedAt)) {
+      if (v === "correct") correct++;
+      else wrong++;
+    }
+    if (correct < hp) throw new RewardError(409, "The battle isn't finished yet");
+    if (wrong >= BOSS_RULES.hearts) throw new RewardError(409, "Out of hearts — try the battle again");
+    const heartsLeft = BOSS_RULES.hearts - wrong;
+
+    const first = record.timesDefeated === 0;
+    const rewarded = first || record.lastRewardDay !== today;
+    const statsRow = await this.repos.progress.getStats(studentId);
+    if (!rewarded) {
+      await this.repos.rewards.recordBossWin(studentId, lessonId, heartsLeft, null);
+      return { rewards: { xp: 0, stars: 0, badges: [], events: [{ kind: "boss_defeated", first: false, heartsLeft }] }, stats: summarize(toStatsState(statsRow)), heartsLeft, first, rewarded };
+    }
+
+    const earned = new Set((await this.repos.progress.earnedBadges(studentId)).map((b) => b.badgeId));
+    const day = await this.repos.progress.getDay(studentId, today);
+    const { stats, rewards } = this.engine.process(
+      { type: "boss_defeated", first, heartsLeft, lessonsMasteredTotal: this.masteredLessons(rows).size },
+      toStatsState(statsRow),
+      { today, alreadyEarned: earned, roundsToday: day.roundsCompleted },
+    );
+    if (first) this.addChest(stats, rewards, await grantChest(this.repos, studentId, "boss", this.random, ref.unit.id));
+    await Promise.all([
+      this.repos.progress.saveStats(studentId, stats),
+      this.repos.progress.addBadges(studentId, rewards.badges),
+      this.repos.progress.bumpDay(studentId, today, { xp: rewards.xp }),
+      this.repos.rewards.recordBossWin(studentId, lessonId, heartsLeft, today),
+    ]);
+    logger.info("boss defeated", { studentId, lessonId, first, heartsLeft });
+    return { rewards, stats: summarize(stats), heartsLeft, first, rewarded };
+  }
+
   /** Data for the constellation map: per-lesson mastery and overall stats. */
   async overview(studentId: string) {
     const rows = await this.repos.progress.allProgress(studentId);
     const masteredCounts = this.lessonMasteryCounts(rows);
     const seenCounts = new Map<string, number>();
     for (const r of rows) if (this.catalog.itemById.has(r.itemId)) seenCounts.set(r.lessonId, (seenCounts.get(r.lessonId) ?? 0) + 1);
-    const [statsRow, daily, badges] = await Promise.all([
+    const [statsRow, daily, badges, bossRows] = await Promise.all([
       this.repos.progress.getStats(studentId),
       this.dailyStatus(studentId, rows),
       this.repos.progress.earnedBadges(studentId),
+      this.repos.rewards.bosses(studentId),
     ]);
+    const progressMap = new Map(rows.map((r) => [r.itemId, r]));
+    const bossWins = new Map(bossRows.map((b) => [b.lessonId, b]));
     const units = this.catalog.units.map((u) => {
       const lessons = u.lessons.map((l) => ({
         id: l.id,
@@ -358,6 +435,7 @@ export class PracticeService {
         total: l.items.length,
         seen: seenCounts.get(l.id) ?? 0,
         mastered: masteredCounts.get(l.id) ?? 0,
+        boss: { ...bossEligibility(this.catalog.entries, progressMap, l.id), bestHearts: bossWins.get(l.id)?.timesDefeated ? bossWins.get(l.id)!.bestHearts : null },
       }));
       const total = lessons.reduce((a, l) => a + l.total, 0);
       const masteredTotal = lessons.reduce((a, l) => a + l.mastered, 0);

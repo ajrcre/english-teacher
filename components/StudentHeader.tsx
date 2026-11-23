@@ -16,7 +16,7 @@ export function LevelRing({ progress, level, size = 52 }: { progress: number; le
   );
 }
 
-export function StudentHeader({ name, avatar, stats, back }: { name: string; avatar: string; stats: StatsSummary; back?: { href: string; label: string } }) {
+export function StudentHeader({ name, avatar, frame, stats, back }: { name: string; avatar: string; frame?: string | null; stats: StatsSummary; back?: { href: string; label: string } }) {
   return (
     <header className="flex items-center gap-3">
       {back ? (
@@ -25,7 +25,7 @@ export function StudentHeader({ name, avatar, stats, back }: { name: string; ava
         </Link>
       ) : (
         <Link href="/profile" className="flex items-center gap-3" aria-label="Your profile">
-          <Avatar avatar={avatar} name={name} size={44} />
+          <Avatar avatar={avatar} name={name} size={44} frame={frame} />
           <div className="leading-tight">
             <div className="font-semibold">{name}</div>
             <div className="text-xs text-ink-300">{stats.title}</div>
@@ -40,11 +40,11 @@ export function StudentHeader({ name, avatar, stats, back }: { name: string; ava
           <span>{stats.streak}</span>
           <span className="sr-only">day streak</span>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-sm font-bold" title="Stars">
+        <Link href="/shop" className="flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-sm font-bold transition hover:bg-white/10" title="Stars to spend in the shop">
           <StarGlyph className="h-4 w-4 text-amber-300" />
-          <span>{stats.stars}</span>
-          <span className="sr-only">stars</span>
-        </div>
+          <span>{stats.starsBalance}</span>
+          <span className="sr-only">stars to spend — open the shop</span>
+        </Link>
         <Link href="/profile" aria-label={`Level ${stats.level}`}>
           <LevelRing progress={stats.progress} level={stats.level} size={44} />
         </Link>

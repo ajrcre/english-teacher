@@ -1,6 +1,7 @@
 import type { ScheduleOutcome, Verdict } from "@/lib/scheduling/leitner";
 import { addDays } from "@/lib/time";
 import { BADGES, type BadgeContext } from "./badges";
+import { BOSS_RULES, type ChestContents } from "./collection";
 import { levelForXp, titleForLevel } from "./levels";
 
 export interface StatsState {
@@ -17,6 +18,9 @@ export interface StatsState {
   itemsMastered: number;
   answersTotal: number;
   answersCorrect: number;
+  /** Stars spent in the shop; only the shop changes this. */
+  starsSpent: number;
+  bossesDefeated: number;
 }
 
 export const EMPTY_STATS: StatsState = {
@@ -33,6 +37,8 @@ export const EMPTY_STATS: StatsState = {
   itemsMastered: 0,
   answersTotal: 0,
   answersCorrect: 0,
+  starsSpent: 0,
+  bossesDefeated: 0,
 };
 
 export type GameEvent =
@@ -46,7 +52,8 @@ export type GameEvent =
       lessonsCompleted: { lessonId: string; unitId: string }[];
       lessonsMasteredTotal: number;
     }
-  | { type: "round_complete"; roundsToday: number; lessonsMasteredTotal: number };
+  | { type: "round_complete"; roundsToday: number; lessonsMasteredTotal: number }
+  | { type: "boss_defeated"; first: boolean; heartsLeft: number; lessonsMasteredTotal: number };
 
 export type RewardEvent =
   | { kind: "combo"; value: number }
@@ -58,7 +65,9 @@ export type RewardEvent =
   | { kind: "shield_used" }
   | { kind: "shield_earned" }
   | { kind: "level_up"; level: number; title: string }
-  | { kind: "badge"; id: string };
+  | { kind: "badge"; id: string }
+  | { kind: "boss_defeated"; first: boolean; heartsLeft: number }
+  | { kind: "chest"; contents: ChestContents };
 
 export interface Rewards {
   xp: number;
@@ -91,6 +100,7 @@ export const XP_RULES = {
   fullMissionXp: 50,
   fullMissionStars: 3,
   maxShields: 2,
+  bossFirstXp: 50,
 };
 
 export function comboMultiplier(combo: number): number {
@@ -172,8 +182,23 @@ const streakListener: RewardListener = {
   },
 };
 
+/** A boss victory: the first one per lesson pays stars (more for hearts kept); repeats a little XP. */
+const bossListener: RewardListener = {
+  on(e, s, r) {
+    if (e.type !== "boss_defeated") return;
+    if (e.first) {
+      s.bossesDefeated++;
+      r.xp += XP_RULES.bossFirstXp;
+      r.stars += BOSS_RULES.firstWinStars + BOSS_RULES.starsPerHeart * e.heartsLeft;
+    } else {
+      r.xp += BOSS_RULES.repeatWinXp;
+    }
+    r.events.push({ kind: "boss_defeated", first: e.first, heartsLeft: e.heartsLeft });
+  },
+};
+
 export class GamificationEngine {
-  constructor(private readonly listeners: RewardListener[] = [answerListener, masteryListener, streakListener]) {}
+  constructor(private readonly listeners: RewardListener[] = [answerListener, masteryListener, streakListener, bossListener]) {}
 
   /** Applies one event. Returns the updated stats (a copy) and the rewards earned. */
   process(event: GameEvent, current: StatsState, ctx: EngineContext): { stats: StatsState; rewards: Rewards } {
@@ -192,6 +217,7 @@ export class GamificationEngine {
       stats,
       roundsToday: event.type === "round_complete" ? event.roundsToday : ctx.roundsToday,
       lessonsCompleted: event.type === "answer" ? event.lessonsCompleted : [],
+      flawlessBoss: event.type === "boss_defeated" && event.heartsLeft >= BOSS_RULES.hearts,
       lessonsMasteredTotal: event.lessonsMasteredTotal,
     };
     for (const b of BADGES) {

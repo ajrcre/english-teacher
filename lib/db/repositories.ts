@@ -1,12 +1,14 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import type { Db } from "./index";
-import { attempts, badgesEarned, contentFlags, dailyActivity, itemProgress, parents, rateLimits, studentStats, students } from "./schema";
+import { attempts, badgesEarned, bossDefeats, contentFlags, dailyActivity, inventory, itemProgress, parents, rateLimits, studentStats, students } from "./schema";
 
 export type ParentRow = typeof parents.$inferSelect;
 export type StudentRow = typeof students.$inferSelect;
 export type ProgressRow = typeof itemProgress.$inferSelect;
 export type StatsRow = typeof studentStats.$inferSelect;
 export type DayRow = typeof dailyActivity.$inferSelect;
+export type InventoryRow = typeof inventory.$inferSelect;
+export type BossRow = typeof bossDefeats.$inferSelect;
 
 /** Repository pattern: all SQL lives here, services work with plain rows. */
 export class UserRepository {
@@ -47,7 +49,7 @@ export class UserRepository {
     return row;
   }
 
-  async updateStudent(id: string, patch: Partial<Pick<StudentRow, "name" | "avatar" | "pinHash" | "focusUnit" | "activeTest" | "soundOn">>): Promise<void> {
+  async updateStudent(id: string, patch: Partial<Pick<StudentRow, "name" | "avatar" | "pinHash" | "focusUnit" | "activeTest" | "soundOn" | "frame">>): Promise<void> {
     await this.db.update(students).set(patch).where(eq(students.id, id));
   }
 
@@ -87,10 +89,12 @@ export class ProgressRepository {
     return created ?? (await this.getStats(studentId));
   }
 
+  /** Saves engine stats. Never writes starsSpent: only RewardsRepository.spendStars changes it, atomically. */
   async saveStats(studentId: string, patch: Partial<Omit<StatsRow, "studentId">>): Promise<void> {
+    const { starsSpent: _spent, ...rest } = patch;
     await this.db
       .update(studentStats)
-      .set({ ...patch, updatedAt: new Date() })
+      .set({ ...rest, updatedAt: new Date() })
       .where(eq(studentStats.studentId, studentId));
   }
 
@@ -170,6 +174,95 @@ export class ProgressRepository {
   }
 }
 
+/** Stickers, shop purchases and boss victories. */
+export class RewardsRepository {
+  constructor(private readonly db: Db) {}
+
+  async inventory(studentId: string): Promise<InventoryRow[]> {
+    return this.db.select().from(inventory).where(eq(inventory.studentId, studentId)).orderBy(inventory.acquiredAt);
+  }
+
+  /** Adds one of an item (stickers stack; avatars and frames stay at 1). */
+  async addItem(studentId: string, itemId: string, kind: "sticker" | "avatar" | "frame"): Promise<void> {
+    await this.db
+      .insert(inventory)
+      .values({ studentId, itemId, kind })
+      .onConflictDoUpdate({ target: [inventory.studentId, inventory.itemId], set: { count: sql`${inventory.count} + 1` } });
+  }
+
+  /** Spends stars only if the balance covers the price. Returns false (and changes nothing) otherwise. */
+  async spendStars(studentId: string, price: number): Promise<boolean> {
+    const rows = await this.db
+      .update(studentStats)
+      .set({ starsSpent: sql`${studentStats.starsSpent} + ${price}`, updatedAt: new Date() })
+      .where(and(eq(studentStats.studentId, studentId), sql`${studentStats.stars} - ${studentStats.starsSpent} >= ${price}`))
+      .returning({ id: studentStats.studentId });
+    return rows.length > 0;
+  }
+
+  async refundStars(studentId: string, price: number): Promise<void> {
+    await this.db
+      .update(studentStats)
+      .set({ starsSpent: sql`greatest(0, ${studentStats.starsSpent} - ${price})` })
+      .where(eq(studentStats.studentId, studentId));
+  }
+
+  /** Adds a streak shield if below the cap. */
+  async addShield(studentId: string, max: number): Promise<boolean> {
+    const rows = await this.db
+      .update(studentStats)
+      .set({ shields: sql`${studentStats.shields} + 1` })
+      .where(and(eq(studentStats.studentId, studentId), lt(studentStats.shields, max)))
+      .returning({ id: studentStats.studentId });
+    return rows.length > 0;
+  }
+
+  async bosses(studentId: string): Promise<BossRow[]> {
+    return this.db.select().from(bossDefeats).where(eq(bossDefeats.studentId, studentId));
+  }
+
+  async boss(studentId: string, lessonId: string): Promise<BossRow | undefined> {
+    const [row] = await this.db
+      .select()
+      .from(bossDefeats)
+      .where(and(eq(bossDefeats.studentId, studentId), eq(bossDefeats.lessonId, lessonId)))
+      .limit(1);
+    return row;
+  }
+
+  /** Marks the start of a new battle (creating the lesson's row if needed). */
+  async startBossBattle(studentId: string, lessonId: string, at: Date): Promise<void> {
+    await this.db
+      .insert(bossDefeats)
+      .values({ studentId, lessonId, battleStartedAt: at })
+      .onConflictDoUpdate({ target: [bossDefeats.studentId, bossDefeats.lessonId], set: { battleStartedAt: at } });
+  }
+
+  /** Records a win and closes the battle, so the same answers can't be claimed twice. */
+  async recordBossWin(studentId: string, lessonId: string, hearts: number, rewardDay: string | null): Promise<void> {
+    await this.db
+      .update(bossDefeats)
+      .set({
+        bestHearts: sql`greatest(${bossDefeats.bestHearts}, ${hearts})`,
+        timesDefeated: sql`${bossDefeats.timesDefeated} + 1`,
+        battleStartedAt: null,
+        ...(rewardDay ? { lastRewardDay: rewardDay } : {}),
+      })
+      .where(and(eq(bossDefeats.studentId, studentId), eq(bossDefeats.lessonId, lessonId)));
+  }
+
+  /** Verdicts of boss-mode answers for a lesson since a moment, newest first (to check a claimed victory). */
+  async recentBossVerdicts(studentId: string, lessonId: string, since: Date): Promise<string[]> {
+    const rows = await this.db
+      .select({ verdict: attempts.verdict })
+      .from(attempts)
+      .where(and(eq(attempts.studentId, studentId), eq(attempts.lessonId, lessonId), eq(attempts.mode, "boss"), gte(attempts.createdAt, since)))
+      .orderBy(desc(attempts.createdAt), desc(attempts.id))
+      .limit(60);
+    return rows.map((r) => r.verdict);
+  }
+}
+
 export class ContentFlagRepository {
   constructor(private readonly db: Db) {}
 
@@ -211,6 +304,7 @@ export class RateLimiter {
 export interface Repositories {
   users: UserRepository;
   progress: ProgressRepository;
+  rewards: RewardsRepository;
   flags: ContentFlagRepository;
   rateLimiter: RateLimiter;
 }
@@ -219,6 +313,7 @@ export function createRepositories(db: Db): Repositories {
   return {
     users: new UserRepository(db),
     progress: new ProgressRepository(db),
+    rewards: new RewardsRepository(db),
     flags: new ContentFlagRepository(db),
     rateLimiter: new RateLimiter(db),
   };

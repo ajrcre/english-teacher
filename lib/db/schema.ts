@@ -22,6 +22,8 @@ export const students = pgTable("students", {
   /** Id of a class test (content/tests.ts) the student is preparing for; rounds use only its questions. */
   activeTest: text("active_test"),
   soundOn: boolean("sound_on").notNull().default(true),
+  /** Avatar frame bought in the shop (lib/gamification/collection.ts), or null. */
+  frame: text("frame"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -82,6 +84,9 @@ export const studentStats = pgTable("student_stats", {
   itemsMastered: integer("items_mastered").notNull().default(0),
   answersTotal: integer("answers_total").notNull().default(0),
   answersCorrect: integer("answers_correct").notNull().default(0),
+  /** Stars spent in the shop. Spendable balance = stars - starsSpent (stars stays the lifetime total). */
+  starsSpent: integer("stars_spent").notNull().default(0),
+  bossesDefeated: integer("bosses_defeated").notNull().default(0),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -115,6 +120,40 @@ export const badgesEarned = pgTable(
   (t) => [primaryKey({ columns: [t.studentId, t.badgeId] })],
 );
 
+/** Stickers, avatars and frames a student owns. */
+export const inventory = pgTable(
+  "inventory",
+  {
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    itemId: text("item_id").notNull(),
+    kind: text("kind").notNull(), // "sticker" | "avatar" | "frame"
+    count: integer("count").notNull().default(1),
+    acquiredAt: timestamp("acquired_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.studentId, t.itemId] })],
+);
+
+/** Boss battles per lesson: when the current battle started, and the wins. */
+export const bossDefeats = pgTable(
+  "boss_defeats",
+  {
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    lessonId: text("lesson_id").notNull(),
+    bestHearts: integer("best_hearts").notNull().default(0),
+    /** Start of the battle in progress; a victory only counts answers given since then. */
+    battleStartedAt: timestamp("battle_started_at", { withTimezone: true }),
+    timesDefeated: integer("times_defeated").notNull().default(0),
+    /** Day (YYYY-MM-DD) a victory last paid out a reward; at most one reward per lesson per day. */
+    lastRewardDay: text("last_reward_day"),
+    firstDefeatedAt: timestamp("first_defeated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.studentId, t.lessonId] })],
+);
+
 export const contentFlags = pgTable("content_flags", {
   id: serial("id").primaryKey(),
   parentId: uuid("parent_id")
@@ -140,6 +179,8 @@ export const schemaTables = {
   studentStats,
   dailyActivity,
   badgesEarned,
+  inventory,
+  bossDefeats,
   contentFlags,
   rateLimits,
 };

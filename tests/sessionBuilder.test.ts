@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { itemSchema, type Item } from "@/lib/content/schema";
-import { allowedNewItems, buildSession, SESSION_RULES, type CatalogEntry, type ProgressLite } from "@/lib/scheduling/sessionBuilder";
+import { allowedNewItems, bossEligibility, buildSession, SESSION_RULES, type CatalogEntry, type ProgressLite } from "@/lib/scheduling/sessionBuilder";
 
 const now = new Date("2026-11-10T12:00:00Z");
 const today = "2026-11-10";
@@ -86,5 +86,37 @@ describe("spreadOut", () => {
     expect(out).toHaveLength(8);
     expect(out[0]).not.toBe("s1");
     expect(out.indexOf("s2") - out.indexOf("s1")).toBeGreaterThan(1);
+  });
+});
+
+describe("boss battles", () => {
+  // Lesson l1 in catalog() has 60 multiple-choice and 10 open questions.
+  const seenMcq = (n: number, extra: [string, Partial<ProgressLite>][] = []) => progress([...Array.from({ length: n }, (_, i): [string, Partial<ProgressLite>] => [`m${i}`, {}]), ...extra]);
+
+  it("stays locked until half the lesson has been seen", () => {
+    expect(bossEligibility(catalog(), seenMcq(20), "l1").available).toBe(false);
+    const e = bossEligibility(catalog(), seenMcq(35), "l1");
+    expect(e.needed).toBe(35);
+    expect(e.available).toBe(true);
+    expect(e.hp).toBe(8);
+  });
+
+  it("uses only seen, quick questions with mistakes first", () => {
+    const p = seenMcq(40, [
+      ["o1", {}],
+      ["m30", { isMistake: true, box: 0 }],
+    ]);
+    const plan = buildSession({ mode: "boss", lessonId: "l1", catalog: catalog(), progress: p, now, today, newItemsToday: 0 });
+    expect(plan.entries).toHaveLength(8);
+    expect(plan.entries[0].itemId).toBe("m30");
+    expect(plan.entries.every((e) => e.itemId.startsWith("m") && !e.isNew)).toBe(true);
+  });
+
+  it("never offers a boss for a lesson of only open questions", () => {
+    const opens = catalog().filter((c) => c.item.type === "open");
+    const p = progress(opens.map((c) => [c.item.id, {}]));
+    const e = bossEligibility(opens, p, "l1");
+    expect(e.available).toBe(false);
+    expect(e.needed).toBe(0);
   });
 });

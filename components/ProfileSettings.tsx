@@ -6,10 +6,11 @@ import { Avatar } from "@/components/Art";
 import { AVATARS } from "@/lib/avatars";
 import { cx } from "@/lib/ui";
 
-export function ProfileSettings({ name, avatar, soundOn }: { name: string; avatar: string; soundOn: boolean }) {
+export function ProfileSettings({ name, avatar, frame, soundOn, ownedAvatars = [], ownedFrames = [] }: { name: string; avatar: string; frame?: string | null; soundOn: boolean; ownedAvatars?: string[]; ownedFrames?: string[] }) {
   const router = useRouter();
   const [sound, setSound] = useState(soundOn);
   const [current, setCurrent] = useState(avatar);
+  const [currentFrame, setCurrentFrame] = useState<string | null>(frame ?? null);
 
   async function patch(body: object) {
     await fetch("/api/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -21,7 +22,7 @@ export function ProfileSettings({ name, avatar, soundOn }: { name: string; avata
       <div>
         <h2 className="font-semibold">Avatar</h2>
         <div className="mt-3 flex flex-wrap gap-3">
-          {AVATARS.map((a) => (
+          {[...AVATARS, ...ownedAvatars].map((a) => (
             <button
               key={a}
               aria-label={a}
@@ -36,7 +37,29 @@ export function ProfileSettings({ name, avatar, soundOn }: { name: string; avata
             </button>
           ))}
         </div>
+        {ownedAvatars.length === 0 && <p className="mt-2 text-sm text-ink-300">More avatars are waiting in the star shop.</p>}
       </div>
+      {ownedFrames.length > 0 && (
+        <div>
+          <h2 className="font-semibold">Frame</h2>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {[null, ...ownedFrames].map((f) => (
+              <button
+                key={f ?? "none"}
+                aria-label={f ? f.replace("frame-", "") + " frame" : "No frame"}
+                aria-pressed={currentFrame === f}
+                className={cx("rounded-full p-1 transition", currentFrame === f ? "ring-4 ring-amber-400" : "opacity-70 hover:opacity-100")}
+                onClick={() => {
+                  setCurrentFrame(f);
+                  void patch({ frame: f });
+                }}
+              >
+                <Avatar avatar={current} name={name} size={48} frame={f} />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
         <span>
           <span className="block font-semibold">Sound effects</span>

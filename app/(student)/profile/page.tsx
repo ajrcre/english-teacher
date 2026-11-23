@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
-import { Art, StarGlyph } from "@/components/Art";
+import { BadgeIcon } from "@/components/pixel/BadgeIcon";
 import { ProfileSettings } from "@/components/ProfileSettings";
 import { LevelRing, StudentHeader } from "@/components/StudentHeader";
 import { BADGES } from "@/lib/gamification/badges";
 import { requireStudentPage } from "@/lib/student";
-import { badgeArt, cx } from "@/lib/ui";
+import { cx } from "@/lib/ui";
 
 export const metadata: Metadata = { title: "Profile" };
 
 export default async function ProfilePage() {
   const { student, services } = await requireStudentPage();
-  const { stats, statsRaw, badges, units } = await services.practice.overview(student.id);
+  const [{ stats, statsRaw, badges, units }, owned] = await Promise.all([services.practice.overview(student.id), services.rewards.owned(student.id)]);
   const earned = new Map(badges.map((b) => [b.id, b.earnedAt]));
   const mastered = units.reduce((a, u) => a + u.mastered, 0);
   const total = units.reduce((a, u) => a + u.total, 0);
@@ -19,7 +19,7 @@ export default async function ProfilePage() {
   return (
     <main className="night-sky min-h-dvh">
       <div className="mx-auto max-w-3xl px-4 pb-16 pt-5 sm:px-6">
-        <StudentHeader name={student.name} avatar={student.avatar} stats={stats} back={{ href: "/home", label: "Sky" }} />
+        <StudentHeader name={student.name} avatar={student.avatar} frame={student.frame} stats={stats} back={{ href: "/home", label: "Sky" }} />
 
         <section className="mt-8 flex items-center gap-5">
           <LevelRing progress={stats.progress} level={stats.level} size={88} />
@@ -39,7 +39,8 @@ export default async function ProfilePage() {
             ["Best combo", String(statsRaw.bestCombo)],
             ["Accuracy", `${accuracy}%`],
             ["Mistakes fixed", String(statsRaw.mistakesFixed)],
-            ["Stars", String(statsRaw.stars)],
+            ["Stars earned", String(statsRaw.stars)],
+            ["Bosses beaten", String(statsRaw.bossesDefeated)],
             ["Streak shields", String(statsRaw.shields)],
             ["Answers", String(statsRaw.answersTotal)],
           ].map(([k, v]) => (
@@ -60,7 +61,7 @@ export default async function ProfilePage() {
               const got = earned.has(b.id);
               return (
                 <li key={b.id} className="text-center">
-                  <Art src={badgeArt(b.icon)} alt="" className={cx("mx-auto h-20 w-20 rounded-full object-cover", !got && "opacity-25 grayscale")} fallback={<StarGlyph className="h-8 w-8" filled={got} />} />
+                  <BadgeIcon badge={b} earned={got} size={80} />
                   <div className={cx("mt-2 text-sm font-semibold", !got && "text-ink-400")}>{b.title}</div>
                   <div className="text-xs text-ink-400">{b.description}</div>
                 </li>
@@ -72,7 +73,7 @@ export default async function ProfilePage() {
         <section className="mt-10">
           <h2 className="font-display text-2xl font-semibold">Settings</h2>
           <div className="mt-4">
-            <ProfileSettings name={student.name} avatar={student.avatar} soundOn={student.soundOn} />
+            <ProfileSettings name={student.name} avatar={student.avatar} frame={student.frame} soundOn={student.soundOn} ownedAvatars={owned.avatars} ownedFrames={owned.frames} />
           </div>
         </section>
       </div>

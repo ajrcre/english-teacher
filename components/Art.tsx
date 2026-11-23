@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { PixelSprite } from "@/components/pixel/PixelSprite";
+import { SHOP_AVATAR_ART } from "@/lib/pixel/sprites/avatars";
 import { cx } from "@/lib/ui";
 
 /** An image from /public/art that degrades to a tasteful placeholder if the file is missing. */
@@ -37,8 +39,13 @@ export function StarGlyph({ className, filled = true }: { className?: string; fi
   );
 }
 
-export function Avatar({ avatar, name, size = 48, className }: { avatar: string; name: string; size?: number; className?: string }) {
-  return (
+export function Avatar({ avatar, name, size = 48, className, frame }: { avatar: string; name: string; size?: number; className?: string; frame?: string | null }) {
+  const pixel = avatar.startsWith("px-") ? SHOP_AVATAR_ART[avatar.slice(3)] : undefined;
+  const inner = pixel ? (
+    <span role="img" aria-label={name} className={cx("grid place-items-center overflow-hidden rounded-full bg-ink-800 ring-2 ring-white/10", className)} style={{ width: size, height: size }}>
+      <PixelSprite sprite={pixel} scale={size / pixel.w} />
+    </span>
+  ) : (
     <Art
       src={`/art/avatars/${avatar}.webp`}
       alt={name}
@@ -47,6 +54,8 @@ export function Avatar({ avatar, name, size = 48, className }: { avatar: string;
       fallback={<span className="font-display text-lg font-semibold text-amber-300">{name.slice(0, 1).toUpperCase()}</span>}
     />
   );
+  if (!frame) return inner;
+  return <span className={cx("avatar-frame", `frame-${frame.replace(/^frame-/, "")}`)}>{inner}</span>;
 }
 
 export function Logo({ className }: { className?: string }) {

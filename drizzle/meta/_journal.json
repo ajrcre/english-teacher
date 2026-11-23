@@ -15,6 +15,13 @@
       "when": 1795445115525,
       "tag": "0001_add_active_test",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795450281011,
+      "tag": "0002_rewards_and_bosses",
+      "breakpoints": true
     }
   ]
 }

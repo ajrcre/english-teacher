@@ -1,7 +1,8 @@
 import { ESTIMATED_SECONDS, LLM_GRADED_TYPES, type Item, type ItemType } from "@/lib/content/schema";
+import { BOSS_RULES } from "@/lib/gamification/collection";
 import { addDays, dayStart } from "@/lib/time";
 
-export type SessionMode = "review" | "explore" | "lesson" | "mistakes";
+export type SessionMode = "review" | "explore" | "lesson" | "mistakes" | "boss";
 
 export interface CatalogEntry {
   item: Item;
@@ -89,6 +90,41 @@ export function allowedNewItems(input: Pick<BuildInput, "catalog" | "progress" |
   if (tomorrowLoad > SESSION_RULES.backlogHardSeconds) cap = 0;
   else if (tomorrowLoad > SESSION_RULES.backlogSoftSeconds) cap = SESSION_RULES.reducedNewPerDay;
   return Math.max(0, cap - input.newItemsToday);
+}
+
+/**
+ * Questions for a lesson's boss battle: only ones the student has already met, never
+ * LLM-graded (battles should be quick), mistakes first, then the least practised.
+ */
+export function bossPool(catalog: readonly CatalogEntry[], progress: ReadonlyMap<string, ProgressLite>, lessonId: string): CatalogEntry[] {
+  return catalog
+    .filter((c) => c.lessonId === lessonId && !LLM_GRADED_TYPES.has(c.item.type) && progress.has(c.item.id))
+    .sort((a, b) => {
+      const pa = progress.get(a.item.id)!;
+      const pb = progress.get(b.item.id)!;
+      if (pa.isMistake !== pb.isMistake) return pa.isMistake ? -1 : 1;
+      if (pa.box !== pb.box) return pa.box - pb.box;
+      return pa.lastSeenAt.getTime() - pb.lastSeenAt.getTime();
+    });
+}
+
+export interface BossEligibility {
+  available: boolean;
+  /** Questions seen / needed before the boss appears. */
+  seen: number;
+  needed: number;
+  /** How many questions the battle would have (= the boss's HP). */
+  hp: number;
+}
+
+export function bossEligibility(catalog: readonly CatalogEntry[], progress: ReadonlyMap<string, ProgressLite>, lessonId: string): BossEligibility {
+  const inLesson = catalog.filter((c) => c.lessonId === lessonId);
+  const seen = inLesson.filter((c) => progress.has(c.item.id)).length;
+  const needed = Math.ceil(inLesson.length * BOSS_RULES.unlockSeenShare);
+  const hp = Math.min(BOSS_RULES.maxItems, bossPool(catalog, progress, lessonId).length);
+  // A lesson with too few quick questions never gets a boss.
+  const possible = inLesson.filter((c) => !LLM_GRADED_TYPES.has(c.item.type)).length >= BOSS_RULES.minItems;
+  return { available: possible && seen >= needed && hp >= BOSS_RULES.minItems, seen, needed: possible ? needed : 0, hp };
 }
 
 class PlanAccumulator {
@@ -204,6 +240,11 @@ export function buildSession(input: BuildInput): SessionPlan {
       acc.fill(inLesson.filter(notMastered).sort(leastRecent), false);
       acc.fill(inLesson.filter((c) => !!seen(c)).sort(leastRecent), false);
       break;
+    }
+    case "boss": {
+      const battle = new PlanAccumulator(Infinity, input.secondsByType);
+      for (const c of bossPool(catalog, progress, input.lessonId ?? "").slice(0, BOSS_RULES.maxItems)) battle.tryAdd(c, false);
+      return { mode: "boss", entries: battle.entries, estimatedSeconds: battle.seconds, newCount: 0 };
     }
     case "mistakes": {
       const flagged = catalog.filter((c) => {

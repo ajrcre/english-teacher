@@ -41,6 +41,7 @@
 
   --font-display: var(--font-fraunces), "Georgia", serif;
   --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+  --font-pixel: var(--font-pixelify), ui-monospace, monospace;
 
   --radius-card: 1.25rem;
   --shadow-card: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 10px 30px -12px rgb(8 17 30 / 0.45);
@@ -243,5 +244,207 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Game-world pieces in pixel art: boss battles, treasure chests, the shop and the album.
+ * Stepped corners come from box-shadows, so panels look hand-placed on the pixel grid.
+ */
+@layer components {
+  .pixelated {
+    image-rendering: pixelated;
+  }
+
+  .pixel-panel {
+    --px-edge: #241c2b;
+    --px-bg: #2d2744;
+    background: var(--px-bg);
+    color: #ece4d6;
+    margin: 4px;
+    box-shadow:
+      0 -4px 0 0 var(--px-edge),
+      0 4px 0 0 var(--px-edge),
+      -4px 0 0 0 var(--px-edge),
+      4px 0 0 0 var(--px-edge),
+      inset 0 4px 0 0 rgb(255 255 255 / 0.08),
+      inset 0 -4px 0 0 rgb(0 0 0 / 0.25);
+  }
+
+  .pixel-btn {
+    --px-edge: #241c2b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.9rem;
+    padding: 0 1.1rem;
+    margin: 4px;
+    font-family: var(--font-pixel);
+    font-size: 1.1rem;
+    letter-spacing: 0.02em;
+    background: #cf9c55;
+    color: #241c2b;
+    box-shadow:
+      0 -4px 0 0 var(--px-edge),
+      0 4px 0 0 var(--px-edge),
+      -4px 0 0 0 var(--px-edge),
+      4px 0 0 0 var(--px-edge),
+      inset 0 4px 0 0 #ead39b,
+      inset 0 -4px 0 0 #9c703f;
+    transition: transform 80ms steps(2);
+    user-select: none;
+  }
+  .pixel-btn:hover:not(:disabled) {
+    background: #dcb06a;
+  }
+  .pixel-btn:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow:
+      0 -4px 0 0 var(--px-edge),
+      0 4px 0 0 var(--px-edge),
+      -4px 0 0 0 var(--px-edge),
+      4px 0 0 0 var(--px-edge),
+      inset 0 4px 0 0 #9c703f;
+  }
+  .pixel-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .pixel-btn-ghost {
+    background: #4b416b;
+    color: #ece4d6;
+    box-shadow:
+      0 -4px 0 0 var(--px-edge),
+      0 4px 0 0 var(--px-edge),
+      -4px 0 0 0 var(--px-edge),
+      4px 0 0 0 var(--px-edge),
+      inset 0 4px 0 0 #776a9c,
+      inset 0 -4px 0 0 #2d2744;
+  }
+  .pixel-btn-ghost:hover:not(:disabled) {
+    background: #574c7c;
+  }
+
+  /* Avatar frames bought in the shop. */
+  .avatar-frame {
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    padding: 3px;
+    flex-shrink: 0;
+  }
+  .frame-bronze {
+    background: conic-gradient(#8c5a42, #c98d5f, #8c5a42, #b07a4f, #8c5a42);
+  }
+  .frame-silver {
+    background: conic-gradient(#8f9ba6, #e3e9ee, #8f9ba6, #c3ccd4, #8f9ba6);
+  }
+  .frame-gold {
+    background: conic-gradient(#9c703f, #ead39b, #cf9c55, #f6e7b8, #9c703f);
+    box-shadow: 0 0 12px rgb(234 211 155 / 0.45);
+  }
+  .frame-stars {
+    padding: 4px;
+    background:
+      radial-gradient(circle at 50% 0%, #f6e7b8 0 2px, transparent 3px),
+      radial-gradient(circle at 100% 50%, #f6e7b8 0 2px, transparent 3px),
+      radial-gradient(circle at 50% 100%, #f6e7b8 0 2px, transparent 3px),
+      radial-gradient(circle at 0% 50%, #f6e7b8 0 2px, transparent 3px),
+      conic-gradient(#4b416b, #776a9c, #6f97ba, #4b416b);
+    box-shadow: 0 0 14px rgb(169 156 196 / 0.55);
+  }
+
+  @keyframes px-float-up {
+    0% {
+      transform: translate(-50%, 0) scale(0.8);
+      opacity: 0;
+    }
+    15% {
+      transform: translate(-50%, -6px) scale(1.15);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -42px) scale(1);
+      opacity: 0;
+    }
+  }
+  @keyframes px-shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    20% {
+      transform: translateX(-4%);
+    }
+    40% {
+      transform: translateX(4%);
+    }
+    60% {
+      transform: translateX(-3%);
+    }
+    80% {
+      transform: translateX(2%);
+    }
+  }
+  @keyframes px-flash {
+    0%,
+    40% {
+      filter: brightness(2.6) saturate(0);
+    }
+    100% {
+      filter: none;
+    }
+  }
+  @keyframes px-hurt {
+    0%,
+    50% {
+      filter: sepia(1) saturate(4) hue-rotate(-40deg) brightness(0.9);
+    }
+    100% {
+      filter: none;
+    }
+  }
+  @keyframes px-heart-break {
+    0% {
+      transform: scale(1);
+    }
+    30% {
+      transform: scale(1.4) rotate(-12deg);
+    }
+    100% {
+      transform: scale(1) rotate(0);
+    }
+  }
+  @keyframes px-bob {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-3px);
+    }
+  }
+  @keyframes px-wiggle {
+    0%,
+    100% {
+      transform: rotate(0);
+    }
+    25% {
+      transform: rotate(-6deg);
+    }
+    75% {
+      transform: rotate(6deg);
+    }
+  }
+  @keyframes px-rays {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .px-anim {
+      animation: none !important;
+    }
   }
 }

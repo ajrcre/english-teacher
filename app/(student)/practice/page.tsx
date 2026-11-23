@@ -7,18 +7,24 @@ import { requireStudentPage } from "@/lib/student";
 
 export const metadata: Metadata = { title: "Practice" };
 
-const MODES: SessionMode[] = ["review", "explore", "lesson", "mistakes"];
+const MODES: SessionMode[] = ["review", "explore", "lesson", "mistakes", "boss"];
 
 export default async function PracticePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const mode = (MODES.includes(params.mode as SessionMode) ? params.mode : "review") as SessionMode;
   const lessonId = typeof params.lesson === "string" ? params.lesson : undefined;
-  const { student } = await requireStudentPage();
+  const { student, services } = await requireStudentPage();
   let lessonTitle: string | undefined;
-  if (mode === "lesson") {
+  let unitId: string | undefined;
+  let bossReady = false;
+  if (mode === "lesson" || mode === "boss") {
     const ref = lessonId ? getCatalog().lessonById.get(lessonId) : undefined;
-    if (!ref) redirect("/home");
+    if (!ref || !lessonId) redirect("/home");
     lessonTitle = `${ref.unit.title} · ${ref.lesson.title}`;
+    unitId = ref.unit.id;
+    const boss = await services.practice.bossStatus(student.id, lessonId);
+    if (mode === "boss" && !boss.available) redirect(`/unit/${ref.unit.id}`);
+    bossReady = boss.available;
   }
-  return <Runner key={`${mode}:${lessonId ?? ""}`} mode={mode} lessonId={lessonId} lessonTitle={lessonTitle} soundOn={student.soundOn} />;
+  return <Runner key={`${mode}:${lessonId ?? ""}`} mode={mode} lessonId={lessonId} lessonTitle={lessonTitle} soundOn={student.soundOn} unitId={unitId} bossReady={bossReady} />;
 }

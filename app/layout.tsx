@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible_Next, Fraunces } from "next/font/google";
+import { Atkinson_Hyperlegible_Next, Fraunces, Pixelify_Sans } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 
@@ -12,6 +12,13 @@ const fraunces = Fraunces({
 
 const atkinson = Atkinson_Hyperlegible_Next({
   variable: "--font-atkinson",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+/** Pixel font, used only by the game-world screens (boss battles, chests, shop, album). */
+const pixelify = Pixelify_Sans({
+  variable: "--font-pixelify",
   subsets: ["latin"],
   display: "swap",
 });
@@ -31,7 +38,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${atkinson.variable} antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${fraunces.variable} ${atkinson.variable} ${pixelify.variable} antialiased`} suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );
