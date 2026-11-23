@@ -139,12 +139,16 @@ test("unlock a boss, win the battle, collect the loot and shop", async ({ page }
   await expect(page.getByText("The Cog Golem")).toBeVisible();
   await shot(page, "09-album");
 
-  // Spend stars in the shop: a bronze frame, worn straight away.
+  // Spend stars in the shop: a party hat for Nova and a bronze frame, both worn straight away.
   await page.goto("/shop");
   await shot(page, "10-shop");
+  await page.getByRole("button", { name: "Buy Party Hat for 10 stars" }).click();
+  await expect(page.getByText("Party Hat is yours")).toBeVisible();
+  await expect(page.locator("li", { hasText: "Party Hat" }).getByText("Wearing ✓")).toBeVisible();
   await page.getByRole("button", { name: "Buy Bronze Frame for 20 stars" }).click();
   await expect(page.getByText("Bronze Frame is yours")).toBeVisible();
-  await expect(page.getByText("Wearing ✓")).toBeVisible();
+  await expect(page.locator("li", { hasText: "Bronze Frame" }).getByText("Wearing ✓")).toBeVisible();
+  await shot(page, "10b-shop-hat");
   await page.goto("/home");
   await expect(page.locator(".frame-bronze")).toBeVisible();
   await shot(page, "11-home");
@@ -156,4 +160,9 @@ test("unlock a boss, win the battle, collect the loot and shop", async ({ page }
   await expect(page.getByText("Shadow Tamer")).toBeVisible();
   await expect(page.getByRole("button", { name: "bronze frame" })).toBeVisible();
   await shot(page, "12-profile");
+
+  // Nova wears her new hat on the journey strip of the next round.
+  await page.goto(`/practice?mode=lesson&lesson=${LESSON}`);
+  await expect(page.getByRole("progressbar", { name: "Round progress" })).toBeVisible({ timeout: 30_000 });
+  await shot(page, "13-journey-hat");
 });

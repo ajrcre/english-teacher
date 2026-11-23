@@ -6,7 +6,9 @@ import { validateSprite, type Sprite } from "@/lib/pixel/canvas";
 import { SHOP_AVATAR_ART } from "@/lib/pixel/sprites/avatars";
 import { BACKDROP_H, BACKDROP_IDS, BACKDROP_W, backdropFor } from "@/lib/pixel/sprites/backdrops";
 import { BOSS_BY_UNIT, BOSS_SIZE, BOSSES } from "@/lib/pixel/sprites/bosses";
-import { novaAttack, novaHurt, novaJump, novaRun, novaSit, novaSprite, novaTrip, novaWalk } from "@/lib/pixel/sprites/nova";
+import { HAT_IDS, hatOf } from "@/lib/pixel/sprites/hats";
+import { novaAttack, novaHurt, novaJump, novaRun, novaSit, novaSprite, novaSprites, novaTrip, novaWalk } from "@/lib/pixel/sprites/nova";
+import { HAT_ITEM_IDS } from "@/lib/gamification/collection";
 import { STICKER_ART_IDS, stickerArt } from "@/lib/pixel/sprites/stickers";
 import * as ui from "@/lib/pixel/sprites/ui";
 
@@ -41,6 +43,21 @@ describe("pixel art", () => {
       ...Object.entries(SHOP_AVATAR_ART),
     ];
     expect(all.flatMap(([name, s]) => validateSprite(name, s))).toEqual([]);
+  });
+
+  it("every hat fits Nova in every pose without changing her size", () => {
+    const plain = novaSprites(null);
+    for (const hat of HAT_IDS) {
+      const dressed = novaSprites(hat);
+      for (const [pose, s] of Object.entries(dressed)) {
+        expect(validateSprite(`${hat}:${pose}`, s)).toEqual([]);
+        const base = plain[pose as keyof typeof plain];
+        expect([s.w, s.h, s.frames.length], `${hat}:${pose}`).toEqual([base.w, base.h, base.frames.length]);
+        expect(s.frames[0].join(""), `${hat}:${pose} shows the hat`).not.toEqual(base.frames[0].join(""));
+      }
+    }
+    // Every hat in the shop has art.
+    for (const id of HAT_ITEM_IDS) expect(hatOf(id), id).not.toBeNull();
   });
 
   it("every unit has a boss and a battle backdrop", () => {

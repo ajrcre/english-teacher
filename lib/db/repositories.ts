@@ -49,7 +49,7 @@ export class UserRepository {
     return row;
   }
 
-  async updateStudent(id: string, patch: Partial<Pick<StudentRow, "name" | "avatar" | "pinHash" | "focusUnit" | "activeTest" | "soundOn" | "frame">>): Promise<void> {
+  async updateStudent(id: string, patch: Partial<Pick<StudentRow, "name" | "avatar" | "pinHash" | "focusUnit" | "activeTest" | "soundOn" | "frame" | "hat">>): Promise<void> {
     await this.db.update(students).set(patch).where(eq(students.id, id));
   }
 
@@ -182,8 +182,8 @@ export class RewardsRepository {
     return this.db.select().from(inventory).where(eq(inventory.studentId, studentId)).orderBy(inventory.acquiredAt);
   }
 
-  /** Adds one of an item (stickers stack; avatars and frames stay at 1). */
-  async addItem(studentId: string, itemId: string, kind: "sticker" | "avatar" | "frame"): Promise<void> {
+  /** Adds one of an item (stickers stack; avatars, frames and hats stay at 1). */
+  async addItem(studentId: string, itemId: string, kind: "sticker" | "avatar" | "frame" | "hat"): Promise<void> {
     await this.db
       .insert(inventory)
       .values({ studentId, itemId, kind })

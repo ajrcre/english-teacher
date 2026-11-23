@@ -1,5 +1,5 @@
 import { AVATARS } from "@/lib/avatars";
-import { FRAME_IDS, rollChest, SHOP_AVATAR_IDS, SHOP_BY_ID, SHOP_ITEMS, STICKERS, type ChestContents } from "@/lib/gamification/collection";
+import { FRAME_IDS, HAT_ITEM_IDS, rollChest, SHOP_AVATAR_IDS, SHOP_BY_ID, SHOP_ITEMS, STICKERS, type ChestContents } from "@/lib/gamification/collection";
 import { XP_RULES } from "@/lib/gamification/engine";
 import type { Repositories } from "@/lib/db/repositories";
 import { logger } from "@/lib/logger";
@@ -42,7 +42,7 @@ export class RewardsService {
       items: SHOP_ITEMS.map((i) => ({
         ...i,
         owned: owned.has(i.id),
-        equipped: i.id === student?.avatar || i.id === student?.frame,
+        equipped: i.id === student?.avatar || i.id === student?.frame || i.id === student?.hat,
         soldOut: i.kind === "shield" && stats.shields >= XP_RULES.maxShields,
       })),
     };
@@ -65,14 +65,14 @@ export class RewardsService {
       if (!(await this.repos.rewards.spendStars(studentId, item.price))) throw new RewardError(402, "Not enough stars yet");
       await this.repos.rewards.addItem(studentId, itemId, item.kind);
       // Wear it straight away: that's what you bought it for.
-      await this.repos.users.updateStudent(studentId, item.kind === "avatar" ? { avatar: itemId } : { frame: itemId });
+      await this.repos.users.updateStudent(studentId, item.kind === "avatar" ? { avatar: itemId } : item.kind === "hat" ? { hat: itemId } : { frame: itemId });
     }
     logger.info("shop purchase", { studentId, itemId, price: item.price });
     return this.shop(studentId);
   }
 
-  /** Checks the student may use an avatar or frame (built-in avatars are free; shop ones must be owned). */
-  async canUse(studentId: string, patch: { avatar?: string; frame?: string | null }): Promise<boolean> {
+  /** Checks the student may use an avatar, frame or hat (built-in avatars are free; shop ones must be owned). */
+  async canUse(studentId: string, patch: { avatar?: string; frame?: string | null; hat?: string | null }): Promise<boolean> {
     const needs: string[] = [];
     if (patch.avatar && !(AVATARS as readonly string[]).includes(patch.avatar)) {
       if (!SHOP_AVATAR_IDS.includes(patch.avatar)) return false;
@@ -82,14 +82,19 @@ export class RewardsService {
       if (!FRAME_IDS.includes(patch.frame)) return false;
       needs.push(patch.frame);
     }
+    if (patch.hat) {
+      if (!HAT_ITEM_IDS.includes(patch.hat)) return false;
+      needs.push(patch.hat);
+    }
     if (!needs.length) return true;
     const owned = new Set((await this.repos.rewards.inventory(studentId)).map((i) => i.itemId));
     return needs.every((n) => owned.has(n));
   }
 
-  async owned(studentId: string): Promise<{ avatars: string[]; frames: string[] }> {
+  async owned(studentId: string): Promise<{ avatars: string[]; frames: string[]; hats: string[] }> {
     const inv = await this.repos.rewards.inventory(studentId);
-    return { avatars: inv.filter((i) => i.kind === "avatar").map((i) => i.itemId), frames: inv.filter((i) => i.kind === "frame").map((i) => i.itemId) };
+    const of = (kind: string) => inv.filter((i) => i.kind === kind).map((i) => i.itemId);
+    return { avatars: of("avatar"), frames: of("frame"), hats: of("hat") };
   }
 
   async album(studentId: string) {

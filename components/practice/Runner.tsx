@@ -87,6 +87,7 @@ export function Runner({
   soundOn,
   unitId,
   bossReady = false,
+  hat = null,
 }: {
   mode: SessionMode;
   lessonId?: string;
@@ -96,6 +97,8 @@ export function Runner({
   unitId?: string;
   /** Lesson practice: the lesson's boss is unlocked, so the summary offers the battle. */
   bossReady?: boolean;
+  /** The hat Nova wears (a shop id), or null. */
+  hat?: string | null;
 }) {
   const isBoss = mode === "boss" && !!unitId;
   const router = useRouter();
@@ -388,11 +391,11 @@ export function Runner({
           </div>
         </header>
         {!isBoss && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
-          <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} />
+          <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} hat={hat} />
         )}
         <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">{lessonTitle ?? MODE_LABEL[mode]}</p>
         {battle && unitId && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
-          <BossArena unitId={unitId} hp={battle.hp} hits={battle.hits} hearts={BOSS_RULES.hearts} heartsLeft={battle.heartsLeft} beat={battle.beat} message={battle.message} />
+          <BossArena unitId={unitId} hp={battle.hp} hits={battle.hits} hearts={BOSS_RULES.hearts} heartsLeft={battle.heartsLeft} beat={battle.beat} message={battle.message} hat={hat} />
         )}
 
         <AnimatePresence>

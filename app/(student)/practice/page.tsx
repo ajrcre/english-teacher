@@ -26,5 +26,5 @@ export default async function PracticePage({ searchParams }: { searchParams: Pro
     if (mode === "boss" && !boss.available) redirect(`/unit/${ref.unit.id}`);
     bossReady = boss.available;
   }
-  return <Runner key={`${mode}:${lessonId ?? ""}`} mode={mode} lessonId={lessonId} lessonTitle={lessonTitle} soundOn={student.soundOn} unitId={unitId} bossReady={bossReady} />;
+  return <Runner key={`${mode}:${lessonId ?? ""}`} mode={mode} lessonId={lessonId} lessonTitle={lessonTitle} soundOn={student.soundOn} unitId={unitId} bossReady={bossReady} hat={student.hat} />;
 }

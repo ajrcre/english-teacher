@@ -1,4 +1,17 @@
 import { PixelCanvas, sprite, type Sprite } from "../canvas";
+import { ANCHOR_X, ANCHOR_Y, hatCanvas, type HatId } from "./hats";
+
+/** Empty rows above every Nova sprite, so a tall hat fits (same size with or without a hat). */
+const FRONT_PAD = 5;
+const SIDE_PAD = 6;
+
+/** Puts the drawing on a taller canvas and stamps the hat with its bottom-centre at (hx, hatBottom). */
+function withHat(c: PixelCanvas, pad: number, hat: HatId | null, view: "front" | "side", hx: number, hatBottom: number): PixelCanvas {
+  const out = new PixelCanvas(c.w, c.h + pad);
+  out.stamp(c, 0, pad);
+  if (hat) out.stamp(hatCanvas(hat, view), Math.round(hx) - ANCHOR_X, pad + Math.round(hatBottom) - ANCHOR_Y);
+  return out;
+}
 
 /**
  * Nova the fox in pixel form: the student's hero in battles. Faces right (towards the boss).
@@ -9,7 +22,7 @@ type Pose = { kind: "idle"; f: number } | { kind: "attack" } | { kind: "hurt" };
 const LIGHT: Record<string, string> = { o: "Y", O: "o", W: "w", d: "T" };
 const DARK: Record<string, string> = { o: "O", W: "e", w: "W" };
 
-function nova(p: Pose): PixelCanvas {
+function nova(p: Pose, hat: HatId | null = null): PixelCanvas {
   const c = new PixelCanvas(28, 26);
   const atk = p.kind === "attack";
   const hurt = p.kind === "hurt";
@@ -85,12 +98,8 @@ function nova(p: Pose): PixelCanvas {
     ])
       c.set(x + dx - 2, y, "f");
   } else if (f !== 1) c.set(0, 18, "Y");
-  return c;
+  return withHat(c, FRONT_PAD, hat, "front", hx, hy - 4);
 }
-
-export const novaSprite: Sprite = sprite(...[0, 1, 2, 3].map((f) => nova({ kind: "idle", f })));
-export const novaAttack: Sprite = sprite(nova({ kind: "attack" }));
-export const novaHurt: Sprite = sprite(nova({ kind: "hurt" }));
 
 // ---------------------------------------------------------------------------
 // Nova from the side, facing right: she walks the journey strip during a round.
@@ -99,7 +108,7 @@ type SidePose = { kind: "walk" | "run" | "sit"; f: number } | { kind: "trip" } |
 const SW = 24;
 const SH = 16;
 
-function side(p: SidePose): PixelCanvas {
+function side(p: SidePose, hat: HatId | null = null): PixelCanvas {
   const c = new PixelCanvas(SW, SH);
   const f = "f" in p ? p.f : 0;
   const run = p.kind === "run";
@@ -127,7 +136,7 @@ function side(p: SidePose): PixelCanvas {
     else c.set(15, hy - 1, "k").set(15, hy, "k");
     c.shade(LIGHT, DARK);
     c.outline("k");
-    return c;
+    return withHat(c, SIDE_PAD, hat, "side", 13.5, hy - 2);
   }
 
   const by = 10 + bob + (trip ? 1 : 0);
@@ -187,11 +196,49 @@ function side(p: SidePose): PixelCanvas {
   // a puff of dust behind running feet, stars when tripping
   if (run && f % 2 === 0) c.set(1, SH - 2, "e").set(0, SH - 3, "e");
   if (trip) c.set(hx + 3, 1, "y").set(hx - 3, 2, "y");
-  return c;
+  return withHat(c, SIDE_PAD, hat, "side", hx - 0.5, hy - 2);
 }
 
-export const novaWalk: Sprite = sprite(...[0, 1, 2, 3].map((f) => side({ kind: "walk", f })));
-export const novaRun: Sprite = sprite(...[0, 1, 2, 3].map((f) => side({ kind: "run", f })));
-export const novaSit: Sprite = sprite(side({ kind: "sit", f: 0 }), side({ kind: "sit", f: 0 }), side({ kind: "sit", f: 0 }), side({ kind: "sit", f: 1 }));
-export const novaTrip: Sprite = sprite(side({ kind: "trip" }));
-export const novaJump: Sprite = sprite(side({ kind: "jump" }));
+export interface NovaSprites {
+  idle: Sprite;
+  attack: Sprite;
+  hurt: Sprite;
+  walk: Sprite;
+  run: Sprite;
+  sit: Sprite;
+  trip: Sprite;
+  jump: Sprite;
+}
+
+const sets = new Map<string, NovaSprites>();
+
+/** Every Nova sprite, wearing the given hat (or none). Cached per hat. */
+export function novaSprites(hat: HatId | null = null): NovaSprites {
+  const key = hat ?? "none";
+  let s = sets.get(key);
+  if (!s) {
+    const four = (fn: (f: number) => PixelCanvas) => sprite(...[0, 1, 2, 3].map(fn));
+    s = {
+      idle: four((f) => nova({ kind: "idle", f }, hat)),
+      attack: sprite(nova({ kind: "attack" }, hat)),
+      hurt: sprite(nova({ kind: "hurt" }, hat)),
+      walk: four((f) => side({ kind: "walk", f }, hat)),
+      run: four((f) => side({ kind: "run", f }, hat)),
+      sit: sprite(...[0, 0, 0, 1].map((f) => side({ kind: "sit", f }, hat))),
+      trip: sprite(side({ kind: "trip" }, hat)),
+      jump: sprite(side({ kind: "jump" }, hat)),
+    };
+    sets.set(key, s);
+  }
+  return s;
+}
+
+const plain = novaSprites(null);
+export const novaSprite: Sprite = plain.idle;
+export const novaAttack: Sprite = plain.attack;
+export const novaHurt: Sprite = plain.hurt;
+export const novaWalk: Sprite = plain.walk;
+export const novaRun: Sprite = plain.run;
+export const novaSit: Sprite = plain.sit;
+export const novaTrip: Sprite = plain.trip;
+export const novaJump: Sprite = plain.jump;

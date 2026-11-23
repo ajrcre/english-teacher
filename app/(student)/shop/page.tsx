@@ -4,7 +4,8 @@ import { PixelSprite } from "@/components/pixel/PixelSprite";
 import { ShopGrid } from "@/components/rewards/ShopGrid";
 import { StudentHeader } from "@/components/StudentHeader";
 import { backdropFor } from "@/lib/pixel/sprites/backdrops";
-import { novaSprite } from "@/lib/pixel/sprites/nova";
+import { hatOf } from "@/lib/pixel/sprites/hats";
+import { novaSprites } from "@/lib/pixel/sprites/nova";
 import { chests } from "@/lib/pixel/sprites/ui";
 import { requireStudentPage } from "@/lib/student";
 
@@ -22,7 +23,7 @@ export default async function ShopPage() {
             <PixelScene sprite={backdropFor("word-treasury")} />
           </div>
           <div className="absolute bottom-[6%] left-[8%] w-[22%]">
-            <PixelSprite sprite={novaSprite} fps={3} className="h-auto w-full" />
+            <PixelSprite sprite={novaSprites(hatOf(student.hat)).idle} fps={3} className="h-auto w-full" />
           </div>
           <div className="absolute bottom-[8%] right-[10%] w-[14%]">
             <PixelSprite sprite={chests.boss.open} className="h-auto w-full" />

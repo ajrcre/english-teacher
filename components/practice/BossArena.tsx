@@ -6,7 +6,8 @@ import { PixelScene } from "@/components/pixel/PixelScene";
 import { PixelSprite } from "@/components/pixel/PixelSprite";
 import { backdropFor, BACKDROP_H, BACKDROP_W } from "@/lib/pixel/sprites/backdrops";
 import { BOSS_SIZE, bossFor } from "@/lib/pixel/sprites/bosses";
-import { novaAttack, novaHurt, novaSprite } from "@/lib/pixel/sprites/nova";
+import { hatOf } from "@/lib/pixel/sprites/hats";
+import { novaSprites } from "@/lib/pixel/sprites/nova";
 import { heartEmpty, heartFull, sword } from "@/lib/pixel/sprites/ui";
 import { cx } from "@/lib/ui";
 
@@ -19,7 +20,8 @@ const pct = (v: number, of: number) => `${(v / of) * 100}%`;
  * The battle scene above each question: the unit's backdrop, Nova on the left, the boss on the
  * right, the boss's HP bar and the student's hearts. Each answer plays a short "beat".
  */
-export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message }: { unitId: string; hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string }) {
+export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message, hat }: { unitId: string; hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string; hat?: string | null }) {
+  const nova = novaSprites(hatOf(hat));
   const boss = bossFor(unitId);
   const backdrop = useMemo(() => backdropFor(unitId), [unitId]);
   const defeated = hits >= hp;
@@ -37,7 +39,7 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message 
   }, [beat]);
   const striking = pose && pose.kind !== "hurt";
   const struck = pose?.kind === "hurt";
-  const novaPose = striking ? novaAttack : struck ? novaHurt : novaSprite;
+  const novaPose = striking ? nova.attack : struck ? nova.hurt : nova.idle;
   const bossPose = striking ? boss.hurt : struck ? boss.attack : boss.sprite;
 
   return (
@@ -73,7 +75,7 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message 
         <motion.div
           key={`nova-${beat?.id ?? 0}`}
           className="absolute"
-          style={{ left: pct(16, BACKDROP_W), top: pct(65 - novaSprite.h, BACKDROP_H), width: pct(novaSprite.w, BACKDROP_W) }}
+          style={{ left: pct(16, BACKDROP_W), top: pct(65 - nova.idle.h, BACKDROP_H), width: pct(nova.idle.w, BACKDROP_W) }}
           initial={false}
           animate={beat && beat.kind !== "hurt" ? { x: ["0%", "95%", "0%"] } : beat?.kind === "hurt" ? { x: ["0%", "-12%", "8%", "0%"] } : {}}
           transition={{ duration: beat?.kind === "hurt" ? 0.4 : 0.45, ease: "easeOut" }}

@@ -134,6 +134,21 @@ describe("chests and the shop", () => {
     expect((await rewards.shop(studentId)).balance).toBe(500);
   });
 
+  it("sells hats for Nova, wears them and can take them off", async () => {
+    await repos.progress.saveStats(studentId, { stars: 100 });
+    expect(await rewards.canUse(studentId, { hat: "hat-wizard" })).toBe(false);
+    const shop = await rewards.buy(studentId, "hat-wizard");
+    expect(shop.balance).toBe(10);
+    expect(shop.items.find((i) => i.id === "hat-wizard")).toMatchObject({ owned: true, equipped: true });
+    expect((await repos.users.findStudent(studentId))?.hat).toBe("hat-wizard");
+    expect(await rewards.canUse(studentId, { hat: "hat-wizard" })).toBe(true);
+    expect(await rewards.canUse(studentId, { hat: "hat-crown" })).toBe(false);
+    expect(await rewards.canUse(studentId, { hat: "frame-gold" })).toBe(false);
+    expect((await rewards.owned(studentId)).hats).toEqual(["hat-wizard"]);
+    await repos.users.updateStudent(studentId, { hat: null });
+    expect((await repos.users.findStudent(studentId))?.hat).toBeNull();
+  });
+
   it("only lets students wear what they own", async () => {
     expect(await rewards.canUse(studentId, { avatar: "owl" })).toBe(true);
     expect(await rewards.canUse(studentId, { avatar: "px-dragon" })).toBe(false);

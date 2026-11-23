@@ -24,6 +24,8 @@ export const students = pgTable("students", {
   soundOn: boolean("sound_on").notNull().default(true),
   /** Avatar frame bought in the shop (lib/gamification/collection.ts), or null. */
   frame: text("frame"),
+  /** Hat Nova wears, bought in the shop (a "hat-…" shop id), or null. */
+  hat: text("hat"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -120,7 +122,7 @@ export const badgesEarned = pgTable(
   (t) => [primaryKey({ columns: [t.studentId, t.badgeId] })],
 );
 
-/** Stickers, avatars and frames a student owns. */
+/** Stickers, avatars, frames and hats a student owns. */
 export const inventory = pgTable(
   "inventory",
   {
@@ -128,7 +130,7 @@ export const inventory = pgTable(
       .notNull()
       .references(() => students.id, { onDelete: "cascade" }),
     itemId: text("item_id").notNull(),
-    kind: text("kind").notNull(), // "sticker" | "avatar" | "frame"
+    kind: text("kind").notNull(), // "sticker" | "avatar" | "frame" | "hat"
     count: integer("count").notNull().default(1),
     acquiredAt: timestamp("acquired_at", { withTimezone: true }).notNull().defaultNow(),
   },

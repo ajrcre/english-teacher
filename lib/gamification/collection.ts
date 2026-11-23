@@ -50,7 +50,7 @@ export const STICKER_BY_ID = new Map(STICKERS.map((st) => [st.id, st]));
 /** Stars given instead of a sticker the student already has. */
 export const DUPLICATE_STARS: Record<Rarity, number> = { common: 3, rare: 6, legendary: 15 };
 
-export type ShopKind = "avatar" | "frame" | "shield";
+export type ShopKind = "avatar" | "frame" | "shield" | "hat";
 
 export interface ShopItem {
   id: string;
@@ -61,6 +61,12 @@ export interface ShopItem {
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
+  { id: "hat-party", kind: "hat", title: "Party Hat", description: "Every round is a party.", price: 10 },
+  { id: "hat-beanie", kind: "hat", title: "Cozy Beanie", description: "Warm ears for snowy lessons.", price: 25 },
+  { id: "hat-flower", kind: "hat", title: "Flower Crown", description: "Picked in the beehive meadow.", price: 35 },
+  { id: "hat-pirate", kind: "hat", title: "Pirate Hat", description: "Sail the word seas.", price: 60 },
+  { id: "hat-wizard", kind: "hat", title: "Wizard Hat", description: "Grammar spells, cast correctly.", price: 90 },
+  { id: "hat-crown", kind: "hat", title: "Golden Crown", description: "For the ruler of the sky.", price: 150 },
   { id: "shield", kind: "shield", title: "Streak Shield", description: "Saves your streak if you miss a day.", price: 30 },
   { id: "frame-bronze", kind: "frame", title: "Bronze Frame", description: "A warm bronze ring for your avatar.", price: 20 },
   { id: "frame-silver", kind: "frame", title: "Silver Frame", description: "A cool silver ring for your avatar.", price: 40 },
@@ -75,6 +81,7 @@ export const SHOP_ITEMS: ShopItem[] = [
 export const SHOP_BY_ID = new Map(SHOP_ITEMS.map((i) => [i.id, i]));
 export const SHOP_AVATAR_IDS = SHOP_ITEMS.filter((i) => i.kind === "avatar").map((i) => i.id);
 export const FRAME_IDS = SHOP_ITEMS.filter((i) => i.kind === "frame").map((i) => i.id);
+export const HAT_ITEM_IDS = SHOP_ITEMS.filter((i) => i.kind === "hat").map((i) => i.id);
 
 /** Rules for boss battles. */
 export const BOSS_RULES = {

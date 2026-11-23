@@ -5,11 +5,14 @@ import { useState } from "react";
 import { Avatar } from "@/components/Art";
 import { PixelSprite } from "@/components/pixel/PixelSprite";
 import { playSfx } from "@/components/sound";
+import { hatOf } from "@/lib/pixel/sprites/hats";
+import { novaSprites } from "@/lib/pixel/sprites/nova";
 import { pixelStar, shield } from "@/lib/pixel/sprites/ui";
 import type { ShopView } from "@/lib/services/rewards";
 import { cx } from "@/lib/ui";
 
 const SECTIONS: { kind: string; title: string; blurb: string }[] = [
+  { kind: "hat", title: "Nova's hats", blurb: "Nova wears her hat on every journey and in every boss battle." },
   { kind: "avatar", title: "Avatars", blurb: "New faces for your profile." },
   { kind: "frame", title: "Frames", blurb: "A ring around your avatar, for everyone to see." },
   { kind: "shield", title: "Streak care", blurb: "Missed a day? A shield keeps your streak alive." },
@@ -43,7 +46,7 @@ export function ShopGrid({ initial, avatar }: { initial: ShopView; avatar: strin
 
   async function wear(id: string, kind: string) {
     setBusy(id);
-    await fetch("/api/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(kind === "avatar" ? { avatar: id } : { frame: id }) });
+    await fetch("/api/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(kind === "avatar" ? { avatar: id } : kind === "hat" ? { hat: id } : { frame: id }) });
     setBusy(null);
     if (kind === "avatar") setWearing(id);
     setView((v) => ({ ...v, items: v.items.map((i) => (i.kind === kind ? { ...i, equipped: i.id === id } : i)) }));
@@ -51,7 +54,14 @@ export function ShopGrid({ initial, avatar }: { initial: ShopView; avatar: strin
     router.refresh();
   }
 
-  const currentFrame = view.items.find((i) => i.kind === "frame" && i.equipped)?.id ?? null;
+  async function takeOff(kind: "frame" | "hat") {
+    setBusy(kind);
+    await fetch("/api/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [kind]: null }) });
+    setBusy(null);
+    setView((v) => ({ ...v, items: v.items.map((i) => (i.kind === kind ? { ...i, equipped: false } : i)) }));
+    playSfx("tap");
+    router.refresh();
+  }
 
   return (
     <div className="font-pixel">
@@ -82,6 +92,7 @@ export function ShopGrid({ initial, avatar }: { initial: ShopView; avatar: strin
                       {item.kind === "avatar" && <Avatar avatar={item.id} name={item.title} size={72} />}
                       {item.kind === "frame" && <Avatar avatar={wearing} name={item.title} size={60} frame={item.id} />}
                       {item.kind === "shield" && <PixelSprite sprite={shield} scale={5} />}
+                      {item.kind === "hat" && <PixelSprite sprite={novaSprites(hatOf(item.id)).idle} scale={3} fps={3} title={`Nova wearing the ${item.title}`} />}
                     </div>
                     <p className="mt-1 text-lg leading-tight text-[#ece4d6]">{item.title}</p>
                     <p className="mt-1 min-h-[2.5em] text-xs leading-snug text-[#a99cc4]">{item.kind === "shield" ? `${view.shields}/${view.maxShields} carried. ${item.description}` : item.description}</p>
@@ -116,16 +127,16 @@ export function ShopGrid({ initial, avatar }: { initial: ShopView; avatar: strin
                 );
               })}
           </ul>
+          {(sec.kind === "hat" || sec.kind === "frame") && view.items.some((i) => i.kind === sec.kind && i.equipped) && (
+            <p className="mt-3 text-center text-sm text-[#a99cc4]">
+              {sec.kind === "hat" ? "Want Nova bare-headed?" : "Want no frame?"}{" "}
+              <button className="underline" disabled={busy !== null} onClick={() => void takeOff(sec.kind as "frame" | "hat")}>
+                Take it off
+              </button>
+            </p>
+          )}
         </section>
       ))}
-      {currentFrame && (
-        <p className="mt-6 text-center text-sm text-[#a99cc4]">
-          Want no frame?{" "}
-          <button className="underline" onClick={() => void fetch("/api/me", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ frame: null }) }).then(() => { setView((v) => ({ ...v, items: v.items.map((i) => (i.kind === "frame" ? { ...i, equipped: false } : i)) })); router.refresh(); })}>
-            Take it off
-          </button>
-        </p>
-      )}
     </div>
   );
 }

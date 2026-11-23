@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { PixelScene } from "@/components/pixel/PixelScene";
 import { PixelSprite } from "@/components/pixel/PixelSprite";
 import { backdropFor, BACKDROP_W } from "@/lib/pixel/sprites/backdrops";
-import { novaJump, novaRun, novaSit, novaTrip, novaWalk } from "@/lib/pixel/sprites/nova";
+import { hatOf } from "@/lib/pixel/sprites/hats";
+import { novaSprites } from "@/lib/pixel/sprites/nova";
 import { chests } from "@/lib/pixel/sprites/ui";
 
 export type JourneyBeat = { id: number; kind: "step" | "dash" | "trip" };
@@ -26,7 +27,8 @@ const pctY = (v: number) => `${((v - BAND_TOP) / BAND_H) * 100}%`;
  * plain progress bar. Nova walks a step with every answer (runs on a combo, stumbles on a
  * mistake) towards a treasure chest that opens when the round is done.
  */
-export function JourneyStrip({ unitId, progress, beat, done }: { unitId: string; progress: number; beat: JourneyBeat | null; done: boolean }) {
+export function JourneyStrip({ unitId, progress, beat, done, hat }: { unitId: string; progress: number; beat: JourneyBeat | null; done: boolean; hat?: string | null }) {
+  const nova = novaSprites(hatOf(hat));
   const backdrop = useMemo(() => backdropFor(unitId), [unitId]);
   const [moving, setMoving] = useState<JourneyBeat["kind"] | null>(null);
 
@@ -41,8 +43,8 @@ export function JourneyStrip({ unitId, progress, beat, done }: { unitId: string;
   }, [beat]);
 
   const p = Math.max(0, Math.min(1, progress));
-  const novaX = done ? CHEST_X - novaWalk.w + 2 : START_X + p * (CHEST_X - novaWalk.w - START_X - 2);
-  const pose = done ? novaJump : moving === "trip" ? novaTrip : moving === "dash" ? novaRun : moving === "step" ? novaWalk : novaSit;
+  const novaX = done ? CHEST_X - nova.walk.w + 2 : START_X + p * (CHEST_X - nova.walk.w - START_X - 2);
+  const pose = done ? nova.jump : moving === "trip" ? nova.trip : moving === "dash" ? nova.run : moving === "step" ? nova.walk : nova.sit;
   const percent = Math.round(p * 100);
 
   return (
@@ -81,7 +83,7 @@ export function JourneyStrip({ unitId, progress, beat, done }: { unitId: string;
       {/* Nova */}
       <motion.div
         className="absolute"
-        style={{ top: pctY(GROUND - novaWalk.h + 1), width: pctX(novaWalk.w) }}
+        style={{ top: pctY(GROUND - nova.walk.h + 1), width: pctX(nova.walk.w) }}
         initial={false}
         animate={{ left: pctX(novaX), y: done ? ["0%", "-25%", "0%"] : "0%" }}
         transition={{ left: { duration: moving === "dash" ? 0.6 : 1, ease: "easeInOut" }, y: { duration: 0.6, repeat: done ? Infinity : 0, repeatDelay: 0.4 } }}
