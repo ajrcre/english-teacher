@@ -21,7 +21,20 @@ const LAYOUT = [
   "Keep the sky and water areas simple and calm (they will be animated later). Absolutely no text, letters, numbers, labels, banners, compass or scale bar anywhere.",
 ].join(" ");
 
+const KEY = "Background: one flat, solid, uniform pure magenta colour (#FF00FF) filling the entire image, with no gradient, no texture, no ground line, no cast shadows, no labels and no text.";
+const STYLE = "Style: genuinely HAND-DRAWN storybook illustration — loose wobbly black ink pen outlines, soft watercolour washes, coloured-pencil texture, charming and imperfect, NOT vector, NOT 3D.";
+
 const JOBS: Record<string, { aspect: string; size?: string; prompt: string }> = {
+  "nova-walk": {
+    aspect: "16:9",
+    size: "2K",
+    prompt: `Character animation sheet of Nova, a small friendly fox with amber-orange fur, cream chest and tail tip, a teal scarf, carrying a small glowing paper lantern on a short stick. TOP ROW: four frames of a smooth side-view WALK CYCLE facing right, each frame the same size and the same design, evenly spaced with wide empty margins between them. BOTTOM ROW: three poses with wide margins between them — standing idle facing the viewer, a happy jump with the lantern raised, and curled up asleep. Every pose must be fully separated from the others. ${KEY} ${STYLE}`,
+  },
+  "map-props": {
+    aspect: "16:9",
+    size: "2K",
+    prompt: `A sprite sheet of small decorative elements for a storybook map, arranged in a loose grid with wide empty margins so that no two elements touch: three different soft fluffy watercolour clouds (cream-white with faint blue-grey shading and a thin wobbly ink outline), one cute round bee seen from the side with its wings raised, the same bee with its wings lowered, three curly puffs of grey chimney smoke of different sizes, a golden four-pointed sparkle star, a tiny white snowflake, and a small swooping bird in flight. ${KEY} ${STYLE}`,
+  },
   "map-a-golden": {
     aspect: "9:16",
     size: "2K",
