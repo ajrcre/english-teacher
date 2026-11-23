@@ -95,6 +95,24 @@ test("the home screen is an adventure map: pick a place, Nova walks there, open 
   await page.goBack();
   await expect(page.locator(".am-nova")).toBeAttached();
   await expect.poll(() => page.locator(".am-nova").evaluate((el) => (el as HTMLElement).style.left)).toBe("67.857%");
+
+  // Reaching a place's card with the mouse: the card for Short Stories opens below the place,
+  // over the harbour. Moving the mouse down onto it must not swap it for the harbour's card.
+  const stage = page.locator(".am-stage");
+  await stage.scrollIntoViewIfNeeded();
+  const box = (await stage.boundingBox())!;
+  const at = (mx: number, my: number) => ({ x: box.x + (mx / 700) * box.width, y: box.y + (my / 1254) * box.height });
+  const books = at(170, 715); // centre of the Short Stories place
+  await page.mouse.move(books.x, books.y);
+  await page.mouse.click(books.x, books.y);
+  const booksCard = page.locator(".am-tag.am-act");
+  await expect(booksCard).toContainText("Short Stories");
+  const open = booksCard.getByRole("link", { name: "Open lessons" });
+  const target = (await open.boundingBox())!;
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 25 });
+  await expect(page.locator(".am-tag")).toContainText("Short Stories");
+  await open.click();
+  await page.waitForURL("**/unit/short-stories");
 });
 
 test("map places can be reached with the keyboard and the nature sounds can be switched off", async ({ page }) => {

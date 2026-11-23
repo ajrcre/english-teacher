@@ -247,6 +247,19 @@ export function AdventureMap({ places, startId, soundOn }: { places: MapPlace[];
     return best;
   };
 
+  /**
+   * True while the mouse is on the open card of the chosen place, or just around it on the way
+   * there. The card often sits over a neighbouring place (Short Stories' card covers the harbour),
+   * so hovering that neighbour must not swap the card away before its button can be clicked.
+   */
+  const nearChosenCard = (e: React.PointerEvent): boolean => {
+    const tag = tagRef.current;
+    if (!tag || !selected || active !== selected) return false;
+    const r = tag.getBoundingClientRect();
+    const m = 24;
+    return e.clientX >= r.left - m && e.clientX <= r.right + m && e.clientY >= r.top - m && e.clientY <= r.bottom + m;
+  };
+
   const choose = (id: string) => {
     setSelected(id);
     novaRef.current?.walkTo(id);
@@ -297,6 +310,7 @@ export function AdventureMap({ places, startId, soundOn }: { places: MapPlace[];
         onPointerMove={(e) => {
           novaRef.current?.wake();
           if (e.pointerType !== "mouse") return;
+          if (nearChosenCard(e)) return;
           const id = pick(e);
           // A synthetic mouse move (e.g. the page scrolling under a resting cursor) must not undo keyboard focus.
           if (!id && keyboardFocusOnPin()) return;
