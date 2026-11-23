@@ -14,7 +14,14 @@ const NO_TEXT = "Absolutely no text, letters, numbers, banners, signs, logos or 
 const SCENE =
   "a wide open view across a gentle meadow valley. A winding sandy path curls from the empty foreground up toward the horizon, where tiny distant landmarks sit along it: a red-and-white lighthouse by the sea, a tower with brass gears, a storybook cottage, a blossoming tree with a golden beehive, and a mountain with a softly glowing cave. Snowy pine hills on one side, a small river with a bridge. The middle of the lower foreground is calm open grass (a character will be added there later), and the upper third is a calm, mostly empty sky with a few soft clouds, leaving space for a title.";
 
+const KEY = "Background: one flat, solid, uniform pure magenta colour (#FF00FF) filling the entire image, with no gradient, no texture, no cast shadows and no text.";
+const BUTTON = "wide rounded pill-shaped button for a children's storybook app, perfectly horizontal and about 3.2 times wider than tall, drawn like an illustrator's original artwork: a loose wobbly black ink pen outline, soft watercolour wash with visible paper grain and pencil hatching, a slightly lighter painted highlight along the top edge and a soft darker shade along the bottom edge, a small hand-drawn drop shadow underneath. The button face is completely EMPTY and flat (no text, icon, star, leaf or decoration) so that text can be placed on it.";
+
 const JOBS: Record<string, { aspect: string; prompt: string }> = {
+  "buttons-sheet": {
+    aspect: "16:9",
+    prompt: `A sheet of exactly four hand-drawn UI buttons in a 2 by 2 grid with very wide empty margins between them so that nothing touches: top-left, a ${BUTTON} Colour: warm honey-amber and golden orange. Top-right, the same button in the same size and drawing, but PRESSED: slightly darker amber, flatter, with the shadow almost gone. Bottom-left, a ${BUTTON} Colour: warm cream parchment with a thin amber edge wash. Bottom-right, a ${BUTTON} Colour: deep teal-blue with a lighter teal top edge. All four are the same size. ${KEY} Style: genuinely HAND-DRAWN, NOT vector, NOT 3D, NOT glossy.`,
+  },
   "splash-golden-portrait": {
     aspect: "9:16",
     prompt: `A tall portrait splash-screen illustration: ${SCENE} Warm golden-hour light, a low sun glowing near the horizon, a peach-and-sky-blue sky. ${NO_TEXT} ${STYLE}`,
