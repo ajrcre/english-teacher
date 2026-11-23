@@ -6,7 +6,7 @@ import { validateSprite, type Sprite } from "@/lib/pixel/canvas";
 import { SHOP_AVATAR_ART } from "@/lib/pixel/sprites/avatars";
 import { BACKDROP_H, BACKDROP_IDS, BACKDROP_W, backdropFor } from "@/lib/pixel/sprites/backdrops";
 import { BOSS_BY_UNIT, BOSS_SIZE, BOSSES } from "@/lib/pixel/sprites/bosses";
-import { novaAttack, novaHurt, novaSprite } from "@/lib/pixel/sprites/nova";
+import { novaAttack, novaHurt, novaJump, novaRun, novaSit, novaSprite, novaTrip, novaWalk } from "@/lib/pixel/sprites/nova";
 import { STICKER_ART_IDS, stickerArt } from "@/lib/pixel/sprites/stickers";
 import * as ui from "@/lib/pixel/sprites/ui";
 
@@ -18,6 +18,11 @@ describe("pixel art", () => {
       ["nova", novaSprite],
       ["nova-attack", novaAttack],
       ["nova-hurt", novaHurt],
+      ["nova-walk", novaWalk],
+      ["nova-run", novaRun],
+      ["nova-sit", novaSit],
+      ["nova-trip", novaTrip],
+      ["nova-jump", novaJump],
       ["heart", ui.heartFull],
       ["heart-empty", ui.heartEmpty],
       ["star", ui.pixelStar],
@@ -51,6 +56,8 @@ describe("pixel art", () => {
       for (const s of [b.sprite, b.attack, b.hurt]) expect([s.w, s.h]).toEqual([BOSS_SIZE, BOSS_SIZE]);
     }
     expect(novaSprite.frames).toHaveLength(4);
+    for (const s of [novaWalk, novaRun]) expect(s.frames).toHaveLength(4);
+    for (const s of [novaWalk, novaRun, novaSit, novaTrip, novaJump]) expect([s.w, s.h]).toEqual([novaWalk.w, novaWalk.h]);
   });
 
   it("backdrops are 128×72 and animated", () => {

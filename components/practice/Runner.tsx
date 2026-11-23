@@ -19,9 +19,10 @@ import type { AnswerFeedback, DailyStatus, StatsSummary, SubmitResult } from "@/
 import { cx } from "@/lib/ui";
 import { playSfx, setSoundEnabled, speakWord, type Sfx } from "../sound";
 import { BossArena, type BattleBeat } from "./BossArena";
+import { JourneyStrip, type JourneyBeat } from "./JourneyStrip";
 import { QuestionInput, RichSentence, SpeakerIcon, questionTitle } from "./inputs";
 
-type QueueItem = ClientItem & { lessonId: string; isNew: boolean; retry?: number; key: string };
+type QueueItem = ClientItem & { lessonId: string; unitId: string; isNew: boolean; retry?: number; key: string };
 
 type Phase =
   | { kind: "loading" }
@@ -114,6 +115,8 @@ export function Runner({
   const [bossUnlocked, setBossUnlocked] = useState(bossReady);
   /** Height of the feedback sheet, so the page can make room for it below the question. */
   const [sheetHeight, setSheetHeight] = useState(0);
+  /** Nova's journey strip: how far she has walked (never backwards) and the latest step. */
+  const [journey, setJourney] = useState<{ progress: number; beat: JourneyBeat | null }>({ progress: 0, beat: null });
   const startedAt = useRef<number>(0);
   const celebrationQueue = useRef<RewardEvent[]>([]);
   /** Set when "Continue" was pressed but a celebration was shown first. */
@@ -139,13 +142,14 @@ export function Runner({
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not start");
-      const items = (data.items as (ClientItem & { lessonId: string; isNew: boolean })[]).map((it, i) => ({ ...it, key: `${it.id}#${i}` }));
+      const items = (data.items as (ClientItem & { lessonId: string; unitId: string; isNew: boolean })[]).map((it, i) => ({ ...it, key: `${it.id}#${i}` }));
       setQueue(items);
       setIndex(0);
       setDaily(data.daily);
       setDoneBanner(false);
       setTally(EMPTY_TALLY);
       setClaim(null);
+      setJourney({ progress: 0, beat: null });
       if (mode === "boss" && unitId) {
         const boss = bossFor(unitId);
         setBattle({ hp: items.length, hits: 0, heartsLeft: BOSS_RULES.hearts, run: 0, beat: null, message: `${boss.name} appears! ${boss.intro}`, outcome: null });
@@ -220,6 +224,14 @@ export function Runner({
       setTally((t) => ({ ...t, answered: t.answered + 1, correct: t.correct + (verdict === "correct" ? 1 : 0) }));
       applyRewards(data.rewards);
       if (battle) setBattle(nextBeat(battle, verdict === "correct", bossFor(unitId!).name));
+      // Nova walks a step (or dashes on a combo, or stumbles on a mistake). A mistake adds a retry
+      // to the queue; her progress never goes backwards.
+      const requeue = verdict !== "correct" && (current.retry ?? 0) < MAX_RETRIES;
+      const reached = (index + 1) / (queue.length + (requeue ? 1 : 0));
+      setJourney((j) => ({
+        progress: Math.max(j.progress, reached),
+        beat: { id: (j.beat?.id ?? 0) + 1, kind: verdict !== "correct" ? "trip" : data.stats.combo >= 3 ? "dash" : "step" },
+      }));
       // Re-practise mistakes later in this same session, until they are right.
       if (verdict !== "correct" && (current.retry ?? 0) < MAX_RETRIES) {
         setQueue((q) => {
@@ -355,7 +367,6 @@ export function Runner({
     return () => clearTimeout(t);
   }, [toast]);
 
-  const progress = queue.length ? Math.min(1, (index + (phase.kind === "feedback" || phase.kind === "summary" ? 1 : 0)) / queue.length) : 0;
   const locked = phase.kind !== "answering";
   const review = phase.kind === "feedback" ? { modelAnswer: phase.feedback.modelAnswer, details: phase.feedback.details, verdict: phase.feedback.verdict } : undefined;
 
@@ -369,15 +380,16 @@ export function Runner({
           {isBoss ? (
             <p className="flex-1 text-center font-pixel text-lg tracking-widest text-[#ead39b]">BOSS BATTLE</p>
           ) : (
-          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-valuenow={Math.round(progress * 100)} aria-valuemin={0} aria-valuemax={100}>
-            <motion.div className="h-full rounded-full bg-amber-400" animate={{ width: `${progress * 100}%` }} transition={{ type: "spring", stiffness: 120, damping: 20 }} />
-          </div>
+            <p className="flex-1 truncate text-center font-pixel text-base tracking-wider text-[#ead39b]">{MODE_LABEL[mode]}</p>
           )}
           <div className="flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-bold" aria-label="XP this round">
             <StarGlyph className="h-4 w-4 text-amber-300" />
             {tally.xp}
           </div>
         </header>
+        {!isBoss && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+          <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} />
+        )}
         <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">{lessonTitle ?? MODE_LABEL[mode]}</p>
         {battle && unitId && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <BossArena unitId={unitId} hp={battle.hp} hits={battle.hits} hearts={BOSS_RULES.hearts} heartsLeft={battle.heartsLeft} beat={battle.beat} message={battle.message} />

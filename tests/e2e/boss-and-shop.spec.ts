@@ -87,9 +87,14 @@ test("unlock a boss, win the battle, collect the loot and shop", async ({ page }
 
   // Practise the lesson until the round ends.
   await page.goto(`/practice?mode=lesson&lesson=${LESSON}`);
+  // Nova's journey strip replaces the progress bar and moves forward with each answer.
+  const journey = page.getByRole("progressbar", { name: "Round progress" });
+  await expect(journey).toHaveAttribute("aria-valuenow", "0", { timeout: 30_000 });
+  await shot(page, "00a-journey-start");
   for (let i = 0; i < 20; i++) {
     if (await page.getByText("Round complete").isVisible().catch(() => false)) break;
-    await answer(page, true);
+    await answer(page, true, i === 3 ? "00b-journey-combo" : undefined);
+    if (i === 0) expect(Number(await journey.getAttribute("aria-valuenow"))).toBeGreaterThan(0);
   }
   await expect(page.getByText("Round complete")).toBeVisible();
   await dismissCelebrations(page);

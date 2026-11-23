@@ -177,7 +177,7 @@ export class PracticeService {
   async startSession(
     studentId: string,
     opts: { mode: SessionMode; lessonId?: string | null; focusUnitId?: string | null },
-  ): Promise<{ mode: SessionMode; items: (ClientItem & { lessonId: string; isNew: boolean })[]; estimatedSeconds: number; daily: DailyStatus; seed: string }> {
+  ): Promise<{ mode: SessionMode; items: (ClientItem & { lessonId: string; unitId: string; isNew: boolean })[]; estimatedSeconds: number; daily: DailyStatus; seed: string }> {
     const now = this.clock();
     const rows = await this.repos.progress.allProgress(studentId);
     const progress = new Map<string, ProgressLite>(rows.map((r) => [r.itemId, r]));
@@ -198,7 +198,7 @@ export class PracticeService {
     const seed = `${studentId.slice(0, 8)}:${now.getTime()}`;
     const items = plan.entries.map((e) => {
       const ref = this.catalog.itemById.get(e.itemId)!;
-      return { ...toClientItem(ref.item, seed), lessonId: e.lessonId, isNew: e.isNew };
+      return { ...toClientItem(ref.item, seed), lessonId: e.lessonId, unitId: ref.unitId, isNew: e.isNew };
     });
     if (opts.mode === "boss" && opts.lessonId) await this.repos.rewards.startBossBattle(studentId, opts.lessonId, now);
     logger.info("session started", { studentId, mode: opts.mode, items: items.length, estimatedSeconds: plan.estimatedSeconds });
