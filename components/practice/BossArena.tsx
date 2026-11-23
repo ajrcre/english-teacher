@@ -41,7 +41,7 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message 
   const bossPose = striking ? boss.hurt : struck ? boss.attack : boss.sprite;
 
   return (
-    <section className="pixel-panel relative mt-4 overflow-hidden font-pixel" aria-label={`Boss battle: ${boss.name}`}>
+    <section className="pixel-panel relative mx-auto mt-4 w-[calc(100%-8px)] max-w-[30rem] overflow-hidden font-pixel" aria-label={`Boss battle: ${boss.name}`}>
       <div className="relative" style={{ aspectRatio: `${BACKDROP_W} / ${BACKDROP_H}` }}>
         <PixelScene sprite={backdrop} />
 
