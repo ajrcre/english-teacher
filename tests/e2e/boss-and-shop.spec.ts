@@ -143,4 +143,12 @@ test("unlock a boss, win the battle, collect the loot and shop", async ({ page }
   await page.goto("/home");
   await expect(page.locator(".frame-bronze")).toBeVisible();
   await shot(page, "11-home");
+
+  // The profile (tap the avatar) shows the new boss badge and lets you pick the frame.
+  await page.getByRole("link", { name: "Your profile" }).click();
+  await page.waitForURL("**/profile");
+  await expect(page.getByRole("heading", { name: "Badges" })).toBeVisible();
+  await expect(page.getByText("Shadow Tamer")).toBeVisible();
+  await expect(page.getByRole("button", { name: "bronze frame" })).toBeVisible();
+  await shot(page, "12-profile");
 });

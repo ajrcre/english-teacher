@@ -61,7 +61,7 @@ export default async function ProfilePage() {
               const got = earned.has(b.id);
               return (
                 <li key={b.id} className="text-center">
-                  <BadgeIcon badge={b} earned={got} size={80} />
+                  <BadgeIcon badge={{ icon: b.icon, pixel: b.pixel }} earned={got} size={80} />
                   <div className={cx("mt-2 text-sm font-semibold", !got && "text-ink-400")}>{b.title}</div>
                   <div className="text-xs text-ink-400">{b.description}</div>
                 </li>
