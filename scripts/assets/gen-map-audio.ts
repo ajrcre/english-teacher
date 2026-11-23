@@ -10,16 +10,21 @@ const NO_MUSIC = "Realistic field recording, no music, no voices, no speech.";
 
 interface Job { text: string; seconds: number; loop?: boolean }
 
-const STEP = (surface: string) => `A single soft footstep of a small animal paw on ${surface}. Very close microphone, dry and quiet, just one step, no other sound. ${NO_MUSIC}`;
+const NO_HOOF = "No hollow thump, no knock, no clop, no hoof sounds, no heavy impact. Very close microphone, quiet, delicate, a single step only, nothing else in the recording.";
+// Prompts are deliberately about texture (crunch, rustle, squeak) rather than "a paw hitting the ground", which came out as hooves.
+const STEP_PROMPTS: Record<string, string> = {
+  dirt: `One light, soft footstep of a small fox walking on a gravel path: a gentle dry crunch of tiny stones shifting under a soft paw. ${NO_HOOF} ${NO_MUSIC}`,
+  grass: `One very soft footstep on dry fallen forest leaves: a quiet crisp rustle and faint crackle of leaves under a light paw, delicate. ${NO_HOOF} ${NO_MUSIC}`,
+  snow: `One soft footstep of a small animal in fresh powdery snow: a faint squeaky crunch with a muffled compress. ${NO_HOOF} ${NO_MUSIC}`,
+  wood: `One very light, muffled footstep of a small animal on an old mossy wooden bridge: a soft pad with a tiny dry creak of the plank. ${NO_HOOF} ${NO_MUSIC}`,
+};
+// A second wording for wood (candidates 7-12): the first batch came out too tonal, like a knock.
+const WOOD_ALT = `A faint dry scuff and a soft airy creak, as a small light animal pads across old weathered boards. Mostly texture and rasp, almost no tone. ${NO_HOOF} ${NO_MUSIC}`;
 const JOBS: Record<string, Job> = {};
-for (const [name, surface] of Object.entries({
-  dirt: "a dry packed-earth path with a few tiny pebbles",
-  grass: "soft dewy grass",
-  snow: "fresh crunchy snow",
-  wood: "an old wooden plank bridge",
-})) {
-  for (let i = 1; i <= 3; i++) JOBS[`step-${name}-${i}`] = { text: STEP(surface), seconds: 0.5 };
+for (const [name, text] of Object.entries(STEP_PROMPTS)) {
+  for (let i = 1; i <= 6; i++) JOBS[`step-${name}-${i}`] = { text, seconds: 0.5 };
 }
+for (let i = 7; i <= 12; i++) JOBS[`step-wood-${i}`] = { text: WOOD_ALT, seconds: 0.5 };
 Object.assign(JOBS, {
   "amb-meadow": { loop: true, seconds: 22, text: `Clearly audible spring morning birdsong in a countryside meadow: several songbirds singing and calling to each other at different distances, with a soft steady breeze rustling through grass and leaves. Rich, natural, peaceful, medium volume. ${NO_MUSIC} Seamless loop.` },
   "amb-river": { loop: true, seconds: 22, text: `A small clear stream flowing over pebbles, gentle babbling brook close by. Calm and constant. ${NO_MUSIC} Seamless loop.` },
