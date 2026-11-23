@@ -125,16 +125,39 @@
     opacity: 0.45;
     cursor: not-allowed;
   }
-  .btn-primary {
-    background: var(--color-amber-400);
-    color: var(--color-ink-900);
-    box-shadow: 0 4px 0 var(--color-amber-700);
+  /* Hand-painted buttons: a watercolour PNG with rounded caps (9-sliced, so any width works) and real text on top. */
+  .btn-primary,
+  .btn-paper {
+    --btn-cap: 1.8rem;
+    --btn-img: url("/art/ui/btn-amber.webp");
+    min-height: 3.25rem;
+    padding: 0 0.35rem 4px;
+    border: 0 solid transparent;
+    border-width: 0 var(--btn-cap);
+    border-image: var(--btn-img) 0 112 0 112 fill / 0 var(--btn-cap) 0 var(--btn-cap) stretch;
+    background: none;
+    color: #3a1f06;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-variation-settings: "SOFT" 100;
+    text-shadow: 0 1px 0 rgb(255 236 190 / 0.55);
+    filter: drop-shadow(0 5px 4px rgb(0 0 0 / 0.35));
   }
-  .btn-primary:hover:not(:disabled) {
-    background: var(--color-amber-300);
+  .btn-paper {
+    --btn-img: url("/art/ui/btn-parchment.webp");
+    color: #4a2f16;
+  }
+  .btn-primary:hover:not(:disabled),
+  .btn-paper:hover:not(:disabled) {
+    filter: drop-shadow(0 5px 4px rgb(0 0 0 / 0.35)) brightness(1.06) saturate(1.05);
   }
   .btn-primary:active:not(:disabled) {
-    box-shadow: 0 2px 0 var(--color-amber-700);
+    transform: translateY(3px);
+    filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.4)) brightness(0.9) saturate(1.1);
+  }
+  .btn-paper:active:not(:disabled) {
+    transform: translateY(2px);
+    filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.4)) brightness(0.94);
   }
   .btn-ghost {
     background: rgb(255 255 255 / 0.06);

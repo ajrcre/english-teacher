@@ -1,0 +1,80 @@
+/* The hand-drawn adventure map. Everything is sized in multiples of --px (one map pixel), so effects stay pinned to their landmark at every screen size. */
+@property --sx { syntax: "<percentage>"; inherits: true; initial-value: 50%; }
+@property --sy { syntax: "<percentage>"; inherits: true; initial-value: 50%; }
+@property --rx { syntax: "<percentage>"; inherits: true; initial-value: 30%; }
+@property --ry { syntax: "<percentage>"; inherits: true; initial-value: 20%; }
+
+.am-stage { position: relative; width: min(100%, 640px); margin-inline: auto; aspect-ratio: 700 / 1254; border-radius: 18px; overflow: hidden; background: #f3ead4; box-shadow: 0 0 0 3px rgb(59 42 18 / 0.85), 0 22px 44px -18px rgb(0 0 0 / 0.7); touch-action: pan-y; user-select: none; -webkit-user-select: none; --px: 0.9px; --sx: 50%; --sy: 50%; --rx: 30%; --ry: 20%; }
+.am-stage.am-hover { cursor: pointer; }
+.am-map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.am-lift { filter: brightness(1.07) saturate(1.25) contrast(1.03); opacity: 0; -webkit-mask-image: radial-gradient(ellipse var(--rx) var(--ry) at var(--sx) var(--sy), #000 62%, transparent 100%); mask-image: radial-gradient(ellipse var(--rx) var(--ry) at var(--sx) var(--sy), #000 62%, transparent 100%); transition: opacity 0.28s ease, --sx 0.45s ease, --sy 0.45s ease, --rx 0.45s ease, --ry 0.45s ease; }
+.am-dim { position: absolute; inset: 0; pointer-events: none; background: rgb(46 30 8 / 0.4); opacity: 0; -webkit-mask-image: radial-gradient(ellipse var(--rx) var(--ry) at var(--sx) var(--sy), transparent 74%, #000 124%); mask-image: radial-gradient(ellipse var(--rx) var(--ry) at var(--sx) var(--sy), transparent 74%, #000 124%); transition: opacity 0.28s ease, --sx 0.45s ease, --sy 0.45s ease, --rx 0.45s ease, --ry 0.45s ease; }
+.am-stage.am-spot .am-lift, .am-stage.am-spot .am-dim { opacity: 1; }
+.am-layer { position: absolute; inset: 0; pointer-events: none; }
+.am-layer img { position: absolute; display: block; }
+.am-over, .am-snow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* ambient effects */
+.am-cloud { opacity: 0.82; animation: am-drift linear infinite; will-change: transform; }
+@keyframes am-drift { from { transform: translateX(calc(var(--px) * -260)); } to { transform: translateX(calc(var(--px) * 980)); } }
+.am-puff { transform-origin: 50% 100%; opacity: 0; animation: am-rise 5.2s ease-out infinite; }
+@keyframes am-rise { 0% { transform: translate(-50%, -100%) scale(0.35); opacity: 0; } 15% { opacity: 0.75; } 100% { transform: translate(-30%, -310%) scale(1.15); opacity: 0; } }
+.am-sparkle { opacity: 0; animation: am-twinkle 2.6s ease-in-out infinite; transform-origin: 50% 50%; }
+@keyframes am-twinkle { 0%, 100% { opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(0deg); } 45% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(35deg); } 70% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.6) rotate(60deg); } }
+.am-beam { position: absolute; border-radius: 50%; background: radial-gradient(circle, rgb(255 235 150 / 0.95) 0%, rgb(255 210 90 / 0.4) 38%, transparent 70%); animation: am-pulse 2.4s ease-in-out infinite; transform: translate(-50%, -50%); }
+@keyframes am-pulse { 0%, 100% { opacity: 0.25; transform: translate(-50%, -50%) scale(0.7); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.25); } }
+.am-rip { fill: none; stroke: #fff; stroke-width: 1.7; stroke-linecap: round; opacity: 0; animation: am-ripple 4.2s ease-in-out infinite; transform-box: fill-box; }
+@keyframes am-ripple { 0%, 100% { opacity: 0; transform: translateX(-5px); } 40%, 60% { opacity: 0.95; } 100% { transform: translateX(6px); } }
+.am-dust { position: absolute; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); animation: am-kick 0.7s ease-out forwards; }
+@keyframes am-kick { 0% { opacity: 0.75; transform: translate(-50%, -50%) scale(0.4); } 100% { opacity: 0; transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% - var(--rise, 12px))) scale(1.7); } }
+
+/* Nova: a 0x0 anchor at her feet; every pose hangs off it */
+.am-nova { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 5; }
+.am-nova-shadow { position: absolute; left: 0; top: 0; width: calc(var(--px) * 74); height: calc(var(--px) * 15); transform: translate(-50%, -45%); border-radius: 50%; background: radial-gradient(ellipse, rgb(40 25 5 / 0.34), transparent 70%); }
+.am-nova-glow { position: absolute; left: 0; top: calc(var(--px) * -44); width: calc(var(--px) * 150); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgb(255 214 120 / 0.42), rgb(255 190 80 / 0.14) 45%, transparent 70%); mix-blend-mode: soft-light; }
+.am-nova-face { position: absolute; left: 0; bottom: 0; width: 0; height: 0; transform-origin: 50% 100%; }
+.am-nova-face > * { display: block; position: absolute; left: 0; bottom: 0; transform: translateX(-50%); max-width: none; }
+.am-strip { background-repeat: no-repeat; background-size: 800% 100%; }
+.am-v-side { width: calc(var(--px) * 144.4); height: calc(var(--px) * 82.9); background-image: url("/art/map/walk-side.webp"); }
+.am-v-trot { width: calc(var(--px) * 144.8); height: calc(var(--px) * 78.2); background-image: url("/art/map/trot-side.webp"); }
+.am-v-away { width: calc(var(--px) * 62.3); height: calc(var(--px) * 77.1); background-image: url("/art/map/walk-away.webp"); }
+.am-v-toward { width: calc(var(--px) * 76.4); height: calc(var(--px) * 73.8); background-image: url("/art/map/walk-toward.webp"); }
+.am-pose { height: auto; }
+.am-hopping { animation: am-hop 0.85s cubic-bezier(0.3, 0.7, 0.4, 1); }
+@keyframes am-hop { 0% { transform: translateY(0); } 35% { transform: translateY(calc(var(--px) * -30)); } 70% { transform: translateY(0); } 85% { transform: translateY(calc(var(--px) * -6)); } 100% { transform: translateY(0); } }
+.am-zz { position: absolute; font-family: var(--font-display); font-weight: 650; color: #fff; text-shadow: 0 1px 3px rgb(30 20 5 / 0.6); font-size: calc(var(--px) * 22); animation: am-zzz 2.8s ease-in infinite; opacity: 0; }
+@keyframes am-zzz { 0% { opacity: 0; transform: translate(0, 0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(calc(var(--px) * 16), calc(var(--px) * -46)); } }
+
+/* progress pins */
+.am-pins { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.am-pin { pointer-events: auto; position: absolute; width: max(40px, calc(var(--px) * 50)); height: max(40px, calc(var(--px) * 50)); transform: translate(-50%, -50%); border: 0; padding: 0; background: none; cursor: pointer; border-radius: 50%; transition: transform 0.2s ease; font: inherit; }
+.am-pin:hover, .am-pin.am-on { transform: translate(-50%, -50%) scale(1.14); }
+.am-pin:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.am-pin svg { width: 100%; height: 100%; display: block; overflow: visible; filter: drop-shadow(0 2px 3px rgb(40 25 5 / 0.45)); }
+.am-pin .am-num { font-family: var(--font-display); font-weight: 650; font-size: 21px; fill: #3b2a12; text-anchor: middle; dominant-baseline: central; }
+.am-pin .am-track { stroke: rgb(60 40 10 / 0.18); }
+.am-pin .am-prog { stroke: #2f7d62; transition: stroke-dashoffset 0.6s ease; }
+.am-pin .am-disc { fill: #fbf1d8; stroke: #3b2a12; stroke-width: 2; }
+.am-pin.am-done .am-disc { fill: #f4c04e; }
+.am-pin.am-done .am-prog { stroke: #b8761a; }
+.am-pin.am-on .am-disc { stroke-width: 3; }
+
+/* label card */
+.am-tag { position: absolute; z-index: 8; width: min(236px, calc(100% - 16px)); padding: 12px 14px; border-radius: 12px; background: #fbf3dd; color: #2b2113; border: 2px solid #3b2a12; box-shadow: 3px 4px 0 rgb(59 42 18 / 0.35); opacity: 0; transform: translateY(6px) scale(0.97); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
+.am-tag.am-show { opacity: 1; transform: none; }
+.am-tag.am-act { pointer-events: auto; }
+.am-tag h2 { font-family: var(--font-display); font-size: 18px; font-weight: 650; margin: 0; line-height: 1.15; }
+.am-tag p { margin: 3px 0 8px; font-size: 13px; color: #5a4a2c; line-height: 1.35; }
+.am-tag .am-meter { height: 8px; border-radius: 6px; background: rgb(59 42 18 / 0.16); overflow: hidden; }
+.am-tag .am-meter i { display: block; height: 100%; background: #2f7d62; border-radius: 6px; }
+.am-tag .am-count { font-size: 12.5px; margin-top: 5px; color: #4a3b21; font-weight: 700; }
+.am-tag .am-open { margin-top: 10px; width: 100%; min-height: 44px; }
+.am-tag .am-hint { margin-top: 8px; font-size: 12px; color: #6a5a3a; }
+
+.am-sound { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid rgb(255 255 255 / 0.16); background: rgb(255 255 255 / 0.07); color: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.am-sound:hover { background: rgb(255 255 255 / 0.13); }
+.am-sound svg { width: 18px; height: 18px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .am-cloud, .am-puff, .am-sparkle, .am-beam, .am-rip, .am-hopping, .am-zz, .am-dust { animation: none; }
+}

@@ -23,7 +23,8 @@ A gamified practice app for the Alon Junior High **Year 7 English Speakers' Prog
 - **No hints before answering.** The browser only receives the question; answers, explanations and Hebrew notes arrive after submitting (`lib/content/client.ts`, covered by a test).
 - **Mastery (Leitner boxes 0–5).** Wrong → back to box 0 and re-asked 3–5 questions later in the same round. Right → up one box, at most once per day; an item is *mastered* at box 3 (correct on 3 separate days). The **Mistake Gym** practises only flagged items.
 - **20-minute day.** Two ~10-minute rounds (Review, then Explore with a slice of spelling), at most 3 open questions per round, at most ~20 new items a day (fewer when tomorrow's reviews pile up). One round keeps the streak; both earn the Full Mission bonus.
-- **Gamification.** XP with combo multipliers, levels with titles, streaks with shields, stars, 21 badges, and a constellation map where each lesson is a star that lights up.
+- **Gamification.** XP with combo multipliers, levels with titles, streaks with shields, stars, 21 badges, and a hand-drawn adventure map where each unit is a place with a progress pin. Nova the fox walks the road to the place you pick, with footsteps that change with the ground and countryside sounds that follow her (`components/map/`).
+- **First-visit splash.** A twilight splash screen is shown once per device (flag in `localStorage`); open `/?splash` to see it again (`components/splash/`).
 - **AI grading.** `LLM_PROVIDER=gemini` (default, `gemini-3.5-flash`) or `anthropic` (`claude-haiku-5-5`). Spelling and grammar slips don't cost points on comprehension questions; they're listed as notes. If the grader is unavailable, the student compares with the model answer and self-assesses.
 - **Family accounts.** A parent signs up and adds students with a 4-digit PIN. Students sign in with the family code + PIN. The parent dashboard shows minutes per day, accuracy, mastery per unit and recent mistakes.
 
@@ -39,8 +40,10 @@ lib/gamification/       XP / streak / badge engine (observer listeners), levels,
 lib/db/                 Drizzle schema + repositories (Neon in production, PGlite locally)
 lib/services/           PracticeService facade, parent dashboard data
 app/                    pages (student, parent) and API routes
+components/map/         the adventure map: layout/geometry, Nova (state machine), effects, soundscape
+components/splash/      first-visit splash screen
 components/practice/    session runner + one input component per question type
-scripts/assets/         Gemini artwork + ElevenLabs audio generators
+scripts/assets/         Gemini artwork + ElevenLabs audio generators (map, Nova sprites, splash, buttons)
 scripts/eval/           grader evaluation (40 hand-written answers)
 ```
 

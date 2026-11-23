@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Art, Logo } from "@/components/Art";
+import { Splash } from "@/components/splash/Splash";
 import { getSession } from "@/lib/auth/session";
 
 export default async function Landing() {
@@ -10,7 +11,8 @@ export default async function Landing() {
 
   return (
     <main className="night-sky relative min-h-dvh overflow-hidden">
-      <div className="mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-10 pt-6 sm:px-8">
+      <Splash />
+      <div className="sp-landing mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-10 pt-6 sm:px-8">
         <header className="flex items-center justify-between">
           <Logo />
           <Link href="/parent/login" className="text-sm font-semibold text-ink-300 hover:text-paper-100">
