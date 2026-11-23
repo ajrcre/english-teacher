@@ -24,6 +24,36 @@ const LAYOUT = [
 const KEY = "Background: one flat, solid, uniform pure magenta colour (#FF00FF) filling the entire image, with no gradient, no texture, no ground line, no cast shadows, no labels and no text.";
 const STYLE = "Style: genuinely HAND-DRAWN storybook illustration — loose wobbly black ink pen outlines, soft watercolour washes, coloured-pencil texture, charming and imperfect, NOT vector, NOT 3D.";
 
+const NOVA = "Nova, a small friendly fox with amber-orange fur, a cream chest and cream-tipped bushy tail, dark brown socks on her legs, a teal scarf, and a small glowing paper lantern hanging from a short stick that she carries";
+const SHEET = "The sheet has exactly 8 frames in 2 rows of 4, read left to right then top to bottom. Every frame is the same character at exactly the same size and scale, drawn with the same colours and design, evenly spaced with wide empty margins between frames so that nothing touches or overlaps. Natural, anatomically convincing animal movement with soft secondary motion in the tail, scarf and lantern.";
+
+const NOVA_JOBS: Record<string, { aspect: string; size?: string; prompt: string }> = {
+  "nova2-walk-side": {
+    aspect: "16:9", size: "2K",
+    prompt: `Animation sheet: a smooth 8-frame WALK CYCLE of ${NOVA}, seen from the SIDE facing right. A real four-legged fox gait: legs move in diagonal pairs, the head and shoulders dip and rise slightly, the tail floats level and sways, the scarf flutters back, the lantern swings gently. Frame 1: right front paw reaching forward and left hind paw pushing back (contact). Frame 2: body lowest, weight on the front leg. Frame 3: passing position, rear paw swinging forward under the body. Frame 4: body highest, one front paw lifted. Frames 5 to 8: the same four poses with the opposite legs leading, so that the loop is seamless. Each frame must show clearly different leg positions. ${SHEET} ${KEY} ${STYLE}`,
+  },
+  "nova2-walk-away": {
+    aspect: "16:9", size: "2K",
+    prompt: `Animation sheet: a smooth 8-frame WALK CYCLE of ${NOVA}, seen from BEHIND walking directly away from the viewer (back view, her tail and scarf toward the camera, ears visible, the lantern stick held to one side). The hips sway left and right and the rear paws alternate, lifting one after the other so the soles of her feet show in turn; the tail swishes slightly side to side. Frames 1 to 4 are one step with the left leg leading and frames 5 to 8 the next step with the right leg leading, a seamless loop. ${SHEET} ${KEY} ${STYLE}`,
+  },
+  "nova2-walk-toward": {
+    aspect: "16:9", size: "2K",
+    prompt: `Animation sheet: a smooth 8-frame WALK CYCLE of ${NOVA}, seen from the FRONT walking directly toward the viewer on ALL FOUR LEGS like a real fox (she is NOT standing upright): head and chest toward the camera, ears up, a happy expression, the lantern stick carried in her mouth and hanging to one side, the scarf visible at her chest, the tail visible behind her. The front paws alternate stepping toward the viewer, the shoulders sway left and right and the head dips slightly with each step. Frames 1 to 4 are one step with the left front leg leading and frames 5 to 8 the next step with the right front leg leading, a seamless loop. ${SHEET} ${KEY} ${STYLE}`,
+  },
+  "nova2-sleep": {
+    aspect: "1:1", size: "2K",
+    prompt: `A single illustration of ${NOVA}, curled up fast asleep on the ground in a tight comfortable ball, nose tucked under her bushy tail, eyes closed, the scarf loose around her neck, her little lantern set down beside her with a very dim, soft glow. Side three-quarter view, one fox only, with generous empty margins. ${KEY} ${STYLE}`,
+  },
+  "nova2-trot-side": {
+    aspect: "16:9", size: "2K",
+    prompt: `Animation sheet: a lively 8-frame TROT / light RUN CYCLE of ${NOVA}, seen from the SIDE facing right. Ears back, body stretched, the scarf and tail streaming behind, the lantern swinging; in two of the frames all four paws are briefly off the ground. A convincing, energetic fox run that loops seamlessly. ${SHEET} ${KEY} ${STYLE}`,
+  },
+  "nova2-poses": {
+    aspect: "16:9", size: "2K",
+    prompt: `Character pose sheet of ${NOVA}, showing 8 different idle behaviours, each one clearly different: (1) sitting calmly facing the viewer, tail curled around her paws; (2) sitting and looking up at the sky with her lantern raised; (3) sniffing the ground, nose low, side view facing right; (4) a stretching play-bow with her front down and rear up, side view facing right; (5) sitting and scratching behind her ear with a hind paw; (6) a pounce, leaping through the air, side view facing right; (7) a big happy yawn while sitting; (8) standing on her hind legs waving hello with one paw. ${SHEET} ${KEY} ${STYLE}`,
+  },
+};
+
 const JOBS: Record<string, { aspect: string; size?: string; prompt: string }> = {
   "nova-walk": {
     aspect: "16:9",
@@ -59,7 +89,7 @@ async function main(): Promise<void> {
   const only = process.argv.slice(2);
   mkdirSync(".concepts", { recursive: true });
   await Promise.all(
-    Object.entries(JOBS)
+    Object.entries({ ...JOBS, ...NOVA_JOBS })
       .filter(([name]) => !only.length || only.includes(name))
       .map(async ([name, job]) => {
         for (let attempt = 1; attempt <= 3; attempt++) {
