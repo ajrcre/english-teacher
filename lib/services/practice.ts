@@ -1,5 +1,7 @@
 import { toClientItem, type ClientItem, type ItemResponse } from "@/lib/content/client";
+import { testById, type TestDef } from "@/content/tests";
 import type { Catalog } from "@/lib/content/catalog";
+import { daysUntil, testIsActive, testItemIds } from "@/lib/content/testScope";
 import { LLM_GRADED_TYPES, type Item, type ItemType } from "@/lib/content/schema";
 import type { ProgressRow, Repositories, StatsRow } from "@/lib/db/repositories";
 import { GamificationEngine, type Rewards, type StatsState } from "@/lib/gamification/engine";
@@ -102,6 +104,18 @@ export class PracticeService {
     return dayKey(this.clock());
   }
 
+  private readonly scopeCache = new Map<string, Set<string>>();
+
+  /** The student's switched-on class test and its questions, or null (no test, or its day has passed). */
+  private async activeScope(studentId: string): Promise<{ test: TestDef; ids: Set<string> } | null> {
+    const student = await this.repos.users.findStudent(studentId);
+    const test = student?.activeTest ? testById(student.activeTest) : undefined;
+    if (!test || !testIsActive(test, this.today())) return null;
+    let ids = this.scopeCache.get(test.id);
+    if (!ids) this.scopeCache.set(test.id, (ids = testItemIds(this.catalog, test)));
+    return { test, ids };
+  }
+
   private lessonMasteryCounts(rows: ProgressRow[]): Map<string, number> {
     const counts = new Map<string, number>();
     for (const r of rows) {
@@ -125,7 +139,8 @@ export class PracticeService {
     const today = this.today();
     const now = this.clock();
     const [day, progress] = await Promise.all([this.repos.progress.getDay(studentId, today), rows ? Promise.resolve(rows) : this.repos.progress.allProgress(studentId)]);
-    const known = progress.filter((r) => this.catalog.itemById.has(r.itemId));
+    const scope = await this.activeScope(studentId);
+    const known = progress.filter((r) => this.catalog.itemById.has(r.itemId) && (!scope || scope.ids.has(r.itemId)));
     return {
       today,
       secondsToday: day.seconds,
@@ -161,10 +176,12 @@ export class PracticeService {
     const now = this.clock();
     const rows = await this.repos.progress.allProgress(studentId);
     const progress = new Map<string, ProgressLite>(rows.map((r) => [r.itemId, r]));
-    const [daily, pace] = await Promise.all([this.dailyStatus(studentId, rows), this.paceByType(studentId)]);
+    const [daily, pace, scope] = await Promise.all([this.dailyStatus(studentId, rows), this.paceByType(studentId), opts.mode === "lesson" ? null : this.activeScope(studentId)]);
     const plan = buildSession({
       mode: opts.mode,
-      catalog: this.catalog.entries,
+      // With a test switched on, rounds use only what is on the test. Opening a lesson yourself is always allowed.
+      catalog: scope ? this.catalog.entries.filter((e) => scope.ids.has(e.item.id)) : this.catalog.entries,
+      testPrep: !!scope,
       progress,
       now,
       today: daily.today,
@@ -346,6 +363,17 @@ export class PracticeService {
       const masteredTotal = lessons.reduce((a, l) => a + l.mastered, 0);
       return { id: u.id, title: u.title, tagline: u.tagline, note: u.note, accent: u.accent, lessons, total, mastered: masteredTotal };
     });
-    return { units, stats: summarize(toStatsState(statsRow)), statsRaw: toStatsState(statsRow), daily, badges: badges.map((b) => ({ id: b.badgeId, earnedAt: b.earnedAt })) };
+    const scope = await this.activeScope(studentId);
+    const test = scope && {
+      id: scope.test.id,
+      title: scope.test.title,
+      date: scope.test.date,
+      daysLeft: daysUntil(scope.test, daily.today),
+      total: scope.ids.size,
+      mastered: rows.filter((r) => scope.ids.has(r.itemId) && this.scheduler.isMastered(r)).length,
+      seen: rows.filter((r) => scope.ids.has(r.itemId)).length,
+      notInApp: [...scope.test.notInApp],
+    };
+    return { units, stats: summarize(toStatsState(statsRow)), statsRaw: toStatsState(statsRow), daily, test, badges: badges.map((b) => ({ id: b.badgeId, earnedAt: b.earnedAt })) };
   }
 }

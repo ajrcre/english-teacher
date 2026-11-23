@@ -1,0 +1,1 @@
+ALTER TABLE "students" ADD COLUMN "active_test" text;

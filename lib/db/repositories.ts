@@ -47,7 +47,7 @@ export class UserRepository {
     return row;
   }
 
-  async updateStudent(id: string, patch: Partial<Pick<StudentRow, "name" | "avatar" | "pinHash" | "focusUnit" | "soundOn">>): Promise<void> {
+  async updateStudent(id: string, patch: Partial<Pick<StudentRow, "name" | "avatar" | "pinHash" | "focusUnit" | "activeTest" | "soundOn">>): Promise<void> {
     await this.db.update(students).set(patch).where(eq(students.id, id));
   }
 

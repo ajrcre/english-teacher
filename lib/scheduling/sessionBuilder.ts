@@ -33,6 +33,11 @@ export interface BuildInput {
   budgetSeconds?: number;
   /** The student's measured average seconds per item type (overrides the defaults). */
   secondsByType?: Partial<Record<ItemType, number>>;
+  /**
+   * Test prep: there is a deadline, so more new items per day are allowed and the review-backlog
+   * brake is off. The time budget of each round still limits how much is actually asked.
+   */
+  testPrep?: boolean;
 }
 
 export interface SessionEntry {
@@ -57,6 +62,7 @@ export const SESSION_RULES = {
   backlogSoftSeconds: 600,
   backlogHardSeconds: 900,
   reducedNewPerDay: 5,
+  maxNewPerDayTestPrep: 40,
   spellingSliceSeconds: 120,
   spellingUnitId: "spelling",
   masteryBox: 3,
@@ -70,7 +76,8 @@ function estimate(item: Item, secondsByType?: Partial<Record<ItemType, number>>)
 }
 
 /** How many new items may still be introduced today, given the review backlog. */
-export function allowedNewItems(input: Pick<BuildInput, "catalog" | "progress" | "today" | "newItemsToday" | "secondsByType">): number {
+export function allowedNewItems(input: Pick<BuildInput, "catalog" | "progress" | "today" | "newItemsToday" | "secondsByType" | "testPrep">): number {
+  if (input.testPrep) return Math.max(0, SESSION_RULES.maxNewPerDayTestPrep - input.newItemsToday);
   const byId = new Map(input.catalog.map((c) => [c.item.id, c.item]));
   const endOfTomorrow = dayStart(addDays(input.today, 2));
   let tomorrowLoad = 0;

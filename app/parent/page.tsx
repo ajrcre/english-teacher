@@ -5,6 +5,7 @@ import { MinutesChart } from "@/components/MinutesChart";
 import { getCatalog } from "@/lib/content/catalog";
 import { parentOverview } from "@/lib/services/parent";
 import { requireParentPage } from "@/lib/student";
+import { tests } from "@/content/tests";
 import { dayKey } from "@/lib/time";
 import { ACCENTS } from "@/lib/ui";
 import { CopyCode } from "./CopyCode";
@@ -17,6 +18,7 @@ export default async function ParentDashboard() {
   const catalog = getCatalog();
   const today = dayKey(new Date());
   const family = await parentOverview(services, catalog, parent.id, today);
+  const upcomingTests = tests.filter((t) => t.date >= today).map((t) => ({ id: t.id, label: `${t.title} · ${new Date(`${t.date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}` }));
   const units = catalog.units.map((u) => ({ id: u.id, title: u.title }));
   const drafts = catalog.entries.filter((e) => e.item.reviewStatus === "draft").length;
   const flags = await services.repos.flags.list(parent.id);
@@ -61,7 +63,7 @@ export default async function ParentDashboard() {
                       Level {stats.level} · {stats.title} · {badges} badges
                     </p>
                   </div>
-                  <StudentActions id={student.id} name={student.name} focusUnit={student.focusUnit} units={units} />
+                  <StudentActions id={student.id} name={student.name} focusUnit={student.focusUnit} activeTest={student.activeTest} tests={upcomingTests} units={units} />
                 </div>
 
                 <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">

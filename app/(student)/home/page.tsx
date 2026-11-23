@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Home" };
 
 export default async function HomePage() {
   const { student, services } = await requireStudentPage();
-  const { units, stats, daily } = await services.practice.overview(student.id);
+  const { units, stats, daily, test } = await services.practice.overview(student.id);
   const target = DAILY_RULES.dailyTargetSeconds;
   const pct = Math.min(1, daily.secondsToday / target);
   const roundsDone = daily.roundsToday;
@@ -26,6 +26,27 @@ export default async function HomePage() {
     <main className="night-sky min-h-dvh">
       <div className="mx-auto max-w-6xl px-4 pb-16 pt-5 sm:px-6">
         <StudentHeader name={student.name} avatar={student.avatar} stats={stats} />
+
+        {test && (
+          <section aria-labelledby="test-prep" className="mt-6 rounded-[var(--radius-card)] border border-amber-400/40 bg-ink-800 p-4 sm:p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <div>
+                <p className="eyebrow text-amber-400">Test prep</p>
+                <h2 id="test-prep" className="mt-1 font-display text-xl font-semibold sm:text-2xl">
+                  {test.title} · {new Date(`${test.date}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })}
+                </h2>
+              </div>
+              <p className="font-display text-lg font-semibold text-amber-300">{test.daysLeft <= 0 ? "Test day!" : test.daysLeft === 1 ? "Tomorrow" : `${test.daysLeft} days to go`}</p>
+            </div>
+            <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/10" role="progressbar" aria-label="Test questions mastered" aria-valuenow={Math.round((test.mastered / Math.max(1, test.total)) * 100)} aria-valuemin={0} aria-valuemax={100}>
+              <div className="h-full rounded-full bg-teal-400 transition-all" style={{ width: `${(test.mastered / Math.max(1, test.total)) * 100}%` }} />
+            </div>
+            <p className="mt-2 text-sm text-ink-300">
+              {test.mastered} of {test.total} questions mastered · {Math.max(0, test.seen - test.mastered)} still being learned · {Math.max(0, test.total - test.seen)} not started
+            </p>
+            <p className="mt-1 text-sm text-ink-300">Your rounds now use only the topics on this test.{test.notInApp.length > 0 && ` Not practised here: ${test.notInApp.join(", ")}.`}</p>
+          </section>
+        )}
 
         <section className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:gap-x-10">
           <div className="paper-card relative overflow-hidden p-4 sm:p-6 lg:col-start-1 lg:row-start-1 lg:self-start">
@@ -75,8 +96,14 @@ export default async function HomePage() {
               <p className="mt-1 text-sm text-ink-300">{daily.mistakeCount ? "They come back until you've got them for good." : "Nothing to fix right now. Nice!"}</p>
             </Link>
             <div className="rounded-[var(--radius-card)] border border-white/10 bg-ink-800 p-5">
-              <FocusPicker units={units.map((u) => ({ id: u.id, title: u.title }))} value={student.focusUnit} />
-              <p className="mt-2 text-xs text-ink-400">Pick what your class is studying now.</p>
+              {test ? (
+                <p className="text-sm text-ink-300">Test prep is on, so new material comes only from the test topics.</p>
+              ) : (
+                <>
+                  <FocusPicker units={units.map((u) => ({ id: u.id, title: u.title }))} value={student.focusUnit} />
+                  <p className="mt-2 text-xs text-ink-400">Pick what your class is studying now.</p>
+                </>
+              )}
             </div>
           </div>
         </section>

@@ -19,6 +19,8 @@ export const students = pgTable("students", {
   avatar: text("avatar").notNull().default("fox"),
   pinHash: text("pin_hash").notNull(),
   focusUnit: text("focus_unit"),
+  /** Id of a class test (content/tests.ts) the student is preparing for; rounds use only its questions. */
+  activeTest: text("active_test"),
   soundOn: boolean("sound_on").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

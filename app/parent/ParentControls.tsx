@@ -88,7 +88,12 @@ export function AddStudentForm({ units }: { units: { id: string; title: string }
   );
 }
 
-export function StudentActions({ id, name, focusUnit, units }: { id: string; name: string; focusUnit: string | null; units: { id: string; title: string }[] }) {
+export interface TestOption {
+  id: string;
+  label: string;
+}
+
+export function StudentActions({ id, name, focusUnit, activeTest, tests, units }: { id: string; name: string; focusUnit: string | null; activeTest: string | null; tests: TestOption[]; units: { id: string; title: string }[] }) {
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
   return (
@@ -119,6 +124,25 @@ export function StudentActions({ id, name, focusUnit, units }: { id: string; nam
           </option>
         ))}
       </select>
+      {tests.length > 0 && (
+        <select
+          aria-label="Test prep"
+          defaultValue={activeTest ?? ""}
+          className="field field-dark min-h-10 w-auto py-1.5 text-sm"
+          onChange={async (e) => {
+            await send(`/api/parent/students/${id}`, "PATCH", { activeTest: e.target.value || null });
+            setMsg(e.target.value ? "Test prep on: rounds use only the test topics" : "Test prep off");
+            router.refresh();
+          }}
+        >
+          <option value="">Test prep: off</option>
+          {tests.map((t) => (
+            <option key={t.id} value={t.id}>
+              Test prep: {t.label}
+            </option>
+          ))}
+        </select>
+      )}
       <button
         className="btn btn-ghost min-h-10 px-4 text-sm"
         onClick={async () => {

@@ -54,7 +54,7 @@ export async function parentOverview(services: Services, catalog: Catalog, paren
           unit: catalog.itemById.get(a.itemId)?.unitId,
         }));
       return {
-        student: { id: s.id, name: s.name, avatar: s.avatar, focusUnit: s.focusUnit },
+        student: { id: s.id, name: s.name, avatar: s.avatar, focusUnit: s.focusUnit, activeTest: s.activeTest },
         stats: overview.stats,
         raw: overview.statsRaw,
         daily: overview.daily,
