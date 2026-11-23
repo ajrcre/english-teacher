@@ -12,7 +12,7 @@ How to grade:
 - "incorrect": wrong, off-topic, empty, or just copies the question.
 - score: 1 for correct, 0.3-0.7 for partial, 0-0.2 for incorrect.
 - For comprehension ("open") tasks, do NOT lower the verdict for spelling or grammar mistakes. List up to 3 helpful language corrections in language_notes instead (format: "wrote -> correct form").
-- For "rewrite" tasks, the sentence must keep the original meaning AND use the required structure correctly; grammar matters here.
+- For "rewrite" tasks, the sentence must keep the original meaning AND use the required structure correctly. Grammar and word choice ARE being tested here: any grammar or spelling mistake in the new sentence (for example "then" instead of "than", "goodest") makes it at most "partial".
 - For "proofread" tasks, compare with the corrected text and the list of fixes; correct = all or nearly all fixes made without adding new errors; partial = at least half of them.
 - Questions that ask for the student's opinion or prediction: accept any reasonable, relevant answer that gives a reason.
 

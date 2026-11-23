@@ -122,7 +122,9 @@ export function choice(id: string, sentence: string, options: string[], right: s
   const answer = options.indexOf(right);
   if (answer < 0) throw new Error(`${id}: "${right}" is not one of the options`);
   const { prompt, ...rest } = extra;
-  return { id, type: "mcq", prompt: prompt ?? "Choose the best word.", sentence, options, answer, ...rest };
+  // Cloze answers are words worth hearing after answering.
+  const speak = rest.speak ?? (sentence.includes("___") ? right : undefined);
+  return { id, type: "mcq", prompt: prompt ?? "Choose the best word.", sentence, options, answer, speak, ...rest };
 }
 
 /** Multiple-choice question; `right` is the correct option text. */
@@ -222,12 +224,12 @@ export function boxChoice(id: string, sentence: string, box: string[], right: st
   const pos = h % 4;
   const options = [...wrong];
   options.splice(pos, 0, right);
-  return { id, type: "mcq", prompt: prompt ?? "Choose the word from the box that fits.", sentence, options, answer: pos, ...rest };
+  return { id, type: "mcq", prompt: prompt ?? "Choose the word from the box that fits.", sentence, options, answer: pos, speak: right, ...rest };
 }
 
 /** Crossword-style clue: type the word (the letter count comes from the original crossword). */
 export function clue(id: string, clueText: string, answer: string, extra: Extra & { alt?: string[] } = {}): ItemInput {
   const { alt, ...rest } = extra;
   const letters = answer.replace(/[^a-zA-Z]/g, "").length;
-  return { id, type: "typed", prompt: `Crossword clue: ${clueText} (${letters} letters)`, answers: [answer, ...(alt ?? [])], ...rest };
+  return { id, type: "typed", prompt: `Crossword clue: ${clueText} (${letters} letters)`, answers: [answer, ...(alt ?? [])], speak: answer, ...rest };
 }

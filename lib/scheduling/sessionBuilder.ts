@@ -157,6 +157,7 @@ export function buildSession(input: BuildInput): SessionPlan {
   const byOrder = (a: CatalogEntry, b: CatalogEntry) => a.order - b.order;
   const leastRecent = (a: CatalogEntry, b: CatalogEntry) => seen(a)!.lastSeenAt.getTime() - seen(b)!.lastSeenAt.getTime();
 
+  const unitOf = new Map(catalog.map((c) => [c.item.id, c.unitId]));
   const focus = input.focusUnitId ?? null;
   const inFocus = (c: CatalogEntry) => !focus || c.unitId === focus;
   const newCap = allowedNewItems(input);
@@ -207,5 +208,26 @@ export function buildSession(input: BuildInput): SessionPlan {
     }
   }
 
-  return { mode: input.mode, entries: acc.entries, estimatedSeconds: acc.seconds, newCount: acc.newCount };
+  const entries = input.mode === "explore" ? spreadOut(acc.entries, (e) => unitOf.get(e.itemId) === SESSION_RULES.spellingUnitId) : acc.entries;
+  return { mode: input.mode, entries, estimatedSeconds: acc.seconds, newCount: acc.newCount };
+}
+
+/** Spread the entries matching `pick` evenly through the list (e.g. spelling words between other questions). */
+export function spreadOut<T>(list: T[], pick: (x: T) => boolean): T[] {
+  const picked = list.filter(pick);
+  const rest = list.filter((x) => !pick(x));
+  if (!picked.length || !rest.length) return list;
+  const out: T[] = [];
+  const step = (rest.length + 1) / (picked.length + 1);
+  let next = step;
+  let p = 0;
+  rest.forEach((x, i) => {
+    while (p < picked.length && i + 1 >= next) {
+      out.push(picked[p++]);
+      next += step;
+    }
+    out.push(x);
+  });
+  while (p < picked.length) out.push(picked[p++]);
+  return out;
 }

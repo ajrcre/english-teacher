@@ -1,26 +1,224 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Starlight English design tokens.
+ * Night-sky ink for the world around the student, warm paper for the work itself.
+ */
+@theme {
+  --color-ink-950: #08111e;
+  --color-ink-900: #0d1a2b;
+  --color-ink-800: #142439;
+  --color-ink-700: #1d3250;
+  --color-ink-600: #2a4468;
+  --color-ink-400: #6f86a6;
+  --color-ink-300: #9fb1c9;
+  --color-ink-200: #c9d5e4;
+
+  --color-paper-50: #fbf8f2;
+  --color-paper-100: #f6f1e7;
+  --color-paper-200: #ede5d4;
+  --color-paper-300: #dfd3bb;
+  --color-paper-600: #8a7d65;
+
+  --color-text: #15202e;
+  --color-text-soft: #4e5a6b;
+
+  --color-amber-300: #f8cf86;
+  --color-amber-400: #f2a93b;
+  --color-amber-500: #df8f1f;
+  --color-amber-700: #9a5f0c;
+
+  --color-teal-300: #8fd8cf;
+  --color-teal-400: #3fb3a8;
+  --color-teal-600: #1f7d75;
+  --color-rose-300: #f2a7ad;
+  --color-rose-400: #e0707a;
+  --color-rose-600: #b1424d;
+  --color-sky-400: #5fa8e0;
+  --color-lime-400: #8dbf4c;
+  --color-violet-400: #9c8bd8;
+  --color-sand-400: #c9a77a;
+
+  --font-display: var(--font-fraunces), "Georgia", serif;
+  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 1.25rem;
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 10px 30px -12px rgb(8 17 30 / 0.45);
+  --shadow-lift: 0 18px 40px -18px rgb(8 17 30 / 0.65);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-ink-900);
+    color: var(--color-paper-100);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+    min-height: 100dvh;
+  }
+  ::selection {
+    background: var(--color-amber-300);
+    color: var(--color-ink-900);
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-amber-400);
+    outline-offset: 2px;
+    border-radius: 6px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* The faint star field behind student screens. */
+  .night-sky {
+    background-color: var(--color-ink-900);
+    background-image:
+      radial-gradient(1px 1px at 12% 18%, rgb(255 255 255 / 0.55), transparent 60%),
+      radial-gradient(1px 1px at 72% 12%, rgb(255 255 255 / 0.45), transparent 60%),
+      radial-gradient(1.5px 1.5px at 38% 64%, rgb(255 255 255 / 0.35), transparent 60%),
+      radial-gradient(1px 1px at 86% 48%, rgb(255 255 255 / 0.4), transparent 60%),
+      radial-gradient(1px 1px at 22% 86%, rgb(255 255 255 / 0.3), transparent 60%),
+      radial-gradient(1.5px 1.5px at 58% 32%, rgb(248 207 134 / 0.5), transparent 60%),
+      radial-gradient(120% 70% at 50% -10%, #1b3354 0%, transparent 60%);
+    background-attachment: fixed;
+  }
+
+  .paper-card {
+    background: var(--color-paper-100);
+    color: var(--color-text);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+
+  .grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0.08;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding: 0 1.25rem;
+    border-radius: 999px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    transition:
+      transform 120ms ease,
+      background-color 150ms ease,
+      box-shadow 150ms ease;
+    user-select: none;
+  }
+  .btn:active {
+    transform: translateY(1px) scale(0.99);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--color-amber-400);
+    color: var(--color-ink-900);
+    box-shadow: 0 4px 0 var(--color-amber-700);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-amber-300);
+  }
+  .btn-primary:active:not(:disabled) {
+    box-shadow: 0 2px 0 var(--color-amber-700);
+  }
+  .btn-ghost {
+    background: rgb(255 255 255 / 0.06);
+    color: var(--color-paper-100);
+    border: 1px solid rgb(255 255 255 / 0.12);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: rgb(255 255 255 / 0.12);
+  }
+  .btn-ink {
+    background: var(--color-ink-800);
+    color: var(--color-paper-100);
+    box-shadow: 0 4px 0 var(--color-ink-950);
+  }
+  .btn-ink:hover:not(:disabled) {
+    background: var(--color-ink-700);
+  }
+
+  .field {
+    width: 100%;
+    min-height: 3rem;
+    border-radius: 0.875rem;
+    border: 2px solid var(--color-paper-300);
+    background: var(--color-paper-50);
+    color: var(--color-text);
+    padding: 0.75rem 1rem;
+    font-size: 1.0625rem;
+    transition: border-color 150ms ease;
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-amber-400);
+  }
+  .field-dark {
+    border-color: var(--color-ink-600);
+    background: var(--color-ink-800);
+    color: var(--color-paper-100);
+  }
+
+  .choice {
+    width: 100%;
+    text-align: left;
+    padding: 0.85rem 1rem;
+    border-radius: 0.875rem;
+    border: 2px solid var(--color-paper-300);
+    background: var(--color-paper-50);
+    color: var(--color-text);
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    transition:
+      border-color 120ms ease,
+      background-color 120ms ease,
+      transform 120ms ease;
+  }
+  .choice:hover:not(:disabled) {
+    border-color: var(--color-ink-400);
+  }
+  .choice[data-selected="true"] {
+    border-color: var(--color-ink-800);
+    background: #fff;
+    box-shadow: 0 0 0 2px var(--color-ink-800) inset;
+  }
+  .choice[data-state="right"] {
+    border-color: var(--color-teal-400);
+    background: #e7f6f3;
+  }
+  .choice[data-state="wrong"] {
+    border-color: var(--color-rose-400);
+    background: #fbecec;
+  }
+
+  .eyebrow {
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

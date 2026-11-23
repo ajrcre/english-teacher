@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Starlight English
 
-## Getting Started
+A gamified practice app for the Alon Junior High **Year 7 English Speakers' Programme** workbook. Students practise for up to 20 minutes a day; every mistake comes back until it's mastered. Open answers are checked by an AI against the expected answer, with feedback in simple English and Hebrew shown only *after* answering.
 
-First, run the development server:
+## What's inside
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Unit | Lessons | Items |
+|---|---|---|
+| Number the Stars | background reading, 5 quiz sections, vocabulary, American vs British English | 110 |
+| The Giver | 18 lessons: workbook vocabulary exercises, guided questions for every chapter group, Dictionary of Sameness | 436 |
+| Short Stories | Eleven, Thank You Ma'am, The Choice, The Watery Place, The Face on the Wall, Taste, There Will Come Soft Rains | 106 |
+| Poetry | figures of speech + 7 poems | 84 |
+| Grammar Lab | capitals & punctuation, plurals, present/past/future, stative verbs, quantifiers, comparison, prefixes | 226 |
+| Spelling Bee | all 29 spelling tests as audio dictation | 576 |
+| Word Treasury | words for places, collective nouns | 8 |
+
+1,546 items in total. 233 answers written for the app (mostly novel questions, which have no key in the workbook) are marked **draft**; parents can check them on **Parent → Review answer keys**.
+
+**Not included on purpose:** the New Year and Streets of Israel projects, the book report and the film review — the teacher forbids AI help on those.
+
+## How it works
+
+- **No hints before answering.** The browser only receives the question; answers, explanations and Hebrew notes arrive after submitting (`lib/content/client.ts`, covered by a test).
+- **Mastery (Leitner boxes 0–5).** Wrong → back to box 0 and re-asked 3–5 questions later in the same round. Right → up one box, at most once per day; an item is *mastered* at box 3 (correct on 3 separate days). The **Mistake Gym** practises only flagged items.
+- **20-minute day.** Two ~10-minute rounds (Review, then Explore with a slice of spelling), at most 3 open questions per round, at most ~20 new items a day (fewer when tomorrow's reviews pile up). One round keeps the streak; both earn the Full Mission bonus.
+- **Gamification.** XP with combo multipliers, levels with titles, streaks with shields, stars, 21 badges, and a constellation map where each lesson is a star that lights up.
+- **AI grading.** `LLM_PROVIDER=gemini` (default, `gemini-3.5-flash`) or `anthropic` (`claude-haiku-5-5`). Spelling and grammar slips don't cost points on comprehension questions; they're listed as notes. If the grader is unavailable, the student compares with the model answer and self-assesses.
+- **Family accounts.** A parent signs up and adds students with a 4-digit PIN. Students sign in with the family code + PIN. The parent dashboard shows minutes per day, accuracy, mastery per unit and recent mistakes.
+
+## Code map
+
+```
+content/units/          the workbook content (validated with zod at load time)
+content/data/           spelling list + generated dictation sentences
+lib/content/            schema, catalog, client projection (strips answers)
+lib/grading/            GraderRegistry (strategy per item type), LLM adapters (Gemini / Claude)
+lib/scheduling/         Leitner scheduler, 20-minute session builder
+lib/gamification/       XP / streak / badge engine (observer listeners), levels, badges
+lib/db/                 Drizzle schema + repositories (Neon in production, PGlite locally)
+lib/services/           PracticeService facade, parent dashboard data
+app/                    pages (student, parent) and API routes
+components/practice/    session runner + one input component per question type
+scripts/assets/         Gemini artwork + ElevenLabs audio generators
+scripts/eval/           grader evaluation (40 hand-written answers)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Run locally
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+cp .env.example .env.local   # add GEMINI_API_KEY to try AI grading
+npm run dev                  # uses an embedded database in .data/
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open http://localhost:3000, choose **Set up for my family**, add a student, then **Start practice as …**.
 
-## Learn More
+## Tests
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm test                 # unit + integration (in-memory Postgres)
+npm run test:e2e         # Playwright, phone + desktop
+npm run eval:grader      # 40-answer grading eval against the configured AI (uses the API)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deploy to Vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Import the repository in Vercel (framework: Next.js; defaults are fine).
+2. **Storage → Connect Database → Neon** (Vercel Marketplace). This adds `DATABASE_URL`.
+3. Add environment variables: `SESSION_SECRET` (run `openssl rand -hex 32`), `GEMINI_API_KEY` (and optionally `LLM_PROVIDER`, `ANTHROPIC_API_KEY`).
+4. Deploy. `npm run build` applies database migrations (`scripts/migrate.ts`) before building.
 
-## Deploy on Vercel
+Artwork (`public/art`) and audio (`public/audio`) are committed, so ElevenLabs and Gemini image keys are not needed on Vercel.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Regenerating assets
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run assets:images            # missing images only; --force to redo all
+npm run assets:audio             # sfx, words, dictation (skips existing files)
+npm run content:spelling         # dictation sentences + Hebrew glosses
+```

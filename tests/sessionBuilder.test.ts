@@ -78,3 +78,13 @@ describe("buildSession", () => {
     expect(plan.entries.map((e) => e.itemId).sort()).toEqual(["m1", "m2"]);
   });
 });
+
+describe("spreadOut", () => {
+  it("spreads picked entries through the list", async () => {
+    const { spreadOut } = await import("@/lib/scheduling/sessionBuilder");
+    const out = spreadOut(["s1", "s2", "a", "b", "c", "d", "e", "f"], (x) => x.startsWith("s"));
+    expect(out).toHaveLength(8);
+    expect(out[0]).not.toBe("s1");
+    expect(out.indexOf("s2") - out.indexOf("s1")).toBeGreaterThan(1);
+  });
+});
