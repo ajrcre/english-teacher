@@ -7,6 +7,7 @@ import { parentOverview } from "@/lib/services/parent";
 import { requireParentPage } from "@/lib/student";
 import { dayKey } from "@/lib/time";
 import { ACCENTS } from "@/lib/ui";
+import { CopyCode } from "./CopyCode";
 import { AddStudentForm, SignOutButton, StudentActions } from "./ParentControls";
 
 export const metadata: Metadata = { title: "Parent dashboard" };
@@ -35,7 +36,7 @@ export default async function ParentDashboard() {
           </div>
           <div className="rounded-2xl border border-white/10 bg-ink-800 px-4 py-3">
             <div className="text-xs uppercase tracking-wider text-ink-400">Family code</div>
-            <div className="font-mono text-2xl font-bold tracking-[0.2em] text-amber-300">{parent.familyCode}</div>
+            <CopyCode code={parent.familyCode} />
             <div className="text-xs text-ink-400">Students type this at starlight sign-in</div>
           </div>
         </section>

@@ -83,6 +83,8 @@ test("student signs in with family code and PIN, practises, and the mistake come
 test("parent dashboard shows the family code and student progress", async ({ page }) => {
   await setupFamily(page);
   await expect(page.getByText("Family code")).toBeVisible();
+  await page.getByRole("button", { name: "Copy family code" }).click();
+  await expect(page.getByRole("button", { name: "Family code copied" })).toBeVisible();
   await expect(page.getByText("Mastery by unit")).toBeVisible();
   await page.click("text=Review answer keys");
   await expect(page.getByRole("heading", { name: "Review answer keys" })).toBeVisible();
