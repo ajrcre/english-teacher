@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PRIVATE_PAGE } from "@/lib/site";
 import Link from "next/link";
 import { Logo } from "@/components/Art";
 import { getCatalog } from "@/lib/content/catalog";
@@ -6,7 +7,7 @@ import { requireParentPage } from "@/lib/student";
 import { cx } from "@/lib/ui";
 import { ReviewButtons } from "./ReviewButtons";
 
-export const metadata: Metadata = { title: "Review answer keys" };
+export const metadata: Metadata = { title: "Review answer keys", robots: PRIVATE_PAGE };
 
 export default async function ReviewPage({ searchParams }: { searchParams: Promise<{ unit?: string }> }) {
   const { parent, services } = await requireParentPage();

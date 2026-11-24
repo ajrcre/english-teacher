@@ -1,9 +1,30 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Art, Logo } from "@/components/Art";
 import { InstallAppButton } from "@/components/InstallApp";
 import { Splash } from "@/components/splash/Splash";
 import { getSession } from "@/lib/auth/session";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, publicPage, siteUrl } from "@/lib/site";
+
+export const metadata: Metadata = publicPage("/", SITE_TITLE, SITE_DESCRIPTION);
+
+/** Structured data so search engines know this is an educational web app for students. */
+function jsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    name: SITE_NAME,
+    url: siteUrl().href,
+    description: SITE_DESCRIPTION,
+    image: new URL("/og.jpg", siteUrl()).href,
+    applicationCategory: "EducationalApplication",
+    operatingSystem: "Any (web browser; installable on Android and iPhone)",
+    inLanguage: "en",
+    audience: { "@type": "EducationalAudience", educationalRole: "student" },
+    educationalLevel: "Year 7",
+  };
+}
 
 export default async function Landing() {
   const session = await getSession();
@@ -12,6 +33,7 @@ export default async function Landing() {
 
   return (
     <main className="night-sky relative min-h-dvh overflow-hidden">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd()).replace(/</g, "\\u003c") }} />
       <Splash />
       <div className="sp-landing mx-auto flex min-h-dvh max-w-5xl flex-col px-4 pb-10 pt-6 sm:px-8">
         <header className="flex items-center justify-between">
