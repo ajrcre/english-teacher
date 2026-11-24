@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PRIVATE_PAGE } from "@/lib/site";
 import Link from "next/link";
 import { Avatar, Logo } from "@/components/Art";
 import { MinutesChart } from "@/components/MinutesChart";
@@ -11,7 +12,7 @@ import { ACCENTS } from "@/lib/ui";
 import { CopyCode } from "./CopyCode";
 import { AddStudentForm, SignOutButton, StudentActions } from "./ParentControls";
 
-export const metadata: Metadata = { title: "Parent dashboard" };
+export const metadata: Metadata = { title: "Parent dashboard", robots: PRIVATE_PAGE };
 
 export default async function ParentDashboard() {
   const { parent, services } = await requireParentPage();

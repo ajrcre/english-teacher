@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Atkinson_Hyperlegible_Next, Fraunces, Pixelify_Sans } from "next/font/google";
 import type { ReactNode } from "react";
+import { InstallPromptCatcher } from "@/components/InstallApp";
+import { OG_IMAGE, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -24,9 +26,30 @@ const pixelify = Pixelify_Sans({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Starlight English", template: "%s · Starlight English" },
-  description: "Year 7 English practice: novels, stories, poetry, grammar and spelling — one star at a time.",
-  icons: { icon: "/icon.svg" },
+  metadataBase: siteUrl(),
+  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  category: "education",
+  keywords: [
+    "Year 7 English",
+    "English Speakers' Programme",
+    "Number the Stars",
+    "The Giver",
+    "short stories",
+    "poetry",
+    "grammar practice",
+    "spelling test practice",
+    "English homework game",
+  ],
+  // Link previews (WhatsApp, iMessage, Facebook, X…). Public pages refine these with publicPage().
+  openGraph: { type: "website", siteName: SITE_NAME, locale: "en_GB", title: SITE_TITLE, description: SITE_DESCRIPTION, images: [OG_IMAGE] },
+  twitter: { card: "summary_large_image", title: SITE_TITLE, description: SITE_DESCRIPTION, images: [OG_IMAGE] },
+  // Family codes and PINs are digits: stop iOS turning them into phone-number links.
+  formatDetection: { telephone: false },
+  icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
+  // iOS home-screen app ("Add to Home Screen"). "black" keeps pages below the status bar.
+  appleWebApp: { capable: true, title: "Starlight", statusBarStyle: "black" },
 };
 
 export const viewport: Viewport = {
@@ -39,7 +62,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${atkinson.variable} ${pixelify.variable} antialiased`} suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <InstallPromptCatcher />
+        {children}
+      </body>
     </html>
   );
 }

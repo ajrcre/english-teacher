@@ -16,6 +16,8 @@
     "content:spelling": "tsx scripts/content/gen-spelling.ts",
     "assets:images": "tsx scripts/assets/gen-images.ts",
     "assets:audio": "tsx scripts/assets/gen-audio.ts",
+    "assets:icons": "tsx scripts/assets/gen-app-icons.ts",
+    "assets:og": "tsx scripts/assets/gen-og-image.ts",
     "eval:grader": "tsx scripts/eval/grader-eval.ts"
   },
   "dependencies": {

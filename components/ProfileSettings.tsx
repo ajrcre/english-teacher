@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/Art";
+import { InstallAppButton } from "@/components/InstallApp";
 import { AVATARS } from "@/lib/avatars";
 import { cx } from "@/lib/ui";
 
@@ -75,6 +76,7 @@ export function ProfileSettings({ name, avatar, frame, soundOn, ownedAvatars = [
           }}
         />
       </label>
+      <InstallAppButton />
       <button
         className="btn btn-ghost"
         onClick={async () => {
