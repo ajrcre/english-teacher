@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Art, Logo } from "@/components/Art";
+import { InstallAppButton } from "@/components/InstallApp";
 import { Splash } from "@/components/splash/Splash";
 import { getSession } from "@/lib/auth/session";
 
@@ -40,6 +41,7 @@ export default async function Landing() {
                 Set up for my family
               </Link>
             </div>
+            <InstallAppButton className="mt-4" />
           </div>
           <div className="relative mx-auto aspect-square w-full max-w-md">
             <Art src="/art/hero.webp" alt="A paper-cut fox holding a lantern under a starry sky" className="h-full w-full rounded-[2rem] object-cover shadow-[var(--shadow-lift)]" />
