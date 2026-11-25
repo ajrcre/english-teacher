@@ -104,18 +104,59 @@ function nova(p: Pose, hat: HatId | null = null): PixelCanvas {
 // ---------------------------------------------------------------------------
 // Nova from the side, facing right: she walks the journey strip during a round.
 
-type SidePose = { kind: "walk" | "run" | "sit"; f: number } | { kind: "trip" } | { kind: "jump" };
+type SidePose =
+  | { kind: "walk" | "run" | "sit" | "sprint" | "roll" | "dazed" | "leap"; f: number }
+  | { kind: "trip" }
+  | { kind: "jump" }
+  | { kind: "hop"; dir: -1 | 1 };
 const SW = 24;
 const SH = 16;
 
 function side(p: SidePose, hat: HatId | null = null): PixelCanvas {
   const c = new PixelCanvas(SW, SH);
   const f = "f" in p ? p.f : 0;
-  const run = p.kind === "run";
-  const sit = p.kind === "sit";
+  const sprint = p.kind === "sprint";
+  const run = p.kind === "run" || sprint;
+  const sit = p.kind === "sit" || p.kind === "dazed";
+  const dazed = p.kind === "dazed";
   const trip = p.kind === "trip";
-  const jump = p.kind === "jump";
-  const bob = p.kind === "walk" ? [0, -1, 0, -1][f % 4] : run ? [0, -1, -1, 0][f % 4] : jump ? -3 : 0;
+  const hop = p.kind === "hop" ? p.dir : 0;
+  const leap = p.kind === "leap";
+  const jump = p.kind === "jump" || hop !== 0 || leap;
+  const bob =
+    p.kind === "walk"
+      ? [0, -1, 0, -1][f % 4]
+      : sprint
+        ? [0, -1, -2, -1, 0, -1][f % 6]
+        : run
+          ? [0, -1, -1, 0][f % 4]
+          : leap
+            ? (f % 2 ? -3 : -2)
+            : hop
+              ? (hop < 0 ? -2 : 1)
+              : jump
+                ? -3
+                : 0;
+
+  if (p.kind === "roll") {
+    // tumbling head over heels after a wrong gate: a curled-up ball, tail wrapping round
+    const a = (f % 2) * Math.PI * 0.9;
+    c.ellipse(11.5, 10, 5.5, 5, "o");
+    c.ellipse(12.5, 11.5, 3, 2.5, "W");
+    const tx = 11.5 + Math.cos(a + 2.4) * 6;
+    const ty = 10 + Math.sin(a + 2.4) * 5;
+    c.ellipse(tx, ty, 2.2, 1.6, "o");
+    c.ellipse(tx + Math.cos(a + 2.4) * 1.5, ty + Math.sin(a + 2.4) * 1.2, 1.2, 1, "w");
+    const ex = 11.5 + Math.cos(a) * 3;
+    const ey = 10 + Math.sin(a) * 3;
+    c.tri(ex - 1, ey - 1, ex + 1, ey - 1, ex + Math.cos(a - 0.6) * 4, ey + Math.sin(a - 0.6) * 4, "o");
+    c.line(Math.round(ex) - 1, Math.round(ey) - 1, Math.round(ex) + 1, Math.round(ey) + 1, "k").line(Math.round(ex) - 1, Math.round(ey) + 1, Math.round(ex) + 1, Math.round(ey) - 1, "k");
+    c.shade(LIGHT, DARK);
+    c.outline("k");
+    // motion lines behind the roll
+    c.hline(0, 3, 7, "e").hline(1, 4, 12, "e");
+    return withHat(c, SIDE_PAD, null, "side", 11.5, 5);
+  }
 
   if (sit) {
     // sitting upright, tail curled round the paws
@@ -132,11 +173,18 @@ function side(p: SidePose, hat: HatId | null = null): PixelCanvas {
     c.tri(11, hy - 2, 13, hy - 2, 11.5, hy - 6, "o");
     c.tri(13.5, hy - 2, 15.5, hy - 2, 15, hy - 6, "o");
     c.set(12, hy - 3, "O").set(14.5, hy - 3, "O");
-    if (f % 2) c.hline(15, 16, hy, "k");
+    if (dazed) c.line(14, hy - 1, 16, hy + 1, "k").line(14, hy + 1, 16, hy - 1, "k");
+    else if (f % 2) c.hline(15, 16, hy, "k");
     else c.set(15, hy - 1, "k").set(15, hy, "k");
     c.shade(LIGHT, DARK);
     c.outline("k");
-    return withHat(c, SIDE_PAD, hat, "side", 13.5, hy - 2);
+    const out = withHat(c, SIDE_PAD, dazed ? null : hat, "side", 13.5, hy - 2);
+    if (dazed) {
+      // little stars circling her head
+      const r = f % 2 ? [[9, 2], [17, 4], [13, 0]] : [[11, 1], [15, 1], [18, 3]];
+      for (const [x, y] of r) out.set(x, y + SIDE_PAD - 3, "y").set(x + 1, y + SIDE_PAD - 3, "f");
+    }
+    return out;
   }
 
   const by = 10 + bob + (trip ? 1 : 0);
@@ -153,7 +201,7 @@ function side(p: SidePose, hat: HatId | null = null): PixelCanvas {
   c.ellipse(10, by, run ? 6 : 5.5, 3, "o");
   c.ellipse(10.5, by + 1.6, run ? 4 : 3.6, 1.1, "W");
   // legs: two pairs swinging in opposite phase
-  const swing = run ? [3, 1, -3, -1][f % 4] : jump ? 0 : trip ? 3 : [1, 0, -1, 0][f % 4];
+  const swing = sprint ? [3, 2, 0, -3, -2, 0][f % 6] : run ? [3, 1, -3, -1][f % 4] : leap ? 3 : jump ? 0 : trip ? 3 : [1, 0, -1, 0][f % 4];
   const legTop = by + 2;
   const foot = Math.min(SH - 1, legTop + (jump ? 2 : 3));
   const leg = (x: number, s: number) => {
@@ -162,7 +210,12 @@ function side(p: SidePose, hat: HatId | null = null): PixelCanvas {
     c.set(x + s, foot, "d");
     if (run) c.set(x + 1 + s, foot, "d");
   };
-  if (jump) {
+  if (leap) {
+    // stretched out through the gate: front legs reaching forward, back legs pushing off
+    c.line(14, legTop, 18, legTop + 1, "o").line(13, legTop, 17, legTop + 2, "o");
+    c.line(7, legTop, 3, legTop + 2, "o").line(6, legTop, 2, legTop + 1, "o");
+    c.set(18, legTop + 1, "d").set(2, legTop + 1, "d");
+  } else if (jump) {
     // tucked up mid-leap
     c.hline(6, 8, legTop + 1, "d").hline(12, 14, legTop + 1, "d");
   } else {
@@ -172,14 +225,14 @@ function side(p: SidePose, hat: HatId | null = null): PixelCanvas {
     leg(15, -swing);
   }
   // head: drooped forward when tripping
-  const hx = 17 + (run ? 1 : 0);
-  const hy = by - 3 + (trip ? 3 : 0);
+  const hx = 17 + (run || leap ? 1 : 0);
+  const hy = by - 3 + (trip ? 3 : 0) + (hop > 0 ? 1 : 0);
   c.ellipse(hx, hy, 3.6, 3.1, "o");
   c.tri(hx + 2, hy - 1, hx + 2, hy + 2, hx + 6, hy + 1, "o");
   c.tri(hx + 2, hy + 1, hx + 5.5, hy + 1, hx + 2.5, hy + 3, "W");
   c.set(Math.min(SW - 1, hx + 6), hy + 1, "k");
-  // ears: laid back when running
-  if (run) {
+  // ears: laid back when running or leaping
+  if (run || leap) {
     c.tri(hx - 3, hy - 2, hx, hy - 2, hx - 5, hy - 4, "o");
     c.tri(hx - 1, hy - 2, hx + 1, hy - 2, hx - 2, hy - 5, "o");
   } else {
@@ -189,12 +242,13 @@ function side(p: SidePose, hat: HatId | null = null): PixelCanvas {
   }
   // eye: open, a happy ^ when jumping, squeezed shut when tripping
   if (trip) c.line(hx + 1, hy - 1, hx + 2, hy, "k").line(hx + 1, hy + 1, hx + 2, hy, "k");
-  else if (jump) c.set(hx + 1, hy, "k").set(hx + 2, hy - 1, "k").set(hx + 3, hy, "k");
+  else if (p.kind === "jump" || leap) c.set(hx + 1, hy, "k").set(hx + 2, hy - 1, "k").set(hx + 3, hy, "k");
   else c.set(hx + 1, hy - 1, "k").set(hx + 1, hy, "k");
   c.shade(LIGHT, DARK);
   c.outline("k");
   // a puff of dust behind running feet, stars when tripping
   if (run && f % 2 === 0) c.set(1, SH - 2, "e").set(0, SH - 3, "e");
+  if (leap) c.set(1, 3 + (f % 2), "f").set(4, 1, "y").set(21, 2 - (f % 2), "y");
   if (trip) c.set(hx + 3, 1, "y").set(hx - 3, 2, "y");
   return withHat(c, SIDE_PAD, hat, "side", hx - 0.5, hy - 2);
 }
@@ -208,6 +262,13 @@ export interface NovaSprites {
   sit: Sprite;
   trip: Sprite;
   jump: Sprite;
+  /** Runner game poses. */
+  sprint: Sprite;
+  hopUp: Sprite;
+  hopDown: Sprite;
+  leap: Sprite;
+  roll: Sprite;
+  dazed: Sprite;
 }
 
 const sets = new Map<string, NovaSprites>();
@@ -227,6 +288,12 @@ export function novaSprites(hat: HatId | null = null): NovaSprites {
       sit: sprite(...[0, 0, 0, 1].map((f) => side({ kind: "sit", f }, hat))),
       trip: sprite(side({ kind: "trip" }, hat)),
       jump: sprite(side({ kind: "jump" }, hat)),
+      sprint: sprite(...[0, 1, 2, 3, 4, 5].map((f) => side({ kind: "sprint", f }, hat))),
+      hopUp: sprite(side({ kind: "hop", dir: -1 }, hat)),
+      hopDown: sprite(side({ kind: "hop", dir: 1 }, hat)),
+      leap: sprite(...[0, 1].map((f) => side({ kind: "leap", f }, hat))),
+      roll: sprite(...[0, 1].map((f) => side({ kind: "roll", f }, hat))),
+      dazed: sprite(...[0, 1].map((f) => side({ kind: "dazed", f }, hat))),
     };
     sets.set(key, s);
   }

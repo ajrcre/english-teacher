@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { tests } from "@/content/tests";
 
+// These flows answer multiple-choice questions on cards; the runner game has its own spec.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("starlight.gameMode", "off"));
+});
+
+
 const upcoming = tests.find((t) => t.date >= new Date().toISOString().slice(0, 10));
 
 test("a parent switches on test prep; the student sees the countdown and practises only the test topics", async ({ page }) => {

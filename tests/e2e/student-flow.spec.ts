@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
+// These flows answer multiple-choice questions on cards; the runner game has its own spec.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("starlight.gameMode", "off"));
+});
+
+
 /** Close any celebration (badge / level-up) dialogs that are open. */
 async function dismissCelebrations(page: Page) {
   for (let i = 0; i < 4; i++) {

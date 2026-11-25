@@ -19,7 +19,9 @@ import type { AnswerFeedback, DailyStatus, StatsSummary, SubmitResult } from "@/
 import { cx } from "@/lib/ui";
 import { playSfx, setSoundEnabled, speakWord, type Sfx } from "../sound";
 import { BossArena, type BattleBeat } from "./BossArena";
+import { LaneRunner, type RunnerResult } from "./game/LaneRunner";
 import { JourneyStrip, type JourneyBeat } from "./JourneyStrip";
+import { nextPace, runnerEligible } from "@/lib/game/runner";
 import { QuestionInput, RichSentence, SpeakerIcon, questionTitle } from "./inputs";
 
 type QueueItem = ClientItem & { lessonId: string; unitId: string; isNew: boolean; retry?: number; key: string };
@@ -80,6 +82,19 @@ const MODE_LABEL: Record<SessionMode, string> = {
 
 const MAX_RETRIES = 3;
 
+const GAME_MODE_KEY = "starlight.gameMode";
+
+/** Game mode is on unless switched off on this device, or the person prefers reduced motion. */
+function readGameMode(): boolean {
+  try {
+    const saved = localStorage.getItem(GAME_MODE_KEY);
+    if (saved) return saved === "on";
+  } catch {
+    /* private mode */
+  }
+  return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
 export function Runner({
   mode,
   lessonId,
@@ -118,6 +133,12 @@ export function Runner({
   const [bossUnlocked, setBossUnlocked] = useState(bossReady);
   /** Height of the feedback sheet, so the page can make room for it below the question. */
   const [sheetHeight, setSheetHeight] = useState(0);
+  /** Game mode: multiple-choice questions are played in the lane runner (saved per device). */
+  const [gameMode, setGameMode] = useState(true);
+  /** The runner's outcome animation is playing: hold the feedback sheet until it ends. */
+  const [runnerHold, setRunnerHold] = useState(false);
+  /** Runner speed: eases off after mistakes, picks up on a streak. */
+  const [pace, setPace] = useState(1);
   /** Nova's journey strip: how far she has walked (never backwards) and the latest step. */
   const [journey, setJourney] = useState<{ progress: number; beat: JourneyBeat | null }>({ progress: 0, beat: null });
   const startedAt = useRef<number>(0);
@@ -152,6 +173,8 @@ export function Runner({
       setDoneBanner(false);
       setTally(EMPTY_TALLY);
       setClaim(null);
+      setRunnerHold(false);
+      setGameMode(readGameMode());
       setJourney({ progress: 0, beat: null });
       if (mode === "boss" && unitId) {
         const boss = bossFor(unitId);
@@ -201,9 +224,9 @@ export function Runner({
     if (sfx) playSfx(sfx);
   }
 
-  async function submit(selfVerdict?: "correct" | "incorrect") {
-    const resp = selfVerdict ? lastResponse : response;
-    if (!current || !resp) return;
+  async function submit(selfVerdict?: "correct" | "incorrect", override?: ItemResponse): Promise<RunnerResult> {
+    const resp = override ?? (selfVerdict ? lastResponse : response);
+    if (!current || !resp) return null;
     setPhase({ kind: "submitting" });
     setLastResponse(resp);
     const seconds = (Date.now() - startedAt.current) / 1000;
@@ -217,7 +240,7 @@ export function Runner({
       if (!res.ok) throw new Error(data.error ?? "Could not check your answer");
       if (data.status === "self_check") {
         setPhase({ kind: "self_check", modelAnswer: data.modelAnswer, keyPoints: data.keyPoints, reason: data.reason });
-        return;
+        return null;
       }
       const verdict = data.feedback.verdict;
       playSfx(verdict === "correct" ? "correct" : "wrong", verdict === "correct" ? 0.5 : 0.35);
@@ -244,16 +267,20 @@ export function Runner({
           return [...q.slice(0, at), copy, ...q.slice(at)];
         });
       }
+      setPace((p) => nextPace(p, verdict === "correct", data.stats.combo));
       setPhase({ kind: "feedback", feedback: data.feedback, xp: data.rewards.xp });
+      return { verdict, modelAnswer: data.feedback.modelAnswer };
     } catch (e) {
       setToast(e instanceof Error ? e.message : "Could not check your answer");
       setPhase({ kind: "answering" });
+      return null;
     }
   }
 
   const advance = useCallback(() => {
     setResponse(null);
     setToast(null);
+    setRunnerHold(false);
     if (battle?.outcome || index + 1 >= queue.length) {
       setPhase({ kind: "summary" });
       return;
@@ -327,7 +354,7 @@ export function Runner({
   // When feedback slides up, keep the question's answers in view above it: make room at the
   // bottom of the page and scroll the right answer (or the question) just above the sheet.
   useEffect(() => {
-    if (phase.kind !== "feedback") return;
+    if (phase.kind !== "feedback" || runnerHold) return;
     const t = setTimeout(() => {
       const sheet = document.getElementById("feedback-sheet");
       if (!sheet) return;
@@ -336,7 +363,7 @@ export function Runner({
       requestAnimationFrame(() => {
         // The right answer and the student's pick, if they're marked; otherwise the question card.
         const marked = [...document.querySelectorAll<HTMLElement>('main section [data-state="right"], main section [data-state="wrong"]')];
-        const targets = marked.length ? marked : [...document.querySelectorAll<HTMLElement>("main section.paper-card")];
+        const targets = marked.length ? marked : [...document.querySelectorAll<HTMLElement>("main section.paper-card, main section[aria-label='Answer runner']")];
         if (!targets.length) return;
         const rects = targets.map((t) => t.getBoundingClientRect());
         const top = Math.min(...rects.map((r) => r.top));
@@ -346,11 +373,11 @@ export function Runner({
       });
     }, 380);
     return () => clearTimeout(t);
-  }, [phase.kind]);
+  }, [phase.kind, runnerHold]);
 
   // Enter = continue after feedback.
   useEffect(() => {
-    if (phase.kind !== "feedback") return;
+    if (phase.kind !== "feedback" || runnerHold) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -362,7 +389,20 @@ export function Runner({
       clearTimeout(t);
       window.removeEventListener("keydown", onKey);
     };
-  }, [phase.kind, next]);
+  }, [phase.kind, next, runnerHold]);
+
+  // Multiple-choice questions become the lane runner in game mode.
+  const playing = phase.kind === "answering" || phase.kind === "submitting" || phase.kind === "feedback";
+  const asRunner = !isBoss && gameMode && !!current && current.type === "mcq" && runnerEligible(current) && playing;
+  const toggleGameMode = () => {
+    const next = !gameMode;
+    setGameMode(next);
+    try {
+      localStorage.setItem(GAME_MODE_KEY, next ? "on" : "off");
+    } catch {
+      /* private mode */
+    }
+  };
 
   useEffect(() => {
     if (!toast) return;
@@ -385,12 +425,17 @@ export function Runner({
           ) : (
             <p className="flex-1 truncate text-center font-pixel text-base tracking-wider text-[#ead39b]">{MODE_LABEL[mode]}</p>
           )}
+          {!isBoss && (
+            <button type="button" onClick={toggleGameMode} className="rounded-full bg-white/5 px-3 py-1.5 font-pixel text-sm text-[#ead39b] hover:bg-white/10" aria-pressed={gameMode} title="Play multiple-choice questions as a runner game, or answer them on cards">
+              {gameMode ? "🎮 Game" : "📝 Cards"}
+            </button>
+          )}
           <div className="flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-bold" aria-label="XP this round">
             <StarGlyph className="h-4 w-4 text-amber-300" />
             {tally.xp}
           </div>
         </header>
-        {!isBoss && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+        {!isBoss && !asRunner && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} hat={hat} />
         )}
         <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">{lessonTitle ?? MODE_LABEL[mode]}</p>
@@ -420,7 +465,25 @@ export function Runner({
           />
         )}
 
-        {current && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+        {asRunner && current?.type === "mcq" && (
+          <LaneRunner
+            key={current.key}
+            item={current}
+            unitId={current.unitId}
+            hat={hat}
+            combo={stats?.combo ?? 0}
+            pace={pace}
+            onChoose={(choice) => {
+              setRunnerHold(true);
+              return submit(undefined, { type: "mcq", choice });
+            }}
+            onFinished={(verdict) => {
+              if (verdict === "correct") next();
+              else setRunnerHold(false);
+            }}
+          />
+        )}
+        {!asRunner && current && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <AnimatePresence mode="wait">
             <motion.section key={current.key} data-item={current.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.22 }} className="paper-card relative mt-5 p-5 sm:p-7">
               <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -439,7 +502,7 @@ export function Runner({
       </div>
 
       {/* Bottom action area: submit, or feedback panel. */}
-      {current && (phase.kind === "answering" || phase.kind === "submitting") && (
+      {current && !asRunner && (phase.kind === "answering" || phase.kind === "submitting") && (
         <div className="fixed inset-x-0 bottom-0 border-t border-white/10 bg-ink-900/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
           <div className="mx-auto max-w-2xl">
             <button className="btn btn-primary w-full text-lg" disabled={!response || phase.kind === "submitting"} onClick={() => void submit()}>
@@ -448,7 +511,7 @@ export function Runner({
           </div>
         </div>
       )}
-      <AnimatePresence>{phase.kind === "feedback" && <FeedbackPanel feedback={phase.feedback} xp={phase.xp} onNext={next} />}</AnimatePresence>
+      <AnimatePresence>{phase.kind === "feedback" && !runnerHold && <FeedbackPanel feedback={phase.feedback} xp={phase.xp} onNext={next} />}</AnimatePresence>
       {phase.kind === "self_check" && <SelfCheckPanel {...phase} onChoose={(v) => void submit(v)} />}
 
       <AnimatePresence>

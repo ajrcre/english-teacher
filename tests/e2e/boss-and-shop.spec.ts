@@ -3,6 +3,12 @@ import { units } from "@/content/units";
 import { buildCatalog } from "@/lib/content/catalog";
 import type { Item } from "@/lib/content/schema";
 
+// These flows answer multiple-choice questions on cards; the runner game has its own spec.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("starlight.gameMode", "off"));
+});
+
+
 /**
  * The game layer end to end: unlock a lesson's boss, win the battle (losing one heart on
  * purpose), open the chests, see the legendary sticker in the album and spend stars in the shop.

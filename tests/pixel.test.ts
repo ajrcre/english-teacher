@@ -10,6 +10,7 @@ import { HAT_IDS, hatOf } from "@/lib/pixel/sprites/hats";
 import { novaAttack, novaHurt, novaJump, novaRun, novaSit, novaSprite, novaSprites, novaTrip, novaWalk } from "@/lib/pixel/sprites/nova";
 import { HAT_ITEM_IDS } from "@/lib/gamification/collection";
 import { STICKER_ART_IDS, stickerArt } from "@/lib/pixel/sprites/stickers";
+import * as runner from "@/lib/pixel/sprites/runner";
 import * as ui from "@/lib/pixel/sprites/ui";
 
 const catalog = buildCatalog(units);
@@ -31,6 +32,12 @@ describe("pixel art", () => {
       ["sword", ui.sword],
       ["shield", ui.shield],
       ["chest", ui.chests.wood.closed],
+      ["gate", runner.gateIdle],
+      ["gate-glow", runner.gateGlow],
+      ["gate-burst", runner.gateBurst],
+      ["gate-cracked", runner.gateCracked],
+      ["dust", runner.dust],
+      ["sparkle", runner.sparkle],
       ["chest-open", ui.chests.wood.open],
       ["boss-chest", ui.chests.boss.closed],
       ...BOSSES.flatMap((b): [string, Sprite][] => [
@@ -53,7 +60,8 @@ describe("pixel art", () => {
         expect(validateSprite(`${hat}:${pose}`, s)).toEqual([]);
         const base = plain[pose as keyof typeof plain];
         expect([s.w, s.h, s.frames.length], `${hat}:${pose}`).toEqual([base.w, base.h, base.frames.length]);
-        expect(s.frames[0].join(""), `${hat}:${pose} shows the hat`).not.toEqual(base.frames[0].join(""));
+        // The hat flies off while she tumbles (roll) and sits dazed; every other pose wears it.
+        if (pose !== "roll" && pose !== "dazed") expect(s.frames[0].join(""), `${hat}:${pose} shows the hat`).not.toEqual(base.frames[0].join(""));
       }
     }
     // Every hat in the shop has art.
