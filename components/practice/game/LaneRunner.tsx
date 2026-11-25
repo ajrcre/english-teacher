@@ -307,6 +307,11 @@ export function LaneRunner({
           f = spr === gateCracked ? 0 : frameOf(spr, 6, now);
         }
         const gy = laneTop(i) + LANE_H - GATE_H + 2;
+        // a soft shadow at the gate's feet grounds it in its lane
+        ctx.fillStyle = col("k");
+        ctx.globalAlpha = 0.22;
+        ctx.fillRect(Math.round(gx) - 1, gy + GATE_H - 2, 20, 2);
+        ctx.globalAlpha = 1;
         ctx.drawImage(img(spr, f), Math.round(gx), gy);
         const label = labelRefs.current[i];
         if (label) {
@@ -338,6 +343,13 @@ export function LaneRunner({
       );
       const nx =
         s.phase === "lost" ? NOVA_X + Math.min(8, elapsed / 60) : NOVA_X;
+      // her shadow stays on the ground (smaller while she's in the air)
+      const footY = Math.round(laneTop(0) + s.laneY * LANE_H + LANE_H - 1);
+      const sw = lift < -2 ? 10 : 14;
+      ctx.fillStyle = col("k");
+      ctx.globalAlpha = 0.25;
+      ctx.fillRect(Math.round(nx) + 12 - sw / 2, footY, sw, 2);
+      ctx.globalAlpha = 1;
       ctx.drawImage(img(pose, frameOf(pose, fps, now)), Math.round(nx), ny);
 
       // dust and sparkles

@@ -31,6 +31,7 @@ import {
   crackedStar,
   fallingStar,
   glowingStar,
+  shard,
   STAR_H,
   STAR_W,
 } from "@/lib/pixel/sprites/starCatch";
@@ -63,7 +64,7 @@ const SKY = 30;
 /** Where Nova stands, where stars land in the snow, and the basket's rim (the catch line). */
 const FEET = H - 9;
 const GROUND = H - 6;
-const RIM = FEET - BASKET_H + 2;
+const RIM = FEET - BASKET_H + 3;
 const CATCH_R = 13;
 const MOVE = 0.12; // px per ms with the arrows
 const DRAG = 0.24; // px per ms towards a dragged/tapped point
@@ -85,12 +86,14 @@ interface Star {
 }
 
 interface Particle {
-  kind: "dust" | "spark";
+  kind: "dust" | "spark" | "ring" | "shard";
   x: number;
   y: number;
   born: number;
   vx: number;
   vy: number;
+  /** Shards: which shape. */
+  f?: number;
 }
 
 /**
@@ -149,7 +152,11 @@ export function StarCatch({
   const [hearts, setHearts] = useState<number>(STAR_RULES.hearts);
   const [playing, setPlaying] = useState<"word" | "sentence" | null>(null);
   /** Matching: the definition to find a word for, and how many pairs are done. */
-  const [clue, setClue] = useState<{ text: string; at: number; of: number } | null>(null);
+  const [clue, setClue] = useState<{
+    text: string;
+    at: number;
+    of: number;
+  } | null>(null);
 
   // Mutable state the game loop reads every frame.
   const g = useRef({
@@ -242,7 +249,8 @@ export function StarCatch({
     const it = latestItem.current;
     const choices =
       it.type === "mcq" ? withDecoy(it.id, it.options, decoy) : [];
-    const key = it.type === "dictation" || it.type === "typed" ? it.spell : null;
+    const key =
+      it.type === "dictation" || it.type === "typed" ? it.spell : null;
     const mk = it.type === "match" ? it.pairKey : null;
     /** Modes where a wrong catch costs a heart and the game goes on. */
     const goesOn = !!key || !!mk;
@@ -283,8 +291,18 @@ export function StarCatch({
     };
 
     // ---- match mode: one definition at a time, its word falls among two others
-    const clues = mk && it.type === "match" ? (mk.fall === "right" ? it.left : it.right) : [];
-    const fallers = mk && it.type === "match" ? (mk.fall === "right" ? it.right : it.left) : [];
+    const clues =
+      mk && it.type === "match"
+        ? mk.fall === "right"
+          ? it.left
+          : it.right
+        : [];
+    const fallers =
+      mk && it.type === "match"
+        ? mk.fall === "right"
+          ? it.right
+          : it.left
+        : [];
     /** [left, right] for a clue and a falling word. */
     const pairOf = (c: string, f: string): [string, string] =>
       mk?.fall === "right" ? [c, f] : [f, c];
@@ -299,10 +317,18 @@ export function StarCatch({
       const right = rightFor(c);
       const free = fallers.filter((f) => f !== right && !used.has(f));
       const pool = free.length >= 2 ? free : fallers.filter((f) => f !== right);
-      const labels = shuffled([...(right ? [right] : []), ...shuffled(pool).slice(0, 2)]);
+      const labels = shuffled([
+        ...(right ? [right] : []),
+        ...shuffled(pool).slice(0, 2),
+      ]);
       setClue({ text: c, at: clueAt, of: clues.length });
       const words = c.split(/\s+/).length;
-      dropStars(labels, approachMs({ type: "mcq", prompt: c, options: labels }, pace) - words * 100, slower);
+      dropStars(
+        labels,
+        approachMs({ type: "mcq", prompt: c, options: labels }, pace) -
+          words * 100,
+        slower,
+      );
     }
     if (!key) dropChoices();
 
@@ -354,6 +380,25 @@ export function StarCatch({
         });
     };
 
+    /** A ring of light that pops outwards where a star is caught. */
+    const pop = (x: number, y: number, now: number) => {
+      parts.push({ kind: "ring", x, y, born: now, vx: 0, vy: 0 });
+      burst(x, y - 2, now, 8);
+    };
+    /** Grey shards flying off a broken star. */
+    const shatter = (x: number, y: number, now: number) => {
+      for (let k = 0; k < 6; k++)
+        parts.push({
+          kind: "shard",
+          x,
+          y,
+          born: now,
+          vx: (Math.random() - 0.5) * 0.09,
+          vy: -0.05 - Math.random() * 0.05,
+          f: k % 3,
+        });
+    };
+
     const finish = (verdict: "correct" | "partial" | "incorrect") => {
       setTimeout(() => {
         s.phase = "done";
@@ -388,7 +433,8 @@ export function StarCatch({
         s.phase = "done";
         if (caught) caught.state = "gone";
         setBanner({ text, good: true });
-        burst(s.x, RIM - 6, now, 18);
+        pop(s.x, RIM - 6, now);
+        burst(s.x, RIM - 6, now, 14);
         syncTokens();
         carry.x = s.x;
         carry.winAt = now;
@@ -397,7 +443,10 @@ export function StarCatch({
       } else {
         s.phase = "lost";
         s.hurtAt = now;
-        if (caught) caught.state = "cracked";
+        if (caught) {
+          caught.state = "cracked";
+          shatter(s.x, RIM - 6, now);
+        }
         if (it.type === "mcq") {
           const right =
             latestItem.current.type === "mcq"
@@ -420,11 +469,12 @@ export function StarCatch({
           done.push(pair);
           used.add(t.text);
           clueAt += 1;
-          burst(t.x, RIM - 4, now, 10);
+          pop(t.x, RIM - 4, now);
           playSfx("tap", 0.4);
           for (const o of s.stars) o.state = "gone";
           syncTokens();
-          if (clueAt >= clues.length) void judge({ type: "match", pairs: done }, null);
+          if (clueAt >= clues.length)
+            void judge({ type: "match", pairs: done }, null);
           else dropWave();
         } else {
           heartsLeft -= 1;
@@ -432,6 +482,7 @@ export function StarCatch({
           t.state = "cracked";
           t.at = now;
           s.hurtAt = now;
+          shatter(t.x, RIM - 6, now);
           playSfx("wrong", 0.25);
           syncTokens();
           if (heartsLeft <= 0) {
@@ -461,7 +512,7 @@ export function StarCatch({
         prefix += t.text;
         setSpelled(prefix);
         t.state = "gone";
-        burst(t.x, RIM - 4, now, 8);
+        pop(t.x, RIM - 4, now);
         playSfx("tap", 0.4);
         syncTokens();
         if (prefix.length >= key.n) {
@@ -475,6 +526,7 @@ export function StarCatch({
         t.state = "cracked";
         t.at = now;
         s.hurtAt = now;
+        shatter(t.x, RIM - 6, now);
         playSfx("wrong", 0.25);
         syncTokens();
         if (heartsLeft <= 0) {
@@ -484,6 +536,60 @@ export function StarCatch({
         }
       }
     };
+
+    // ---- the still background, painted once: the unit's sky, then its ground with depth
+    const bg = document.createElement("canvas");
+    bg.width = W;
+    bg.height = H;
+    {
+      const b = bg.getContext("2d")!;
+      b.drawImage(strip, 0, 12, W, SKY, 0, 0, W, SKY);
+      // ground: lighter haze at the horizon, the unit's colour, deeper towards the front
+      const bands: [number, string][] = [
+        [SKY, ground.mark],
+        [SKY + 5, ground.a],
+        [SKY + Math.round((GROUND - SKY) * 0.62), ground.b],
+      ];
+      bands.forEach(([y0, c0], i) => {
+        const y1 = bands[i + 1]?.[0] ?? H;
+        b.fillStyle = col(c0);
+        b.fillRect(0, y0, W, y1 - y0);
+        // dither the seam into the next band
+        if (bands[i + 1]) {
+          b.fillStyle = col(bands[i + 1][1]);
+          for (let y = y1 - 4; y < y1; y++)
+            for (let x = (y % 2) * 2; x < W; x += y >= y1 - 2 ? 2 : 4)
+              b.fillRect(x, y, 1, 1);
+        }
+      });
+      b.fillStyle = col(ground.edge);
+      b.fillRect(0, SKY, W, 1);
+      // a few soft mounds over the field, bigger nearer the front
+      for (let k = 0; k < 9; k++) {
+        const y = SKY + 12 + ((k * 61) % (GROUND - SKY - 18));
+        const x = (k * 47 + 13) % (W - 10);
+        const big = y > SKY + (GROUND - SKY) / 2;
+        const w = big ? 7 : 4;
+        b.globalAlpha = 0.45;
+        b.fillStyle = col(ground.b);
+        b.fillRect(x, y, w, 1);
+        b.fillRect(x + 1, y - 1, w - 2, 1);
+        b.fillStyle = col(ground.mark);
+        b.fillRect(x + 1, y - 2, Math.max(1, w - 4), 1);
+        b.globalAlpha = 1;
+      }
+      b.fillStyle = col(ground.edge);
+      b.fillRect(0, GROUND, W, 1);
+      b.globalAlpha = 0.35;
+      b.fillRect(0, GROUND + 1, W, H - GROUND - 1);
+      b.globalAlpha = 1;
+    }
+    /** Tiny stars twinkling in the sky band. */
+    const twinkles = Array.from({ length: 7 }, (_, k) => ({
+      x: (k * 23 + 9) % W,
+      y: 2 + ((k * 7) % (SKY - 10)),
+      p: k * 0.9,
+    }));
 
     const frameOf = (spr: { frames: unknown[] }, fps: number, t: number) =>
       Math.floor((Math.max(0, t) * fps) / 1000) % spr.frames.length;
@@ -590,30 +696,42 @@ export function StarCatch({
         }
       }
 
-      // ---- draw: sky band from the unit's world, then the unit's ground (snow, meadow, floor…)
-      ctx.drawImage(strip, 0, 12, W, SKY, 0, 0, W, SKY);
-      ctx.fillStyle = col(ground.a);
-      ctx.fillRect(0, SKY, W, H - SKY);
-      ctx.fillStyle = col(ground.edge);
-      ctx.fillRect(0, SKY, W, 1);
-      // a soft haze near the horizon, and a few marks on the ground
-      ctx.fillStyle = col(ground.b);
-      for (let y = SKY + 2; y < SKY + 12; y += 2)
-        for (let x = (y / 2) % 4; x < W; x += 4) ctx.fillRect(x, y, 1, 1);
-      ctx.fillStyle = col(ground.mark);
-      for (let k = 0; k < 9; k++)
+      // ---- draw: the painted background, the sky twinkling
+      ctx.drawImage(bg, 0, 0);
+      ctx.fillStyle = col("f");
+      for (const tw of twinkles) {
+        const on = Math.sin(now / 420 + tw.p);
+        if (on > 0.2) ctx.fillRect(tw.x, tw.y, 1, 1);
+        if (on > 0.85) {
+          ctx.fillRect(tw.x - 1, tw.y, 3, 1);
+          ctx.fillRect(tw.x, tw.y - 1, 1, 3);
+        }
+      }
+
+      // where each falling star will land: a shadow that grows darker as it comes down
+      ctx.fillStyle = col("k");
+      for (const t of s.stars) {
+        if (t.state !== "fall" || t.y < -STAR_H) continue;
+        const p = Math.max(
+          0,
+          Math.min(1, (t.y + STAR_H - SKY) / (GROUND - SKY)),
+        );
+        const w = Math.round(5 + p * 11);
+        ctx.globalAlpha = 0.1 + p * 0.22;
+        ctx.fillRect(Math.round(t.x - w / 2), GROUND - 2, w, 2);
         ctx.fillRect(
-          (k * 37 + 11) % (W - 4),
-          SKY + 20 + ((k * 53) % (GROUND - SKY - 30)),
-          3,
+          Math.round(t.x - w / 2) + 2,
+          GROUND - 3,
+          Math.max(1, w - 4),
           1,
         );
-      ctx.fillStyle = col(ground.b);
-      ctx.fillRect(0, GROUND, W, H - GROUND);
-      ctx.fillStyle = col(ground.edge);
-      ctx.fillRect(0, GROUND, W, 1);
+      }
+      // and Nova's own shadow
+      ctx.globalAlpha = 0.22;
+      ctx.fillRect(Math.round(s.x - 13), FEET - 1, 26, 2);
+      ctx.globalAlpha = 1;
 
-      // stars, with a dotted trail while they fall
+      // stars, each with a comet tail while it falls
       const elapsed = Math.max(0, now - s.at);
       for (const t of s.stars) {
         if (t.state === "gone") continue;
@@ -646,14 +764,19 @@ export function StarCatch({
           y = GROUND - STAR_H + 4;
         }
         if (t.state === "fall" && t.y > -STAR_H + 2) {
-          ctx.fillStyle = col(combo >= 3 ? "f" : "y");
-          for (const [k, gap] of [
-            [0, 4],
-            [1, 9],
-            [2, 15],
-          ])
-            if (k < 2 || combo >= 3)
-              ctx.fillRect(Math.round(t.x), Math.round(t.y - gap), 1, 2);
+          const len = combo >= 3 ? 9 : 6;
+          for (let k = 1; k <= len; k++) {
+            ctx.globalAlpha = Math.max(0, 0.75 - k / (len + 1));
+            ctx.fillStyle = col(k % 3 === 0 ? "w" : k < 3 ? "f" : "y");
+            const wob = Math.round(Math.sin(now / 140 + k + t.id) * 0.7);
+            ctx.fillRect(
+              Math.round(t.x) + wob - (k < 3 ? 1 : 0),
+              Math.round(t.y + 3 - k * 3),
+              k < 3 ? 2 : 1,
+              2,
+            );
+          }
+          ctx.globalAlpha = 1;
         }
         ctx.drawImage(img(spr, f), Math.round(x - STAR_W / 2), Math.round(y));
         ctx.globalAlpha = 1;
@@ -661,8 +784,23 @@ export function StarCatch({
         // the label (an answer under the star, or a letter on it)
         const label = labelRefs.current.get(t.id);
         if (label) {
-          const ly = key ? y + STAR_H * 0.55 : y + STAR_H + 1;
-          label.style.left = `${(x / W) * 100}%`;
+          const ly = key ? y + STAR_H * 0.58 : y + STAR_H + 3;
+          const cw = canvas.clientWidth;
+          const sx = (x / W) * cw;
+          if (key) label.style.left = `${sx}px`;
+          else {
+            // keep the label inside the field; its notch still points at the star
+            const lw =
+              Number(label.dataset.w) ||
+              ((label.dataset.w = String(label.offsetWidth)),
+              label.offsetWidth);
+            const left = Math.max(lw / 2 + 3, Math.min(cw - lw / 2 - 3, sx));
+            label.style.left = `${left}px`;
+            label.style.setProperty(
+              "--notch",
+              `${Math.max(6, Math.min(lw - 6, sx - left + lw / 2))}px`,
+            );
+          }
           label.style.top = `${(ly / H) * 100}%`;
           label.style.opacity =
             t.state === "landed" ? "0" : y < -STAR_H / 2 ? "0" : "1";
@@ -695,13 +833,47 @@ export function StarCatch({
         FEET - BASKET_H + 1 + lift,
       );
 
-      // dust and sparkles
+      // dust, sparkles, rings and shards
       for (let k = parts.length - 1; k >= 0; k--) {
         const p = parts[k];
         const age = now - p.born;
-        const life = p.kind === "dust" ? 420 : 650;
+        const life =
+          p.kind === "dust"
+            ? 420
+            : p.kind === "ring"
+              ? 320
+              : p.kind === "shard"
+                ? 700
+                : 650;
         if (age > life) {
           parts.splice(k, 1);
+          continue;
+        }
+        if (p.kind === "ring") {
+          // a ring of light popping outwards
+          const r = 3 + (age / life) * 11;
+          ctx.globalAlpha = 1 - age / life;
+          ctx.fillStyle = col("f");
+          for (let a = 0; a < 16; a++) {
+            const ang = (a / 16) * Math.PI * 2;
+            ctx.fillRect(
+              Math.round(p.x + Math.cos(ang) * r),
+              Math.round(p.y + Math.sin(ang) * r * 0.8),
+              1,
+              1,
+            );
+          }
+          ctx.globalAlpha = 1;
+          continue;
+        }
+        if (p.kind === "shard") {
+          ctx.globalAlpha = Math.min(1, 2 - (2 * age) / life);
+          ctx.drawImage(
+            img(shard, p.f ?? 0),
+            Math.round(p.x + p.vx * age),
+            Math.round(p.y + p.vy * age + 0.00018 * age * age),
+          );
+          ctx.globalAlpha = 1;
           continue;
         }
         const spr = p.kind === "dust" ? dust : sparkle;
@@ -785,8 +957,12 @@ export function StarCatch({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id, optionsKey, decoy, unitId, sprites]);
 
-  const n = item.type === "dictation" || item.type === "typed" ? item.spell.n : 0;
-  const mask = item.type === "dictation" || item.type === "typed" ? (item.spell.mask ?? "_".repeat(n)) : "";
+  const n =
+    item.type === "dictation" || item.type === "typed" ? item.spell.n : 0;
+  const mask =
+    item.type === "dictation" || item.type === "typed"
+      ? (item.spell.mask ?? "_".repeat(n))
+      : "";
 
   // Drag (or tap) on the field: Nova runs to that spot.
   const dragging = useRef(false);
@@ -800,7 +976,6 @@ export function StarCatch({
   const step = (dir: number) => {
     g.current.target = Math.max(12, Math.min(W - 12, g.current.x + dir * 24));
   };
-
 
   return (
     <section
@@ -832,7 +1007,10 @@ export function StarCatch({
                 </span>
               )}
             </p>
-            <p className="mt-1 min-h-[3.5rem] font-sans text-lg leading-snug" data-clue>
+            <p
+              className="mt-1 min-h-[3.5rem] font-sans text-lg leading-snug"
+              data-clue
+            >
               {clue?.text}
             </p>
           </>
@@ -867,13 +1045,25 @@ export function StarCatch({
               return [...mask].map((m, i) => {
                 if (m !== "_")
                   return (
-                    <span key={i} className={cx("inline-block text-center text-[#a99cc4]", m === " " ? "w-3" : "w-4")}>
+                    <span
+                      key={i}
+                      className={cx(
+                        "inline-block text-center text-[#a99cc4]",
+                        m === " " ? "w-3" : "w-4",
+                      )}
+                    >
                       {m}
                     </span>
                   );
                 const ch = spelled[li++];
                 return (
-                  <span key={i} className={cx("inline-block w-6 text-center", ch ? "text-[#c9dfa0]" : "text-[#5a5560]")}>
+                  <span
+                    key={i}
+                    className={cx(
+                      "inline-block w-6 text-center",
+                      ch ? "text-[#c9dfa0]" : "text-[#5a5560]",
+                    )}
+                  >
                     {ch?.toUpperCase() ?? "_"}
                   </span>
                 );
@@ -940,8 +1130,8 @@ export function StarCatch({
                 className={cx(
                   "pointer-events-none absolute -translate-x-1/2 whitespace-nowrap leading-none",
                   spell
-                    ? "-translate-y-1/2 text-xl text-[#241c2b] sm:text-2xl"
-                    : "bg-[#ead39b] px-1.5 py-1 text-[13px] text-[#241c2b] shadow-[0_0_0_2px_#241c2b] sm:text-[15px]",
+                    ? "-translate-y-1/2 text-[22px] text-[#3a2614] [text-shadow:0_1px_0_#f6e7b8] sm:text-[26px]"
+                    : "border-2 border-[#241c2b] bg-[#f3e3b8] px-1.5 pb-[3px] pt-[4px] text-[13px] text-[#2b1f17] shadow-[2px_2px_0_#241c2b66] sm:text-[15px] before:absolute before:-top-[7px] before:left-[var(--notch,50%)] before:-translate-x-1/2 before:border-x-[5px] before:border-b-[5px] before:border-x-transparent before:border-b-[#241c2b] before:content-['']",
                 )}
                 style={{ left: "50%", top: "-20%", opacity: 0 }}
               >
@@ -959,7 +1149,9 @@ export function StarCatch({
                 )}
                 role="status"
               >
-                {banner.text}
+                <span className="inline-block border-2 border-[#241c2b] bg-[#241c2bd9] px-3 pb-0.5 pt-1">
+                  {banner.text}
+                </span>
               </div>
             )}
             {paused && (
