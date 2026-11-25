@@ -38,6 +38,13 @@ const GATE_H = 26;
 
 type Phase = "run" | "judging" | "won" | "lost" | "done";
 
+/**
+ * The run carries on from one question to the next: how far the world has scrolled and which
+ * lane Nova is in are kept between questions, so a new set of gates simply appears ahead
+ * instead of the scene jumping back to the start.
+ */
+const journey = { unitId: "", scroll: 0, lane: -1 };
+
 interface Particle {
   kind: "dust" | "spark";
   x: number;
@@ -75,7 +82,7 @@ export function LaneRunner({
   const H = SKY + lanes * LANE_H + 4;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [lane, setLane] = useState(Math.floor((lanes - 1) / 2));
+  const [lane, setLane] = useState(() => (journey.lane >= 0 ? Math.min(journey.lane, lanes - 1) : Math.floor((lanes - 1) / 2)));
   const [paused, setPaused] = useState(false);
   const [banner, setBanner] = useState<{ text: string; good: boolean } | null>(
     null,
@@ -109,6 +116,7 @@ export function LaneRunner({
     const next = Math.max(0, Math.min(lanes - 1, to));
     if (next !== s.lane) playSfx("tap", 0.2);
     s.lane = next;
+    journey.lane = next;
     setLane(next);
   };
   const go = () => {
@@ -139,7 +147,8 @@ export function LaneRunner({
     const total = approachMs(item, pace);
     const speed = (startX - CONTACT_X) / total; // px per ms
     let gx = reduced ? W * 0.62 : startX;
-    let scroll = 0;
+    let scroll = journey.unitId === unitId ? journey.scroll : 0;
+    journey.unitId = unitId;
     let last = performance.now();
     let dustAt = 0;
     const parts: Particle[] = [];
@@ -215,6 +224,7 @@ export function LaneRunner({
         if (s.phase === "won") v = speed * 3;
         gx -= v * dt;
         scroll += Math.max(v, s.phase === "lost" ? 0 : speed * 0.6) * dt;
+        journey.scroll = scroll;
         s.laneY += (s.lane - s.laneY) * Math.min(1, dt / 70);
         if (s.phase === "run" && gx <= CONTACT_X) void judge();
       }
