@@ -20,7 +20,7 @@ const pct = (v: number, of: number) => `${(v / of) * 100}%`;
  * The battle scene above each question: the unit's backdrop, Nova on the left, the boss on the
  * right, the boss's HP bar and the student's hearts. Each answer plays a short "beat".
  */
-export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message, hat }: { unitId: string; hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string; hat?: string | null }) {
+export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message, hat, label, winText = "Victory!" }: { unitId: string; hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string; hat?: string | null; /** Accessible name (default "Boss battle: <name>"). */ label?: string; winText?: string }) {
   const nova = novaSprites(hatOf(hat));
   const boss = bossFor(unitId);
   const backdrop = useMemo(() => backdropFor(unitId), [unitId]);
@@ -43,7 +43,7 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message,
   const bossPose = striking ? boss.hurt : struck ? boss.attack : boss.sprite;
 
   return (
-    <section className="pixel-panel relative mx-auto mt-4 w-[calc(100%-8px)] max-w-[30rem] overflow-hidden font-pixel" aria-label={`Boss battle: ${boss.name}`}>
+    <section className="pixel-panel relative mx-auto mt-4 w-[calc(100%-8px)] max-w-[30rem] overflow-hidden font-pixel" aria-label={label ?? `Boss battle: ${boss.name}`}>
       <div className="relative" style={{ aspectRatio: `${BACKDROP_W} / ${BACKDROP_H}` }}>
         <PixelScene sprite={backdrop} />
 
@@ -57,7 +57,7 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message,
               ))}
             </div>
           </div>
-          <div className="flex shrink-0 gap-1" aria-label={`${heartsLeft} of ${hearts} hearts left`}>
+          {hearts > 0 && <div className="flex shrink-0 gap-1" aria-label={`${heartsLeft} of ${hearts} hearts left`}>
             {Array.from({ length: hearts }, (_, i) => {
               const full = i < heartsLeft;
               const justLost = beat?.kind === "hurt" && i === heartsLeft;
@@ -68,7 +68,7 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message,
                 </span>
               );
             })}
-          </div>
+          </div>}
         </div>
 
         {/* Nova */}
@@ -128,7 +128,7 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message,
         {/* Victory sparkle where the boss was */}
         {defeated && (
           <motion.div className="pointer-events-none absolute text-center text-xl text-[#f6e7b8] [text-shadow:2px_2px_0_#241c2b] sm:text-3xl" style={{ left: "50%", top: "40%" }} initial={{ opacity: 0, scale: 0.5, x: "-50%" }} animate={{ opacity: 1, scale: 1, x: "-50%" }} transition={{ delay: 0.4, type: "spring" }}>
-            Victory!
+            {winText}
           </motion.div>
         )}
       </div>

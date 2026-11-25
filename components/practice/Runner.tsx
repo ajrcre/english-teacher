@@ -84,6 +84,9 @@ const MODE_LABEL: Record<SessionMode, string> = {
 
 const MAX_RETRIES = 3;
 
+/** Written answers: in game mode they are fought out with the unit's "story monster". */
+const STORY_TYPES = new Set<ClientItem["type"]>(["open", "rewrite", "proofread"]);
+
 const GAME_MODE_KEY = "starlight.gameMode";
 
 /**
@@ -142,6 +145,8 @@ export function Runner({
   const [gameMode, setGameMode] = useState(true);
   /** The runner's outcome animation is playing: hold the feedback sheet until it ends. */
   const [runnerHold, setRunnerHold] = useState(false);
+  /** The story monster for written answers: hits so far, the latest beat and its line. */
+  const [story, setStory] = useState<{ hits: number; beat: BattleBeat | null; message: string }>({ hits: 0, beat: null, message: "" });
   /** Runner speed: eases off after mistakes, picks up on a streak. */
   const [pace, setPace] = useState(1);
   /** Nova's journey strip: how far she has walked (never backwards) and the latest step. */
@@ -181,6 +186,10 @@ export function Runner({
       setRunnerHold(false);
       setGameMode(readGameMode());
       setJourney({ progress: 0, beat: null });
+      if (unitId || items[0]) {
+        const monster = bossFor(items[0]?.unitId ?? unitId!);
+        setStory({ hits: 0, beat: null, message: `${monster.name} is loose in this chapter! Write good answers to drive it back.` });
+      }
       if (mode === "boss" && unitId) {
         const boss = bossFor(unitId);
         setBattle({ hp: items.length, hits: 0, heartsLeft: BOSS_RULES.hearts, run: 0, beat: null, message: `${boss.name} appears! ${boss.intro}`, outcome: null });
@@ -255,6 +264,19 @@ export function Runner({
       setTally((t) => ({ ...t, answered: t.answered + 1, correct: t.correct + (verdict === "correct" ? 1 : 0) }));
       applyRewards(data.rewards);
       if (battle) setBattle(nextBeat(battle, verdict === "correct", bossFor(unitId!).name));
+      if (!battle && STORY_TYPES.has(current.type)) {
+        const name = bossFor(current.unitId).name;
+        const left = queue.filter((q) => STORY_TYPES.has(q.type)).length - (story.hits + (verdict === "incorrect" ? 0 : 1));
+        setStory((st) =>
+          verdict === "incorrect"
+            ? { ...st, beat: { id: (st.beat?.id ?? 0) + 1, kind: "hurt" }, message: `${name} dodges and hits back! That question will come again.` }
+            : {
+                hits: st.hits + 1,
+                beat: { id: (st.beat?.id ?? 0) + 1, kind: data.stats.combo >= 3 ? "crit" : "hit" },
+                message: left <= 0 ? `${name} flees! The chapter is safe.` : verdict === "partial" ? `A glancing blow! ${left} to go.` : `Nova strikes! ${left} to go.`,
+              },
+        );
+      }
       // Nova walks a step (or dashes on a combo, or stumbles on a mistake). A mistake adds a retry
       // to the queue; her progress never goes backwards.
       const requeue = verdict !== "correct" && (current.retry ?? 0) < MAX_RETRIES;
@@ -399,9 +421,10 @@ export function Runner({
   // In game mode, multiple-choice questions are played in blocks of three, in Star Catch and
   // then in the lane runner; spelling words are played as Star Catch letters.
   const playing = phase.kind === "answering" || phase.kind === "submitting" || phase.kind === "feedback";
-  const game = useMemo((): "runner" | "stars" | "spell" | null => {
+  const game = useMemo((): "runner" | "stars" | "spell" | "match" | null => {
     if (isBoss || !gameMode || !current || !playing) return null;
-    if (current.type === "dictation" && current.spell) return "spell";
+    if ((current.type === "dictation" || current.type === "typed") && current.spell) return "spell";
+    if (current.type === "match" && current.pairKey) return "match";
     if (current.type !== "mcq" || !runnerEligible(current)) return null;
     const before = queue.slice(0, index).filter((q) => q.type === "mcq" && runnerEligible(q)).length;
     return mcqGame(before, starEligible(current));
@@ -454,7 +477,20 @@ export function Runner({
             {tally.xp}
           </div>
         </header>
-        {!isBoss && !asGame && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+        {!isBoss && gameMode && current && STORY_TYPES.has(current.type) && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" ? (
+          <BossArena
+            unitId={current.unitId}
+            hp={Math.max(story.hits, queue.filter((q) => STORY_TYPES.has(q.type)).length)}
+            hits={story.hits}
+            hearts={0}
+            heartsLeft={0}
+            beat={story.beat}
+            message={story.message}
+            hat={hat}
+            label={`Story monster: ${bossFor(current.unitId).name}`}
+            winText="It flees!"
+          />
+        ) : !isBoss && !asGame && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} hat={hat} />
         )}
         <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">{lessonTitle ?? MODE_LABEL[mode]}</p>
@@ -502,7 +538,7 @@ export function Runner({
             }}
           />
         )}
-        {(game === "stars" || game === "spell") && current && (current.type === "mcq" || (current.type === "dictation" && current.spell)) && (
+        {(game === "stars" || game === "spell" || game === "match") && current && (
           <StarCatch
             key={current.key}
             item={current as Parameters<typeof StarCatch>[0]["item"]}
@@ -512,9 +548,9 @@ export function Runner({
             xp={tally.xp}
             pace={pace}
             decoy={decoy}
-            onChoose={(answer) => {
+            onChoose={(response) => {
               setRunnerHold(true);
-              return submit(undefined, current.type === "mcq" ? { type: "mcq", choice: answer } : { type: "dictation", text: answer });
+              return submit(undefined, response);
             }}
             onFinished={(verdict) => {
               if (verdict === "correct") next();

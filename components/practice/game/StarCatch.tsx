@@ -4,16 +4,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PixelSprite } from "@/components/pixel/PixelSprite";
 import { loopStrip, spriteFrames } from "@/components/pixel/spriteCanvas";
 import { playDictation, playSfx } from "@/components/sound";
-import type { ClientItem } from "@/lib/content/client";
+import type { ClientItem, ItemResponse } from "@/lib/content/client";
 import { approachMs, laneGround } from "@/lib/game/runner";
 import {
   decoyLetter,
+  fillMask,
   isNextLetter,
+  isPair,
   nextLetter,
   STAR_RULES,
   starColumns,
   withDecoy,
   starFallMs,
+  type MatchKey,
   type SpellKey,
 } from "@/lib/game/starCatch";
 import { PALETTE } from "@/lib/pixel/palette";
@@ -37,10 +40,21 @@ import { RichSentence, SpeakerIcon, questionTitle } from "../inputs";
 import type { RunnerResult } from "./LaneRunner";
 
 type McqItem = Extract<ClientItem, { type: "mcq" }>;
-type SpellItem = Extract<ClientItem, { type: "dictation" }> & {
+type SpellItem = Extract<ClientItem, { type: "dictation" | "typed" }> & {
   spell: SpellKey;
 };
-export type StarCatchItem = McqItem | SpellItem;
+type MatchItem = Extract<ClientItem, { type: "match" }> & { pairKey: MatchKey };
+export type StarCatchItem = McqItem | SpellItem | MatchItem;
+
+/** Shuffles a copy of a list. */
+function shuffled<T>(list: T[]): T[] {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
 
 /** Logical pixel size of the game (scaled up crisply). */
 const W = 160;
@@ -86,10 +100,14 @@ interface Particle {
 const carry = { x: W / 2, winAt: -1e9, winText: "" };
 
 /**
- * Star Catch. In choice mode the answers fall as stars: move Nova's basket under the right one
- * before it lands in the snow (the catch is sent to the server, which grades it). In spell mode
- * Nova hears a word and catches its letters in order, dodging wrong ones; three wrong letters
- * and the word counts as a mistake. The finished word is sent as a normal dictation answer.
+ * Star Catch.
+ * - choice: the answers fall as stars; move Nova's basket under the right one before it lands
+ *   (the catch is sent to the server, which grades it).
+ * - spell: Nova hears a word (or reads a clue) and catches its letters in order, dodging wrong
+ *   ones; three wrong letters and it counts as a mistake. The finished word is sent as a
+ *   normal dictation / typed answer.
+ * - match: a definition is shown and its word falls among two others; catch it, and the next
+ *   definition comes. Three wrong catches and the matching is sent as it stands.
  */
 export function StarCatch({
   item,
@@ -110,12 +128,14 @@ export function StarCatch({
   combo: number;
   xp: number;
   pace: number;
-  /** Sends the answer (the caught option, or the spelled word); resolves with the verdict (null on error). */
-  onChoose: (answer: string) => Promise<RunnerResult>;
+  /** Sends the answer; resolves with the verdict (null on error). */
+  onChoose: (response: ItemResponse) => Promise<RunnerResult>;
   /** Called once the outcome animation has played. */
   onFinished: (verdict: "correct" | "partial" | "incorrect") => void;
 }) {
-  const spell = item.type === "dictation";
+  const mode: "choice" | "spell" | "match" =
+    item.type === "mcq" ? "choice" : item.type === "match" ? "match" : "spell";
+  const spell = mode === "spell";
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef(new Map<number, HTMLDivElement>());
   const [tokens, setTokens] = useState<
@@ -128,6 +148,8 @@ export function StarCatch({
   const [spelled, setSpelled] = useState("");
   const [hearts, setHearts] = useState<number>(STAR_RULES.hearts);
   const [playing, setPlaying] = useState<"word" | "sentence" | null>(null);
+  /** Matching: the definition to find a word for, and how many pairs are done. */
+  const [clue, setClue] = useState<{ text: string; at: number; of: number } | null>(null);
 
   // Mutable state the game loop reads every frame.
   const g = useRef({
@@ -156,7 +178,12 @@ export function StarCatch({
   }, [item]);
 
   const sprites = useMemo(() => novaSprites(hatOf(hat)), [hat]);
-  const optionsKey = item.type === "mcq" ? item.options.join("\u0000") : "";
+  const optionsKey =
+    item.type === "mcq"
+      ? item.options.join("\u0000")
+      : item.type === "match"
+        ? [...item.left, ...item.right].join("\u0000")
+        : "";
 
   const togglePause = () => {
     g.current.paused = !g.current.paused;
@@ -175,7 +202,7 @@ export function StarCatch({
 
   // Hear the word when a spelling question appears.
   useEffect(() => {
-    if (!spell) return;
+    if (item.type !== "dictation") return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void hear("word");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,7 +242,10 @@ export function StarCatch({
     const it = latestItem.current;
     const choices =
       it.type === "mcq" ? withDecoy(it.id, it.options, decoy) : [];
-    const key = it.type === "dictation" ? it.spell : null;
+    const key = it.type === "dictation" || it.type === "typed" ? it.spell : null;
+    const mk = it.type === "match" ? it.pairKey : null;
+    /** Modes where a wrong catch costs a heart and the game goes on. */
+    const goesOn = !!key || !!mk;
     const START_Y = 6;
     const fallPx = RIM - (START_Y + STAR_H);
     const syncTokens = () =>
@@ -231,11 +261,10 @@ export function StarCatch({
 
     // ---- choice mode: one star per answer
     let choiceVy = 0;
-    const dropChoices = (slower = 1) => {
-      if (it.type !== "mcq") return;
-      const cols = starColumns(choices.length, W);
-      choiceVy = fallPx / starFallMs(approachMs(it, pace)) / slower;
-      s.stars = choices.map((o, i) => ({
+    const dropStars = (labels: string[], reading: number, slower = 1) => {
+      const cols = starColumns(labels.length, W);
+      choiceVy = fallPx / starFallMs(reading) / slower;
+      s.stars = labels.map((o, i) => ({
         id: nextId++,
         text: o,
         idx: i,
@@ -248,6 +277,33 @@ export function StarCatch({
       }));
       syncTokens();
     };
+    const dropChoices = (slower = 1) => {
+      if (it.type === "mcq") dropStars(choices, approachMs(it, pace), slower);
+      else dropWave(slower);
+    };
+
+    // ---- match mode: one definition at a time, its word falls among two others
+    const clues = mk && it.type === "match" ? (mk.fall === "right" ? it.left : it.right) : [];
+    const fallers = mk && it.type === "match" ? (mk.fall === "right" ? it.right : it.left) : [];
+    /** [left, right] for a clue and a falling word. */
+    const pairOf = (c: string, f: string): [string, string] =>
+      mk?.fall === "right" ? [c, f] : [f, c];
+    let clueAt = 0;
+    const done: [string, string][] = [];
+    const used = new Set<string>();
+    const rightFor = (c: string) =>
+      fallers.find((f) => mk && isPair(it.id, mk, ...pairOf(c, f)));
+    function dropWave(slower = 1) {
+      if (!mk) return;
+      const c = clues[clueAt];
+      const right = rightFor(c);
+      const free = fallers.filter((f) => f !== right && !used.has(f));
+      const pool = free.length >= 2 ? free : fallers.filter((f) => f !== right);
+      const labels = shuffled([...(right ? [right] : []), ...shuffled(pool).slice(0, 2)]);
+      setClue({ text: c, at: clueAt, of: clues.length });
+      const words = c.split(/\s+/).length;
+      dropStars(labels, approachMs({ type: "mcq", prompt: c, options: labels }, pace) - words * 100, slower);
+    }
     if (!key) dropChoices();
 
     // ---- spell mode: letters keep falling
@@ -305,8 +361,14 @@ export function StarCatch({
       }, 1200);
     };
 
+    /** The spelled letters as the student's answer. */
+    const spelledAnswer = (letters: string): ItemResponse =>
+      it.type === "typed" && key
+        ? { type: "typed", text: fillMask(key, letters) }
+        : { type: "dictation", text: letters };
+
     /** Sends the answer and plays the outcome. */
-    const judge = async (answer: string, caught: Star | null) => {
+    const judge = async (answer: ItemResponse, caught: Star | null) => {
       s.phase = "judging";
       s.at = performance.now();
       const res = await callbacks.current.onChoose(answer);
@@ -316,7 +378,7 @@ export function StarCatch({
         // network trouble: let the student try again
         s.phase = "play";
         if (!key) dropChoices();
-        else if (caught) caught.state = "gone";
+        if (caught) caught.state = "gone";
         syncTokens();
         return;
       }
@@ -336,7 +398,7 @@ export function StarCatch({
         s.phase = "lost";
         s.hurtAt = now;
         if (caught) caught.state = "cracked";
-        if (!key) {
+        if (it.type === "mcq") {
           const right =
             latestItem.current.type === "mcq"
               ? choices.indexOf(res.modelAnswer)
@@ -351,11 +413,47 @@ export function StarCatch({
 
     const catchStar = (t: Star, now: number) => {
       s.bumpAt = now;
+      if (mk) {
+        // matching: the right word ticks off this definition; a wrong one costs a heart
+        const pair = pairOf(clues[clueAt], t.text);
+        if (isPair(it.id, mk, ...pair)) {
+          done.push(pair);
+          used.add(t.text);
+          clueAt += 1;
+          burst(t.x, RIM - 4, now, 10);
+          playSfx("tap", 0.4);
+          for (const o of s.stars) o.state = "gone";
+          syncTokens();
+          if (clueAt >= clues.length) void judge({ type: "match", pairs: done }, null);
+          else dropWave();
+        } else {
+          heartsLeft -= 1;
+          setHearts(heartsLeft);
+          t.state = "cracked";
+          t.at = now;
+          s.hurtAt = now;
+          playSfx("wrong", 0.25);
+          syncTokens();
+          if (heartsLeft <= 0) {
+            // out of hearts: send the matching as it stands (this wrong pick, the rest unpaired)
+            for (const o of s.stars) if (o.state === "fall") o.state = "gone";
+            syncTokens();
+            const rest = fallers.filter((f) => !used.has(f) && f !== t.text);
+            const pairs: [string, string][] = [...done, pair];
+            for (const c of clues.slice(clueAt + 1)) {
+              const f = rest.shift();
+              if (f) pairs.push(pairOf(c, f));
+            }
+            void judge({ type: "match", pairs }, t);
+          }
+        }
+        return;
+      }
       if (!key) {
         t.state = "caught";
         t.at = now;
         playSfx("tap", 0.35);
-        void judge(t.text, t);
+        void judge({ type: "mcq", choice: t.text }, t);
         return;
       }
       // spelling: the right next letter fills a slot; a wrong one costs a heart
@@ -369,7 +467,7 @@ export function StarCatch({
         if (prefix.length >= key.n) {
           for (const o of s.stars) if (o.state === "fall") o.state = "gone";
           syncTokens();
-          void judge(prefix, null);
+          void judge(spelledAnswer(prefix), null);
         }
       } else {
         heartsLeft -= 1;
@@ -382,7 +480,7 @@ export function StarCatch({
         if (heartsLeft <= 0) {
           for (const o of s.stars) if (o.state === "fall") o.state = "gone";
           syncTokens();
-          void judge(prefix + t.text, t);
+          void judge(spelledAnswer(prefix + t.text), t);
         }
       }
     };
@@ -534,8 +632,8 @@ export function StarCatch({
           spr = crackedStar;
           f = 0;
           y = RIM - STAR_H + 7 + Math.min(6, (now - t.at) / 60);
-          x = key ? t.x : s.x;
-          if (key && now - t.at > 500) {
+          x = goesOn ? t.x : s.x;
+          if (goesOn && now - t.at > 500) {
             t.state = "gone";
             syncTokens();
             continue;
@@ -650,7 +748,7 @@ export function StarCatch({
         return;
       }
       if (!key) {
-        // 1–4: run under that answer's star
+        // 1–4: run under that star
         const n = Number(e.key);
         const t = Number.isInteger(n)
           ? s.stars.find((o) => o.idx === n - 1 && o.state === "fall")
@@ -687,6 +785,9 @@ export function StarCatch({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id, optionsKey, decoy, unitId, sprites]);
 
+  const n = item.type === "dictation" || item.type === "typed" ? item.spell.n : 0;
+  const mask = item.type === "dictation" || item.type === "typed" ? (item.spell.mask ?? "_".repeat(n)) : "";
+
   // Drag (or tap) on the field: Nova runs to that spot.
   const dragging = useRef(false);
   const aim = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -700,17 +801,16 @@ export function StarCatch({
     g.current.target = Math.max(12, Math.min(W - 12, g.current.x + dir * 24));
   };
 
-  const n = item.type === "dictation" ? item.spell.n : 0;
 
   return (
     <section
       className="mx-auto mt-4 w-full max-w-md font-pixel"
       aria-label="Star catch"
       data-item={item.id}
-      data-mode={spell ? "spell" : "choice"}
+      data-mode={mode}
     >
       <div className="pixel-panel px-4 py-3 text-[#ece4d6]">
-        {item.type === "mcq" ? (
+        {item.type === "mcq" || item.type === "typed" ? (
           <>
             <p className="text-xs uppercase tracking-widest text-[#a99cc4]">
               {questionTitle(item)}
@@ -722,44 +822,64 @@ export function StarCatch({
               />
             )}
           </>
-        ) : (
+        ) : item.type === "match" ? (
           <>
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                type="button"
-                className="flex items-center gap-2 text-lg text-[#ead39b] hover:text-[#f6e7b8] disabled:opacity-60"
-                onClick={() => void hear("word")}
-                disabled={playing !== null}
-              >
-                <SpeakerIcon />{" "}
-                {playing === "word" ? "Listen…" : "Spell what you hear"}
-              </button>
-              <button
-                type="button"
-                className="rounded-full bg-white/5 px-3 py-1 text-sm text-[#a99cc4] hover:bg-white/10 disabled:opacity-60"
-                onClick={() => void hear("sentence")}
-                disabled={playing !== null}
-              >
-                {playing === "sentence" ? "Listen…" : "In a sentence"}
-              </button>
-            </div>
-            <p
-              className="mt-3 flex flex-wrap justify-center gap-x-2 gap-y-1 text-3xl tracking-wide"
-              aria-label={`Spelled so far: ${spelled.split("").join(" ") || "nothing yet"}. ${n} letters.`}
-            >
-              {Array.from({ length: n }, (_, i) => (
-                <span
-                  key={i}
-                  className={cx(
-                    "inline-block w-6 text-center",
-                    spelled[i] ? "text-[#c9dfa0]" : "text-[#5a5560]",
-                  )}
-                >
-                  {spelled[i]?.toUpperCase() ?? "_"}
+            <p className="flex justify-between text-xs uppercase tracking-widest text-[#a99cc4]">
+              <span>Catch the word that matches</span>
+              {clue && (
+                <span aria-label={`Pair ${clue.at + 1} of ${clue.of}`}>
+                  {clue.at + 1} / {clue.of}
                 </span>
-              ))}
+              )}
+            </p>
+            <p className="mt-1 min-h-[3.5rem] font-sans text-lg leading-snug" data-clue>
+              {clue?.text}
             </p>
           </>
+        ) : (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              className="flex items-center gap-2 text-lg text-[#ead39b] hover:text-[#f6e7b8] disabled:opacity-60"
+              onClick={() => void hear("word")}
+              disabled={playing !== null}
+            >
+              <SpeakerIcon />{" "}
+              {playing === "word" ? "Listen…" : "Spell what you hear"}
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-white/5 px-3 py-1 text-sm text-[#a99cc4] hover:bg-white/10 disabled:opacity-60"
+              onClick={() => void hear("sentence")}
+              disabled={playing !== null}
+            >
+              {playing === "sentence" ? "Listen…" : "In a sentence"}
+            </button>
+          </div>
+        )}
+        {spell && (
+          <p
+            className="mt-3 flex flex-wrap justify-center gap-x-1.5 gap-y-1 text-3xl tracking-wide"
+            aria-label={`Spelled so far: ${spelled.split("").join(" ") || "nothing yet"}. ${n} letters.`}
+          >
+            {(() => {
+              let li = 0;
+              return [...mask].map((m, i) => {
+                if (m !== "_")
+                  return (
+                    <span key={i} className={cx("inline-block text-center text-[#a99cc4]", m === " " ? "w-3" : "w-4")}>
+                      {m}
+                    </span>
+                  );
+                const ch = spelled[li++];
+                return (
+                  <span key={i} className={cx("inline-block w-6 text-center", ch ? "text-[#c9dfa0]" : "text-[#5a5560]")}>
+                    {ch?.toUpperCase() ?? "_"}
+                  </span>
+                );
+              });
+            })()}
+          </p>
         )}
       </div>
 
@@ -773,12 +893,12 @@ export function StarCatch({
             <div
               className="flex min-w-[4.5rem] gap-1"
               aria-label={
-                spell
+                mode !== "choice"
                   ? `${hearts} ${hearts === 1 ? "heart" : "hearts"} left`
                   : undefined
               }
             >
-              {spell &&
+              {mode !== "choice" &&
                 Array.from({ length: STAR_RULES.hearts }, (_, i) => (
                   <PixelSprite
                     key={i}
@@ -903,12 +1023,18 @@ export function StarCatch({
         </span>
         <div>
           <p className="text-[#ead39b]">
-            {spell ? "Star Catcher: spelling" : "Star Catcher"}
+            {spell
+              ? "Star Catcher: spelling"
+              : mode === "match"
+                ? "Star Catcher: matching"
+                : "Star Catcher"}
           </p>
           <p className="mt-0.5 text-sm text-[#cdbfa8]">
             {spell
               ? "Letters fall from the sky. Catch the next letter of the word, and dodge the wrong ones! (Or type the letter.)"
-              : `The answers fall as stars. Move Nova's basket to catch the right star before it hits the ground! (Keys 1–${item.type === "mcq" ? item.options.length + (decoy && item.options.length < 3 ? 1 : 0) : 4} run to a star.)`}
+              : mode === "match"
+                ? "Read the meaning, then catch the word that matches it. A wrong word costs a heart. (Keys 1–3 run to a star.)"
+                : `The answers fall as stars. Move Nova's basket to catch the right star before it hits the ground! (Keys 1–${item.type === "mcq" ? item.options.length + (decoy && item.options.length < 3 ? 1 : 0) : 4} run to a star.)`}
           </p>
         </div>
       </div>

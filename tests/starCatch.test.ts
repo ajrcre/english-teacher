@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { units } from "@/content/units";
 import { buildCatalog } from "@/lib/content/catalog";
 import { toClientItem } from "@/lib/content/client";
-import { decoyLetter, isNextLetter, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy } from "@/lib/game/starCatch";
+import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy } from "@/lib/game/starCatch";
 
 const q = (options: string[]) => ({ type: "mcq", prompt: "Choose the best word.", options });
 
@@ -34,7 +34,8 @@ describe("star catch rules", () => {
     expect(nextLetter("spell.t1.w3", key, prefix)).toBeNull();
     // the same word under another item has different hashes
     expect(spellKey("spell.t1.w4", "orchard")!.h[0]).not.toBe(key.h[0]);
-    expect(spellKey("x", "ice cream")).toBeUndefined();
+    expect(spellKey("x", "ice-cream-sundae-deluxe")).toBeUndefined();
+    expect(spellKey("x", "two words!")).toBeUndefined();
   });
 
   it("works for every spelling word, and the browser never gets the word", () => {
@@ -76,5 +77,47 @@ describe("star catch rules", () => {
     expect(stars).toHaveLength(3);
     expect(stars).toEqual(expect.arrayContaining(["have", "am having", d]));
     expect(withDecoy("q1", ["a", "b", "c", "d"], "z")).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("fills in spaces and marks for answers of more than one word", () => {
+    const key = spellKey("gr.t1", "Had gone", 16)!;
+    expect(key.n).toBe(7);
+    expect(key.mask).toBe("___ ____");
+    expect(fillMask(key, "hadgone")).toBe("had gone");
+    expect(fillMask(key, "hadg")).toBe("had g");
+    expect(spellKey("gr.t2", "isn't", 16)!.mask).toBe("___'_");
+    expect(spellKey("gr.t3", "potatoes", 16)!.mask).toBeUndefined();
+  });
+
+  it("works for every typed answer it covers, and the browser never gets the answer", () => {
+    let covered = 0;
+    for (const { item } of buildCatalog(units).entries) {
+      if (item.type !== "typed") continue;
+      const c = toClientItem(item, "seed");
+      if (c.type !== "typed" || !c.spell) continue;
+      covered++;
+      expect(JSON.stringify(c)).not.toContain(JSON.stringify(item.answers[0]));
+      let letters = "";
+      for (let i = 0; i < c.spell.n; i++) letters += nextLetter(item.id, c.spell, letters) ?? "?";
+      expect(fillMask(c.spell, letters)).toBe(item.answers[0].trim().toLowerCase());
+    }
+    expect(covered).toBeGreaterThan(180);
+  });
+
+  it("checks matching pairs with hashes, for every matching question it covers", () => {
+    let covered = 0;
+    for (const { item } of buildCatalog(units).entries) {
+      if (item.type !== "match") continue;
+      const c = toClientItem(item, "seed");
+      if (c.type !== "match" || !c.pairKey) continue;
+      covered++;
+      const short = c.pairKey.fall === "right" ? 1 : 0;
+      expect(Math.max(...item.pairs.map((p) => p[short].length))).toBeLessThanOrEqual(STAR_RULES.maxOptionChars + 2);
+      for (const [l, r] of item.pairs) expect(isPair(item.id, c.pairKey, l, r)).toBe(true);
+      const [[l0], [, r1]] = item.pairs;
+      expect(isPair(item.id, c.pairKey, l0, r1)).toBe(false);
+    }
+    expect(covered).toBeGreaterThan(35);
+    expect(matchKey("x", [["a", "b"]])).toBeUndefined();
   });
 });

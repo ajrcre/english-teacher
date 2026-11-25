@@ -1,4 +1,4 @@
-import { spellKey, type SpellKey } from "@/lib/game/starCatch";
+import { matchKey, spellKey, type MatchKey, type SpellKey } from "@/lib/game/starCatch";
 import type { Item, ItemType } from "./schema";
 
 /**
@@ -7,8 +7,8 @@ import type { Item, ItemType } from "./schema";
  */
 export type ClientItem =
   | { id: string; type: "mcq"; prompt: string; sentence?: string; options: string[] }
-  | { id: string; type: "typed"; prompt: string; sentence?: string }
-  | { id: string; type: "match"; prompt: string; left: string[]; right: string[] }
+  | { id: string; type: "typed"; prompt: string; sentence?: string; spell?: SpellKey }
+  | { id: string; type: "match"; prompt: string; left: string[]; right: string[]; pairKey?: MatchKey }
   | { id: string; type: "sort"; prompt: string; buckets: string[]; entries: string[] }
   | { id: string; type: "sequence"; prompt: string; steps: string[] }
   | { id: string; type: "dictation"; audioId: string; spell?: SpellKey }
@@ -72,7 +72,8 @@ export function toClientItem(item: Item, seed = ""): ClientItem {
     case "mcq":
       return { id: item.id, type: "mcq", prompt: item.prompt, sentence: item.sentence, options: seededShuffle(item.options, s) };
     case "typed":
-      return { id: item.id, type: "typed", prompt: item.prompt, sentence: item.sentence };
+      // Keys for the Star Catch games: they check a letter or a pair without the answer in the page.
+      return { id: item.id, type: "typed", prompt: item.prompt, sentence: item.sentence, spell: spellKey(item.id, item.answers[0], 16) };
     case "match":
       return {
         id: item.id,
@@ -80,6 +81,7 @@ export function toClientItem(item: Item, seed = ""): ClientItem {
         prompt: item.prompt,
         left: seededShuffle(item.pairs.map((p) => p[0]), s + "L"),
         right: seededShuffle(item.pairs.map((p) => p[1]), s + "R"),
+        pairKey: matchKey(item.id, item.pairs),
       };
     case "sort":
       return { id: item.id, type: "sort", prompt: item.prompt, buckets: item.buckets, entries: seededShuffle(item.entries.map((e) => e.text), s) };

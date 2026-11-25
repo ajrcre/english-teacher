@@ -58,10 +58,14 @@ export function mcqGame(n: number, fitsStars: boolean): "stars" | "runner" {
 // ---------------------------------------------------------------------------
 // Spelling: prefix hashes
 
-/** What the browser gets for a spelling word: its length and one hash per prefix. */
+/**
+ * What the browser gets for a word to spell: how many letters, one hash per prefix, and for
+ * answers of more than one word a mask of where the spaces and marks go ("___ ____").
+ */
 export interface SpellKey {
   n: number;
   h: string[];
+  mask?: string;
 }
 
 function fnv(s: string): number {
@@ -81,15 +85,73 @@ export function prefixHash(itemId: string, prefix: string): string {
   );
 }
 
-/** The spell key for a word, or undefined if the word can't be played with letters. */
-export function spellKey(itemId: string, word: string): SpellKey | undefined {
-  const w = word.toLowerCase();
-  if (!/^[a-z]+$/.test(w) || w.length > STAR_RULES.maxWordLetters)
-    return undefined;
-  return {
+/**
+ * The spell key for a word (or a short answer such as "had gone"), or undefined if it can't be
+ * played with falling letters. Spaces, hyphens, apostrophes, commas and slashes are filled in
+ * for the student; only letters fall.
+ */
+export function spellKey(
+  itemId: string,
+  word: string,
+  maxLetters: number = STAR_RULES.maxWordLetters,
+): SpellKey | undefined {
+  const text = word.trim().toLowerCase();
+  if (!/^[a-z][a-z ,'/-]*[a-z]$|^[a-z]$/.test(text)) return undefined;
+  const w = text.replace(/[^a-z]/g, "");
+  if (w.length > maxLetters) return undefined;
+  const key: SpellKey = {
     n: w.length,
     h: [...w].map((_, i) => prefixHash(itemId, w.slice(0, i + 1))),
   };
+  if (w !== text) key.mask = text.replace(/[a-z]/g, "_");
+  return key;
+}
+
+/** The letters so far written into the answer's shape: "hadgo" + "___ ____" → "had go". */
+export function fillMask(key: SpellKey, letters: string): string {
+  if (!key.mask) return letters;
+  let i = 0;
+  let out = "";
+  for (const ch of key.mask) {
+    if (ch === "_") {
+      if (i >= letters.length) break;
+      out += letters[i++];
+    } else out += ch;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Matching: pair hashes
+
+/**
+ * What the browser gets for a matching question: which side falls as stars (the side with
+ * short entries; the other side is shown as the clue) and one hash per right pair.
+ */
+export interface MatchKey {
+  fall: "left" | "right";
+  h: string[];
+}
+
+export function pairHash(itemId: string, left: string, right: string): string {
+  const l = left.trim().toLowerCase();
+  const r = right.trim().toLowerCase();
+  return (fnv(`pair:${itemId}:${l}\u0000${r}`) ^ fnv(`${r}|${itemId}|${l.length}`)).toString(36);
+}
+
+/** The match key, or undefined if neither side is short enough to fall as stars. */
+export function matchKey(itemId: string, pairs: [string, string][]): MatchKey | undefined {
+  if (pairs.length < 2 || pairs.length > 8) return undefined;
+  const longest = (side: 0 | 1) => Math.max(...pairs.map((p) => p[side].length));
+  const fits = (side: 0 | 1) => longest(side) <= STAR_RULES.maxOptionChars + 2;
+  const fall = fits(1) && (!fits(0) || longest(1) < longest(0)) ? "right" : fits(0) ? "left" : null;
+  if (!fall) return undefined;
+  return { fall, h: pairs.map(([l, r]) => pairHash(itemId, l, r)).sort() };
+}
+
+/** Is this a right pair? */
+export function isPair(itemId: string, key: MatchKey, left: string, right: string): boolean {
+  return key.h.includes(pairHash(itemId, left, right));
 }
 
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
