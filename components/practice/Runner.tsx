@@ -84,7 +84,10 @@ const MAX_RETRIES = 3;
 
 const GAME_MODE_KEY = "starlight.gameMode";
 
-/** Game mode is on unless switched off on this device, or the person prefers reduced motion. */
+/**
+ * Game mode is on unless switched off on this device. With reduced motion the runner still
+ * plays, but its gates wait in place until the student presses GO.
+ */
 function readGameMode(): boolean {
   try {
     const saved = localStorage.getItem(GAME_MODE_KEY);
@@ -92,7 +95,7 @@ function readGameMode(): boolean {
   } catch {
     /* private mode */
   }
-  return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  return true;
 }
 
 export function Runner({
