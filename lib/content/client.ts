@@ -1,3 +1,4 @@
+import { spellKey, type SpellKey } from "@/lib/game/starCatch";
 import type { Item, ItemType } from "./schema";
 
 /**
@@ -10,7 +11,7 @@ export type ClientItem =
   | { id: string; type: "match"; prompt: string; left: string[]; right: string[] }
   | { id: string; type: "sort"; prompt: string; buckets: string[]; entries: string[] }
   | { id: string; type: "sequence"; prompt: string; steps: string[] }
-  | { id: string; type: "dictation"; audioId: string }
+  | { id: string; type: "dictation"; audioId: string; spell?: SpellKey }
   | { id: string; type: "open"; question: string; context?: string }
   | { id: string; type: "rewrite"; prompt: string; original: string; starter?: string }
   | { id: string; type: "proofread"; prompt: string; text: string };
@@ -86,7 +87,8 @@ export function toClientItem(item: Item, seed = ""): ClientItem {
       return { id: item.id, type: "sequence", prompt: item.prompt, steps: seededShuffle(item.steps, s) };
     case "dictation":
       // Audio is addressed by an opaque hash so the payload never contains the word itself.
-      return { id: item.id, type: "dictation", audioId: dictationAudioId(item.id) };
+      // The spell key lets the Star Catch game check letters without the word in the page.
+      return { id: item.id, type: "dictation", audioId: dictationAudioId(item.id), spell: spellKey(item.id, item.word) };
     case "open":
       return { id: item.id, type: "open", question: item.question, context: item.context };
     case "rewrite":

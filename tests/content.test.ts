@@ -17,7 +17,7 @@ describe("content", () => {
       expect(json).not.toMatch(/"answer"|"answers"|"expected"|"keyPoints"|"explanation"|"he"|"keyFixes"/);
       if (item.type === "dictation") {
         const c = toClientItem(item, "seed");
-        const visible = Object.entries(c).filter(([k]) => k !== "type").map(([, v]) => String(v).toLowerCase());
+        const visible = Object.entries(c).filter(([k]) => k !== "type").map(([, v]) => (typeof v === "object" ? JSON.stringify(v) : String(v)).toLowerCase());
         for (const v of visible) expect(v).not.toContain(item.word.toLowerCase());
       }
     }

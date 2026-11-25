@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { units } from "@/content/units";
 import { buildCatalog } from "@/lib/content/catalog";
 import type { Item } from "@/lib/content/schema";
@@ -42,6 +42,12 @@ async function nextQuestion(page: Page, from: string) {
   throw new Error(`the runner did not move on from ${from}`);
 }
 
+/** Presses a (visually hidden) screen-reader button with the keyboard. */
+async function press(button: Locator) {
+  await button.focus({ timeout: 15_000 });
+  await button.press("Enter");
+}
+
 async function signIn(page: Page) {
   const email = `r${Date.now()}${Math.floor(Math.random() * 1e6)}@example.com`;
   await page.goto("/parent/signup");
@@ -82,20 +88,39 @@ test("multiple-choice questions are played as a lane runner", async ({ page }) =
   await expect(page.getByRole("button", { name: "🎮 Game" })).toBeVisible({ timeout: 30_000 });
   // In development React starts the round twice; let both loads settle before playing.
   await page.waitForLoadState("networkidle");
+  // The first three multiple-choice questions are Star Catch (its own spec): catch the right stars.
+  for (let i = 0; i < 3; i++) {
+    const game = page.getByRole("region", { name: "Star catch" });
+    await expect(game).toBeVisible({ timeout: 30_000 });
+    const id = (await game.getAttribute("data-item"))!;
+    const item = mcqs.find((m) => m.id === id)!;
+    await press(game.getByRole("button", { name: `Catch the star: ${item.options[item.answer]}`, exact: true }));
+    await expect(page.getByRole("status").filter({ hasText: /Correct!|in a row/ })).toBeVisible({ timeout: 15_000 });
+    // Wait for the next question (another star, or the runner), closing any celebration.
+    for (let k = 0; k < 50; k++) {
+      const dialog = page.getByRole("dialog");
+      if (await dialog.isVisible().catch(() => false)) await dialog.getByRole("button").click({ timeout: 3000 }).catch(() => undefined);
+      if (await page.getByRole("region", { name: "Answer runner" }).isVisible()) break;
+      const now = await page.getByRole("region", { name: "Star catch" }).getAttribute("data-item", { timeout: 500 }).catch(() => null);
+      if (now && now !== id) break;
+      await page.waitForTimeout(200);
+    }
+  }
   await shot(page, "r1-start");
 
   // Steer into the right gate (number key) and run (Enter): the gate bursts open and the
   // next question starts on its own, without the feedback sheet.
-  for (let i = 0; i < 3; i++) {
+  // The runner plays three questions (then it's Star Catch's turn again): two right, one wrong.
+  for (let i = 0; i < 2; i++) {
     const q = await current(page);
     // Regression: after tapping a lane button, Enter must not "click" that button again.
     if (i === 1) await page.getByRole("button", { name: "Move down a lane" }).click();
     await page.keyboard.press(String(q.right + 1));
     await expect(page.getByRole("region", { name: "Answer runner" })).toHaveAttribute("data-lane", String(q.right));
-    if (i === 2) await shot(page, "r2-steer");
+    if (i === 1) await shot(page, "r2-steer");
     await page.keyboard.press("Enter");
     await expect(page.getByRole("status").filter({ hasText: /Correct!|in a row/ })).toBeVisible({ timeout: 15_000 });
-    if (i === 2) await shot(page, "r3-correct");
+    if (i === 1) await shot(page, "r3-correct");
     // The next question starts by itself (a new badge may first pop up a celebration to close).
     await nextQuestion(page, q.id!);
   }

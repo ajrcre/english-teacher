@@ -20,8 +20,10 @@ import { cx } from "@/lib/ui";
 import { playSfx, setSoundEnabled, speakWord, type Sfx } from "../sound";
 import { BossArena, type BattleBeat } from "./BossArena";
 import { LaneRunner, type RunnerResult } from "./game/LaneRunner";
+import { StarCatch } from "./game/StarCatch";
 import { JourneyStrip, type JourneyBeat } from "./JourneyStrip";
 import { nextPace, runnerEligible } from "@/lib/game/runner";
+import { mcqGame, starEligible } from "@/lib/game/starCatch";
 import { QuestionInput, RichSentence, SpeakerIcon, questionTitle } from "./inputs";
 
 type QueueItem = ClientItem & { lessonId: string; unitId: string; isNew: boolean; retry?: number; key: string };
@@ -136,7 +138,7 @@ export function Runner({
   const [bossUnlocked, setBossUnlocked] = useState(bossReady);
   /** Height of the feedback sheet, so the page can make room for it below the question. */
   const [sheetHeight, setSheetHeight] = useState(0);
-  /** Game mode: multiple-choice questions are played in the lane runner (saved per device). */
+  /** Game mode: multiple-choice questions are played as mini-games, spelling as Star Catch (saved per device). */
   const [gameMode, setGameMode] = useState(true);
   /** The runner's outcome animation is playing: hold the feedback sheet until it ends. */
   const [runnerHold, setRunnerHold] = useState(false);
@@ -366,7 +368,7 @@ export function Runner({
       requestAnimationFrame(() => {
         // The right answer and the student's pick, if they're marked; otherwise the question card.
         const marked = [...document.querySelectorAll<HTMLElement>('main section [data-state="right"], main section [data-state="wrong"]')];
-        const targets = marked.length ? marked : [...document.querySelectorAll<HTMLElement>("main section.paper-card, main section[aria-label='Answer runner']")];
+        const targets = marked.length ? marked : [...document.querySelectorAll<HTMLElement>("main section.paper-card, main section[aria-label='Answer runner'], main section[aria-label='Star catch']")];
         if (!targets.length) return;
         const rects = targets.map((t) => t.getBoundingClientRect());
         const top = Math.min(...rects.map((r) => r.top));
@@ -394,9 +396,17 @@ export function Runner({
     };
   }, [phase.kind, next, runnerHold]);
 
-  // Multiple-choice questions become the lane runner in game mode.
+  // In game mode, multiple-choice questions are played in blocks of three, in Star Catch and
+  // then in the lane runner; spelling words are played as Star Catch letters.
   const playing = phase.kind === "answering" || phase.kind === "submitting" || phase.kind === "feedback";
-  const asRunner = !isBoss && gameMode && !!current && current.type === "mcq" && runnerEligible(current) && playing;
+  const game = useMemo((): "runner" | "stars" | "spell" | null => {
+    if (isBoss || !gameMode || !current || !playing) return null;
+    if (current.type === "dictation" && current.spell) return "spell";
+    if (current.type !== "mcq" || !runnerEligible(current)) return null;
+    const before = queue.slice(0, index).filter((q) => q.type === "mcq" && runnerEligible(q)).length;
+    return mcqGame(before, starEligible(current));
+  }, [isBoss, gameMode, current, playing, queue, index]);
+  const asGame = game !== null;
   const toggleGameMode = () => {
     const next = !gameMode;
     setGameMode(next);
@@ -429,7 +439,7 @@ export function Runner({
             <p className="flex-1 truncate text-center font-pixel text-base tracking-wider text-[#ead39b]">{MODE_LABEL[mode]}</p>
           )}
           {!isBoss && (
-            <button type="button" onClick={toggleGameMode} className="rounded-full bg-white/5 px-3 py-1.5 font-pixel text-sm text-[#ead39b] hover:bg-white/10" aria-pressed={gameMode} title="Play multiple-choice questions as a runner game, or answer them on cards">
+            <button type="button" onClick={toggleGameMode} className="rounded-full bg-white/5 px-3 py-1.5 font-pixel text-sm text-[#ead39b] hover:bg-white/10" aria-pressed={gameMode} title="Play questions as mini-games (Star Catch and the runner), or answer them on cards">
               {gameMode ? "🎮 Game" : "📝 Cards"}
             </button>
           )}
@@ -438,7 +448,7 @@ export function Runner({
             {tally.xp}
           </div>
         </header>
-        {!isBoss && !asRunner && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+        {!isBoss && !asGame && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} hat={hat} />
         )}
         <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">{lessonTitle ?? MODE_LABEL[mode]}</p>
@@ -468,7 +478,7 @@ export function Runner({
           />
         )}
 
-        {asRunner && current?.type === "mcq" && (
+        {game === "runner" && current?.type === "mcq" && (
           <LaneRunner
             key={current.key}
             item={current}
@@ -486,7 +496,26 @@ export function Runner({
             }}
           />
         )}
-        {!asRunner && current && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+        {(game === "stars" || game === "spell") && current && (current.type === "mcq" || (current.type === "dictation" && current.spell)) && (
+          <StarCatch
+            key={current.key}
+            item={current as Parameters<typeof StarCatch>[0]["item"]}
+            unitId={current.unitId}
+            hat={hat}
+            combo={stats?.combo ?? 0}
+            xp={tally.xp}
+            pace={pace}
+            onChoose={(answer) => {
+              setRunnerHold(true);
+              return submit(undefined, current.type === "mcq" ? { type: "mcq", choice: answer } : { type: "dictation", text: answer });
+            }}
+            onFinished={(verdict) => {
+              if (verdict === "correct") next();
+              else setRunnerHold(false);
+            }}
+          />
+        )}
+        {!asGame && current && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <AnimatePresence mode="wait">
             <motion.section key={current.key} data-item={current.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.22 }} className="paper-card relative mt-5 p-5 sm:p-7">
               <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -505,7 +534,7 @@ export function Runner({
       </div>
 
       {/* Bottom action area: submit, or feedback panel. */}
-      {current && !asRunner && (phase.kind === "answering" || phase.kind === "submitting") && (
+      {current && !asGame && (phase.kind === "answering" || phase.kind === "submitting") && (
         <div className="fixed inset-x-0 bottom-0 border-t border-white/10 bg-ink-900/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
           <div className="mx-auto max-w-2xl">
             <button className="btn btn-primary w-full text-lg" disabled={!response || phase.kind === "submitting"} onClick={() => void submit()}>

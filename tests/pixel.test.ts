@@ -11,6 +11,7 @@ import { novaAttack, novaHurt, novaJump, novaRun, novaSit, novaSprite, novaSprit
 import { HAT_ITEM_IDS } from "@/lib/gamification/collection";
 import { STICKER_ART_IDS, stickerArt } from "@/lib/pixel/sprites/stickers";
 import * as runner from "@/lib/pixel/sprites/runner";
+import * as starCatch from "@/lib/pixel/sprites/starCatch";
 import * as ui from "@/lib/pixel/sprites/ui";
 
 const catalog = buildCatalog(units);
@@ -38,6 +39,10 @@ describe("pixel art", () => {
       ["gate-cracked", runner.gateCracked],
       ["dust", runner.dust],
       ["sparkle", runner.sparkle],
+      ["star-falling", starCatch.fallingStar],
+      ["star-glowing", starCatch.glowingStar],
+      ["star-cracked", starCatch.crackedStar],
+      ["basket", starCatch.basket],
       ["chest-open", ui.chests.wood.open],
       ["boss-chest", ui.chests.boss.closed],
       ...BOSSES.flatMap((b): [string, Sprite][] => [
