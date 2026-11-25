@@ -119,3 +119,44 @@ test("multiple-choice questions are played as a lane runner", async ({ page }) =
   await expect(page.getByRole("button", { name: "📝 Cards" })).toBeVisible();
   await expect(page.locator("button.choice").first()).toBeVisible();
 });
+
+test("spelling and other questions are played in the runner scene too", async ({ page }) => {
+  test.setTimeout(180_000);
+  const spelling = buildCatalog(units).lessonById.get("spelling-test-1")!.lesson.items;
+  await signIn(page);
+  await page.goto("/practice?mode=lesson&lesson=spelling-test-1");
+  const scene = page.getByRole("region", { name: "Runner scene" });
+  await expect(scene).toBeVisible({ timeout: 30_000 });
+  await page.waitForLoadState("networkidle");
+  await shot(page, "s1-spelling");
+
+  // Spell the word right: "Check & run" sends Nova at the gate, it bursts, and the round moves on.
+  for (let i = 0; i < 2; i++) {
+    const id = (await scene.getAttribute("data-item"))!;
+    const item = spelling.find((it) => it.id === id) as Extract<Item, { type: "dictation" }>;
+    await page.getByPlaceholder("Spell the word").fill(item.word);
+    await page.getByRole("button", { name: "Check & run ▶▶" }).click();
+    await expect(page.getByRole("status").filter({ hasText: /Correct!|in a row/ })).toBeVisible({ timeout: 15_000 });
+    if (i === 0) await shot(page, "s2-spelling-correct");
+    await nextScene(page, id);
+  }
+
+  // A misspelling: the gate cracks, then the feedback shows the right spelling.
+  await page.getByPlaceholder("Spell the word").fill("zzzz");
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("status").filter({ hasText: "Oops!" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Not quite")).toBeVisible({ timeout: 10_000 });
+  await shot(page, "s3-spelling-wrong");
+});
+
+async function nextScene(page: Page, from: string) {
+  const scene = page.getByRole("region", { name: "Runner scene" });
+  for (let i = 0; i < 40; i++) {
+    const dialog = page.getByRole("dialog");
+    if (await dialog.isVisible().catch(() => false)) await dialog.getByRole("button").click({ timeout: 3000 }).catch(() => undefined);
+    const id = await scene.getAttribute("data-item", { timeout: 1000 }).catch(() => null);
+    if (id && id !== from) return;
+    await page.waitForTimeout(300);
+  }
+  throw new Error(`the scene did not move on from ${from}`);
+}

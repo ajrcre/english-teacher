@@ -25,7 +25,8 @@ export type RunnerResult = {
   modelAnswer: string;
 } | null;
 
-type McqItem = Extract<ClientItem, { type: "mcq" }>;
+const optionsOf = (item: ClientItem): string[] =>
+  item.type === "mcq" ? item.options : [];
 
 /** Logical pixel size of the game (scaled up crisply to the screen width). */
 const W = 160;
@@ -44,6 +45,10 @@ type Phase = "run" | "judging" | "won" | "lost" | "done";
  * instead of the scene jumping back to the start.
  */
 const journey = { unitId: "", scroll: 0, lane: -1 };
+const recall = () => journey;
+const remember = (patch: Partial<typeof journey>) => {
+  Object.assign(journey, patch);
+};
 
 interface Particle {
   kind: "dust" | "spark";
@@ -58,6 +63,10 @@ interface Particle {
  * The lane-runner: Nova runs on the unit's ground while the answer gates rush towards her.
  * Steer her into the lane of the right answer before she reaches them. The choice is sent
  * to the server as a normal answer; the gates burst open or crack depending on its verdict.
+ *
+ * The "single" variant is the same run for every other kind of question (spelling, typed
+ * answers, matching…): one gate waits ahead while the student answers on the card below;
+ * checking the answer (`trigger`) sends Nova sprinting at the gate.
  */
 export function LaneRunner({
   item,
@@ -67,8 +76,13 @@ export function LaneRunner({
   pace,
   onChoose,
   onFinished,
+  variant = "lanes",
+  trigger = 0,
 }: {
-  item: McqItem;
+  item: ClientItem;
+  variant?: "lanes" | "single";
+  /** Single variant: increments when the student checks their answer. */
+  trigger?: number;
   unitId: string;
   hat?: string | null;
   combo: number;
@@ -78,11 +92,17 @@ export function LaneRunner({
   /** Called once the outcome animation has played. */
   onFinished: (verdict: "correct" | "partial" | "incorrect") => void;
 }) {
-  const lanes = item.options.length;
+  const single = variant === "single";
+  const options = optionsOf(item);
+  const lanes = single ? 1 : options.length;
   const H = SKY + lanes * LANE_H + 4;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [lane, setLane] = useState(() => (journey.lane >= 0 ? Math.min(journey.lane, lanes - 1) : Math.floor((lanes - 1) / 2)));
+  const [lane, setLane] = useState(() =>
+    recall().lane >= 0
+      ? Math.min(recall().lane, lanes - 1)
+      : Math.floor((lanes - 1) / 2),
+  );
   const [paused, setPaused] = useState(false);
   const [banner, setBanner] = useState<{ text: string; good: boolean } | null>(
     null,
@@ -116,7 +136,7 @@ export function LaneRunner({
     const next = Math.max(0, Math.min(lanes - 1, to));
     if (next !== s.lane) playSfx("tap", 0.2);
     s.lane = next;
-    journey.lane = next;
+    remember({ lane: next });
     setLane(next);
   };
   const go = () => {
@@ -126,6 +146,10 @@ export function LaneRunner({
   const release = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (e.detail > 0) e.currentTarget.blur();
   };
+  // Single variant: checking the answer sends Nova running at the gate.
+  useEffect(() => {
+    if (trigger > 0 && g.current.phase === "run") g.current.boost = true;
+  }, [trigger]);
   const togglePause = () => {
     g.current.paused = !g.current.paused;
     setPaused(g.current.paused);
@@ -146,10 +170,10 @@ export function LaneRunner({
     const startX = W + 4;
     const total = approachMs(item, pace);
     const speed = (startX - CONTACT_X) / total; // px per ms
-    let gx = reduced ? W * 0.62 : startX;
-    let scroll = journey.unitId === unitId ? journey.scroll : 0;
-    journey.unitId = unitId;
-    let last = performance.now();
+    let gx = reduced || single ? W * 0.62 : startX;
+    let scroll = recall().unitId === unitId ? recall().scroll : 0;
+    remember({ unitId });
+    let last = -1; // set on the first frame
     let dustAt = 0;
     const parts: Particle[] = [];
     const s = g.current;
@@ -165,7 +189,7 @@ export function LaneRunner({
       s.phase = "judging";
       s.chosen = s.lane;
       s.at = performance.now();
-      const choice = latestItem.current.options[s.chosen];
+      const choice = single ? "" : optionsOf(latestItem.current)[s.chosen];
       const res = await callbacks.current.onChoose(choice);
       if (!res) {
         // network trouble: put the gates back so the student can try again
@@ -196,7 +220,9 @@ export function LaneRunner({
         }, 1100);
       } else {
         s.phase = "lost";
-        s.correct = latestItem.current.options.indexOf(res.modelAnswer);
+        s.correct = single
+          ? -1
+          : optionsOf(latestItem.current).indexOf(res.modelAnswer);
         setBanner({ text: "Oops!", good: false });
         setTimeout(() => callbacks.current.onFinished(res.verdict), 1100);
       }
@@ -213,18 +239,19 @@ export function LaneRunner({
     };
 
     const draw = (now: number) => {
-      const dt = Math.min(50, now - last);
+      const dt = last < 0 ? 16 : Math.min(50, now - last);
       last = now;
       if (!s.paused) {
         let v = speed * (s.boost ? 6 : 1);
-        if (reduced && s.phase === "run") v = s.boost ? speed * 6 : 0;
+        if ((reduced || single) && s.phase === "run")
+          v = s.boost ? speed * 6 : 0;
         if (s.phase === "judging") v = speed * 0.12;
         if (s.phase === "lost" || s.phase === "done")
           v = s.phase === "done" ? speed * 2 : 0;
         if (s.phase === "won") v = speed * 3;
         gx -= v * dt;
         scroll += Math.max(v, s.phase === "lost" ? 0 : speed * 0.6) * dt;
-        journey.scroll = scroll;
+        remember({ scroll });
         s.laneY += (s.lane - s.laneY) * Math.min(1, dt / 70);
         if (s.phase === "run" && gx <= CONTACT_X) void judge();
       }
@@ -391,7 +418,7 @@ export function LaneRunner({
         togglePause();
         return;
       }
-      if (s.phase !== "run" || s.paused) return;
+      if (single || s.phase !== "run" || s.paused) return;
       const to = laneFromKey(e.key, s.lane, lanes);
       if (to !== null) {
         e.preventDefault();
@@ -417,7 +444,7 @@ export function LaneRunner({
     };
     // The game restarts only for a new question, new option order, or a new hat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id, item.options.join("\u0000"), unitId, sprites]);
+  }, [item.id, options.join("\u0000"), unitId, sprites, single]);
 
   // Touch: swipe up/down to change lane, or tap a lane.
   const touch = useRef<{ y: number; t: number } | null>(null);
@@ -441,24 +468,29 @@ export function LaneRunner({
   return (
     <section
       className="mt-4 font-pixel"
-      aria-label="Answer runner"
+      aria-label={single ? "Runner scene" : "Answer runner"}
       data-item={item.id}
       data-lane={lane}
     >
-      <div className="pixel-panel px-4 py-3 text-[#ece4d6]">
-        <p className="text-xs uppercase tracking-widest text-[#a99cc4]">
-          {questionTitle(item)}
-        </p>
-        {item.sentence && (
-          <RichSentence
-            text={item.sentence}
-            className="mt-1 font-sans text-lg leading-snug"
-          />
-        )}
-      </div>
+      {!single && (
+        <div className="pixel-panel px-4 py-3 text-[#ece4d6]">
+          <p className="text-xs uppercase tracking-widest text-[#a99cc4]">
+            {questionTitle(item)}
+          </p>
+          {item.type === "mcq" && item.sentence && (
+            <RichSentence
+              text={item.sentence}
+              className="mt-1 font-sans text-lg leading-snug"
+            />
+          )}
+        </div>
+      )}
 
       <div
-        className="pixel-panel relative mt-3 overflow-hidden"
+        className={cx(
+          "pixel-panel relative overflow-hidden",
+          !single && "mt-3",
+        )}
         style={{ aspectRatio: `${W} / ${H}` }}
       >
         <canvas
@@ -470,7 +502,7 @@ export function LaneRunner({
           onPointerUp={onPointerUp}
           aria-hidden="true"
         />
-        {item.options.map((o, i) => (
+        {options.map((o, i) => (
           <div
             key={o}
             ref={(el) => {
@@ -513,72 +545,80 @@ export function LaneRunner({
         )}
       </div>
 
-      <div className="mt-3 flex items-center justify-center gap-2">
-        <button
-          type="button"
-          className="pixel-btn pixel-btn-ghost w-14"
-          onClick={(e) => {
-            release(e);
-            steer(g.current.lane - 1);
-          }}
-          aria-label="Move up a lane"
-        >
-          ▲
-        </button>
-        <button
-          type="button"
-          className="pixel-btn min-w-[7rem]"
-          onClick={(e) => {
-            release(e);
-            go();
-          }}
-          aria-label="Run now"
-        >
-          GO ▶▶
-        </button>
-        <button
-          type="button"
-          className="pixel-btn pixel-btn-ghost w-14"
-          onClick={(e) => {
-            release(e);
-            steer(g.current.lane + 1);
-          }}
-          aria-label="Move down a lane"
-        >
-          ▼
-        </button>
-        <button
-          type="button"
-          className="pixel-btn pixel-btn-ghost w-14"
-          onClick={(e) => {
-            release(e);
-            togglePause();
-          }}
-          aria-label={paused ? "Resume" : "Pause"}
-        >
-          {paused ? "▶" : "❚❚"}
-        </button>
-      </div>
-      <p className="mt-2 text-center text-xs text-[#a99cc4]">
-        Steer into the right gate: ▲▼, swipe, tap a lane or keys 1–{lanes} · GO
-        to run now
-      </p>
+      {single ? (
+        <p className="mt-2 text-center text-xs text-[#a99cc4]">
+          Answer below: when you check it, Nova sprints at the gate!
+        </p>
+      ) : (
+        <>
+          <div className="mt-3 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              className="pixel-btn pixel-btn-ghost w-14"
+              onClick={(e) => {
+                release(e);
+                steer(g.current.lane - 1);
+              }}
+              aria-label="Move up a lane"
+            >
+              ▲
+            </button>
+            <button
+              type="button"
+              className="pixel-btn min-w-[7rem]"
+              onClick={(e) => {
+                release(e);
+                go();
+              }}
+              aria-label="Run now"
+            >
+              GO ▶▶
+            </button>
+            <button
+              type="button"
+              className="pixel-btn pixel-btn-ghost w-14"
+              onClick={(e) => {
+                release(e);
+                steer(g.current.lane + 1);
+              }}
+              aria-label="Move down a lane"
+            >
+              ▼
+            </button>
+            <button
+              type="button"
+              className="pixel-btn pixel-btn-ghost w-14"
+              onClick={(e) => {
+                release(e);
+                togglePause();
+              }}
+              aria-label={paused ? "Resume" : "Pause"}
+            >
+              {paused ? "▶" : "❚❚"}
+            </button>
+          </div>
+          <p className="mt-2 text-center text-xs text-[#a99cc4]">
+            Steer into the right gate: ▲▼, swipe, tap a lane or keys 1–{lanes} ·
+            GO to run now
+          </p>
 
-      {/* Screen readers: the gates as plain buttons */}
-      <div className="sr-only">
-        {item.options.map((o, i) => (
-          <button
-            key={o}
-            type="button"
-            onClick={() => {
-              steer(i);
-              go();
-            }}
-          >
-            Run through gate {i + 1}: {o}
-          </button>
-        ))}
-      </div>
+          {/* Screen readers: the gates as plain buttons */}
+          <div className="sr-only">
+            {options.map((o, i) => (
+              <button
+                key={o}
+                type="button"
+                onClick={() => {
+                  steer(i);
+                  go();
+                }}
+              >
+                Run through gate {i + 1}: {o}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }

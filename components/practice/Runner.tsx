@@ -142,6 +142,8 @@ export function Runner({
   const [runnerHold, setRunnerHold] = useState(false);
   /** Runner speed: eases off after mistakes, picks up on a streak. */
   const [pace, setPace] = useState(1);
+  /** Counts "check answer" presses that send Nova at the gate (single-gate scene). */
+  const [fire, setFire] = useState(0);
   /** Nova's journey strip: how far she has walked (never backwards) and the latest step. */
   const [journey, setJourney] = useState<{ progress: number; beat: JourneyBeat | null }>({ progress: 0, beat: null });
   const startedAt = useRef<number>(0);
@@ -397,6 +399,22 @@ export function Runner({
   // Multiple-choice questions become the lane runner in game mode.
   const playing = phase.kind === "answering" || phase.kind === "submitting" || phase.kind === "feedback";
   const asRunner = !isBoss && gameMode && !!current && current.type === "mcq" && runnerEligible(current) && playing;
+  // Every other question is played with the runner scene above its card: one gate ahead,
+  // and checking the answer sends Nova at it.
+  const asScene = !isBoss && gameMode && !!current && !asRunner && playing;
+  const check = () => {
+    if (!response || phase.kind !== "answering") return;
+    if (asScene) {
+      setRunnerHold(true);
+      setFire((f) => f + 1);
+    } else void submit();
+  };
+  /** After the gate animation: a clean right answer moves on by itself; anything with notes waits. */
+  const afterGate = (verdict: "correct" | "partial" | "incorrect") => {
+    const quiet = verdict === "correct" && phase.kind === "feedback" && phase.feedback.notes.length === 0 && !phase.feedback.byLlm;
+    if (quiet) next();
+    else setRunnerHold(false);
+  };
   const toggleGameMode = () => {
     const next = !gameMode;
     setGameMode(next);
@@ -438,7 +456,7 @@ export function Runner({
             {tally.xp}
           </div>
         </header>
-        {!isBoss && !asRunner && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+        {!isBoss && !asRunner && !asScene && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} hat={hat} />
         )}
         <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">{lessonTitle ?? MODE_LABEL[mode]}</p>
@@ -476,14 +494,34 @@ export function Runner({
             hat={hat}
             combo={stats?.combo ?? 0}
             pace={pace}
-            onChoose={(choice) => {
+            onChoose={async (choice) => {
               setRunnerHold(true);
-              return submit(undefined, { type: "mcq", choice });
+              const r = await submit(undefined, { type: "mcq", choice });
+              if (!r) setRunnerHold(false);
+              return r;
             }}
             onFinished={(verdict) => {
               if (verdict === "correct") next();
               else setRunnerHold(false);
             }}
+          />
+        )}
+        {asScene && current && (
+          <LaneRunner
+            key={`scene-${current.key}`}
+            variant="single"
+            trigger={fire}
+            item={current}
+            unitId={current.unitId}
+            hat={hat}
+            combo={stats?.combo ?? 0}
+            pace={pace}
+            onChoose={async () => {
+              const r = await submit();
+              if (!r) setRunnerHold(false);
+              return r;
+            }}
+            onFinished={afterGate}
           />
         )}
         {!asRunner && current && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
@@ -494,7 +532,7 @@ export function Runner({
               </div>
               <QuestionTitle item={current} />
               <div className="mt-5">
-                <QuestionInput key={current.key} item={current} onChange={setResponse} onSubmit={() => !locked && response && void submit()} locked={locked} review={review} />
+                <QuestionInput key={current.key} item={current} onChange={setResponse} onSubmit={() => !locked && response && check()} locked={locked} review={review} />
               </div>
             </motion.section>
           </AnimatePresence>
@@ -508,8 +546,8 @@ export function Runner({
       {current && !asRunner && (phase.kind === "answering" || phase.kind === "submitting") && (
         <div className="fixed inset-x-0 bottom-0 border-t border-white/10 bg-ink-900/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur">
           <div className="mx-auto max-w-2xl">
-            <button className="btn btn-primary w-full text-lg" disabled={!response || phase.kind === "submitting"} onClick={() => void submit()}>
-              {phase.kind === "submitting" ? "Checking…" : "Check answer"}
+            <button className="btn btn-primary w-full text-lg" disabled={!response || phase.kind === "submitting" || runnerHold} onClick={check}>
+              {phase.kind === "submitting" || runnerHold ? "Checking…" : asScene ? "Check & run ▶▶" : "Check answer"}
             </button>
           </div>
         </div>
