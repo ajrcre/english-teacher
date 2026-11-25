@@ -12,6 +12,7 @@ import {
   nextLetter,
   STAR_RULES,
   starColumns,
+  withDecoy,
   starFallMs,
   type SpellKey,
 } from "@/lib/game/starCatch";
@@ -79,6 +80,12 @@ interface Particle {
 }
 
 /**
+ * Carried from one question to the next, so the game flows on: where Nova stands, and a
+ * right catch's sparkle and cheer, which play on as the next question's stars appear.
+ */
+const carry = { x: W / 2, winAt: -1e9, winText: "" };
+
+/**
  * Star Catch. In choice mode the answers fall as stars: move Nova's basket under the right one
  * before it lands in the snow (the catch is sent to the server, which grades it). In spell mode
  * Nova hears a word and catches its letters in order, dodging wrong ones; three wrong letters
@@ -91,10 +98,13 @@ export function StarCatch({
   combo,
   xp,
   pace,
+  decoy = null,
   onChoose,
   onFinished,
 }: {
   item: StarCatchItem;
+  /** A wrong answer from another question, added as a third star when there are only two. */
+  decoy?: string | null;
   unitId: string;
   hat?: string | null;
   combo: number;
@@ -197,10 +207,14 @@ export function StarCatch({
     s.boost = false;
     s.stars = [];
     s.grab = null;
-    s.x = W / 2;
+    s.x = carry.x;
     s.target = null;
+    // the last question was caught right: its sparkle and cheer carry over
+    let cheer = performance.now() - carry.winAt < 1200 ? carry.winText : "";
 
     const it = latestItem.current;
+    const choices =
+      it.type === "mcq" ? withDecoy(it.id, it.options, decoy) : [];
     const key = it.type === "dictation" ? it.spell : null;
     const START_Y = 6;
     const fallPx = RIM - (START_Y + STAR_H);
@@ -219,9 +233,9 @@ export function StarCatch({
     let choiceVy = 0;
     const dropChoices = (slower = 1) => {
       if (it.type !== "mcq") return;
-      const cols = starColumns(it.options.length, W);
+      const cols = starColumns(choices.length, W);
       choiceVy = fallPx / starFallMs(approachMs(it, pace)) / slower;
-      s.stars = it.options.map((o, i) => ({
+      s.stars = choices.map((o, i) => ({
         id: nextId++,
         text: o,
         idx: i,
@@ -284,17 +298,11 @@ export function StarCatch({
         });
     };
 
-    const finish = (
-      good: boolean,
-      verdict: "correct" | "partial" | "incorrect",
-    ) => {
-      setTimeout(
-        () => {
-          s.phase = "done";
-          callbacks.current.onFinished(verdict);
-        },
-        good ? 1100 : 1200,
-      );
+    const finish = (verdict: "correct" | "partial" | "incorrect") => {
+      setTimeout(() => {
+        s.phase = "done";
+        callbacks.current.onFinished(verdict);
+      }, 1200);
     };
 
     /** Sends the answer and plays the outcome. */
@@ -313,19 +321,17 @@ export function StarCatch({
         return;
       }
       if (res.verdict === "correct") {
-        s.phase = "won";
-        setBanner({
-          text: combo + 1 >= 3 ? `${combo + 1} in a row!` : "Correct!",
-          good: true,
-        });
+        // Right: straight on to the next question; the cheer plays on there.
+        const text = combo + 1 >= 3 ? `${combo + 1} in a row!` : "Correct!";
+        s.phase = "done";
+        if (caught) caught.state = "gone";
+        setBanner({ text, good: true });
         burst(s.x, RIM - 6, now, 18);
-        for (const t of s.stars)
-          if (t.state === "fall") {
-            burst(t.x, t.y + STAR_H / 2, now, 4);
-            t.state = "gone";
-          }
         syncTokens();
-        finish(true, "correct");
+        carry.x = s.x;
+        carry.winAt = now;
+        carry.winText = text;
+        callbacks.current.onFinished("correct");
       } else {
         s.phase = "lost";
         s.hurtAt = now;
@@ -333,13 +339,13 @@ export function StarCatch({
         if (!key) {
           const right =
             latestItem.current.type === "mcq"
-              ? latestItem.current.options.indexOf(res.modelAnswer)
+              ? choices.indexOf(res.modelAnswer)
               : -1;
           for (const t of s.stars)
             if (t.idx === right && t !== caught) t.state = "glow";
         }
         setBanner({ text: "Oops!", good: false });
-        finish(false, res.verdict);
+        finish(res.verdict);
       }
     };
 
@@ -395,6 +401,13 @@ export function StarCatch({
       const dt = Math.min(50, now - last);
       last = now;
       const live = !s.paused && s.phase !== "done";
+      carry.x = s.x;
+      if (cheer) {
+        setBanner({ text: cheer, good: true });
+        burst(s.x, RIM - 6, now, 16);
+        cheer = "";
+        setTimeout(() => setBanner((b) => (b?.good ? null : b)), 750);
+      }
 
       if (live) {
         // move Nova
@@ -672,7 +685,7 @@ export function StarCatch({
     };
     // The game restarts only for a new question, new option order, or a new hat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id, optionsKey, unitId, sprites]);
+  }, [item.id, optionsKey, decoy, unitId, sprites]);
 
   // Drag (or tap) on the field: Nova runs to that spot.
   const dragging = useRef(false);
@@ -895,7 +908,7 @@ export function StarCatch({
           <p className="mt-0.5 text-sm text-[#cdbfa8]">
             {spell
               ? "Letters fall from the sky. Catch the next letter of the word, and dodge the wrong ones! (Or type the letter.)"
-              : `The answers fall as stars. Move Nova's basket to catch the right star before it hits the ground! (Keys 1–${item.type === "mcq" ? item.options.length : 4} run to a star.)`}
+              : `The answers fall as stars. Move Nova's basket to catch the right star before it hits the ground! (Keys 1–${item.type === "mcq" ? item.options.length + (decoy && item.options.length < 3 ? 1 : 0) : 4} run to a star.)`}
           </p>
         </div>
       </div>

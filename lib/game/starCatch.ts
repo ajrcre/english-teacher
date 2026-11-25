@@ -179,3 +179,38 @@ export function starColumns(n: number, w: number): { x: number; dy: number }[] {
     dy: stagger[i % stagger.length],
   }));
 }
+
+const norm = (s: string) => s.trim().toLowerCase();
+
+/**
+ * A third star for a question with only two answers, so there are always at least three to
+ * choose from: a word from another question in the round that isn't one of this question's
+ * answers (catching it is simply a wrong answer). Stable for a question; null if none fits.
+ */
+export function pickDecoy(
+  itemId: string,
+  options: string[],
+  pool: string[],
+): string | null {
+  if (options.length >= 3) return null;
+  const own = new Set(options.map(norm));
+  const fits = [...new Set(pool)]
+    .filter(
+      (p) =>
+        p.trim() && !own.has(norm(p)) && p.length <= STAR_RULES.maxOptionChars,
+    )
+    .sort();
+  if (!fits.length) return null;
+  return fits[fnv(`decoy:${itemId}`) % fits.length];
+}
+
+/** The answers shown as stars: the question's own, with the decoy (if any) slotted in. */
+export function withDecoy(
+  itemId: string,
+  options: string[],
+  decoy: string | null | undefined,
+): string[] {
+  if (!decoy || options.length >= 3) return options;
+  const at = fnv(`slot:${itemId}`) % (options.length + 1);
+  return [...options.slice(0, at), decoy, ...options.slice(at)];
+}

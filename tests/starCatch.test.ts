@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { units } from "@/content/units";
 import { buildCatalog } from "@/lib/content/catalog";
 import { toClientItem } from "@/lib/content/client";
-import { decoyLetter, isNextLetter, mcqGame, nextLetter, spellKey, STAR_RULES, starColumns, starEligible } from "@/lib/game/starCatch";
+import { decoyLetter, isNextLetter, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy } from "@/lib/game/starCatch";
 
 const q = (options: string[]) => ({ type: "mcq", prompt: "Choose the best word.", options });
 
@@ -63,5 +63,18 @@ describe("star catch rules", () => {
     expect(cols.map((c) => c.x)).toEqual([...cols.map((c) => c.x)].sort((a, b) => a - b));
     expect(cols[0].x).toBeGreaterThanOrEqual(10);
     expect(cols[3].x).toBeLessThanOrEqual(150);
+  });
+
+  it("adds a borrowed third star to two-answer questions only", () => {
+    const pool = ["can hear", "is costing", "Have", "x".repeat(STAR_RULES.maxOptionChars + 1)];
+    const d = pickDecoy("q1", ["have", "am having"], pool);
+    expect(["can hear", "is costing"]).toContain(d);
+    expect(pickDecoy("q1", ["have", "am having"], pool)).toBe(d); // stable
+    expect(pickDecoy("q1", ["a", "b", "c"], pool)).toBeNull();
+    expect(pickDecoy("q1", ["have", "am having"], ["have"])).toBeNull();
+    const stars = withDecoy("q1", ["have", "am having"], d);
+    expect(stars).toHaveLength(3);
+    expect(stars).toEqual(expect.arrayContaining(["have", "am having", d]));
+    expect(withDecoy("q1", ["a", "b", "c", "d"], "z")).toEqual(["a", "b", "c", "d"]);
   });
 });

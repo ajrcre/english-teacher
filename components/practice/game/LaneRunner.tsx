@@ -48,6 +48,14 @@ interface Particle {
 }
 
 /**
+ * Carried from one question to the next, so Nova keeps running instead of starting over:
+ * how far the world has scrolled, and her lane.
+ */
+const carry = { scroll: 0, lane: -1, at: -1e9 };
+const carried = (lanes: number) =>
+  performance.now() - carry.at < 4000 && carry.lane >= 0 && carry.lane < lanes;
+
+/**
  * The lane-runner: Nova runs on the unit's ground while the answer gates rush towards her.
  * Steer her into the lane of the right answer before she reaches them. The choice is sent
  * to the server as a normal answer; the gates burst open or crack depending on its verdict.
@@ -75,7 +83,9 @@ export function LaneRunner({
   const H = SKY + lanes * LANE_H + 4;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [lane, setLane] = useState(Math.floor((lanes - 1) / 2));
+  const [lane, setLane] = useState(() =>
+    carried(lanes) ? carry.lane : Math.floor((lanes - 1) / 2),
+  );
   const [paused, setPaused] = useState(false);
   const [banner, setBanner] = useState<{ text: string; good: boolean } | null>(
     null,
@@ -139,7 +149,8 @@ export function LaneRunner({
     const total = approachMs(item, pace);
     const speed = (startX - CONTACT_X) / total; // px per ms
     let gx = reduced ? W * 0.62 : startX;
-    let scroll = 0;
+    // keep the world where the last question left it, so the run flows on
+    let scroll = performance.now() - carry.at < 4000 ? carry.scroll : 0;
     let last = performance.now();
     let dustAt = 0;
     const parts: Particle[] = [];
@@ -184,7 +195,7 @@ export function LaneRunner({
         setTimeout(() => {
           s.phase = "done";
           callbacks.current.onFinished("correct");
-        }, 1100);
+        }, 520); // just the leap through the gate, then straight on to the next gates
       } else {
         s.phase = "lost";
         s.correct = latestItem.current.options.indexOf(res.modelAnswer);
@@ -206,6 +217,9 @@ export function LaneRunner({
     const draw = (now: number) => {
       const dt = Math.min(50, now - last);
       last = now;
+      carry.scroll = scroll;
+      carry.lane = s.lane;
+      carry.at = now;
       if (!s.paused) {
         let v = speed * (s.boost ? 6 : 1);
         if (reduced && s.phase === "run") v = s.boost ? speed * 6 : 0;

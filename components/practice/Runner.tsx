@@ -23,7 +23,7 @@ import { LaneRunner, type RunnerResult } from "./game/LaneRunner";
 import { StarCatch } from "./game/StarCatch";
 import { JourneyStrip, type JourneyBeat } from "./JourneyStrip";
 import { nextPace, runnerEligible } from "@/lib/game/runner";
-import { mcqGame, starEligible } from "@/lib/game/starCatch";
+import { mcqGame, pickDecoy, starEligible } from "@/lib/game/starCatch";
 import { QuestionInput, RichSentence, SpeakerIcon, questionTitle } from "./inputs";
 
 type QueueItem = ClientItem & { lessonId: string; unitId: string; isNew: boolean; retry?: number; key: string };
@@ -407,6 +407,12 @@ export function Runner({
     return mcqGame(before, starEligible(current));
   }, [isBoss, gameMode, current, playing, queue, index]);
   const asGame = game !== null;
+  /** Star Catch: a third star for two-answer questions, borrowed from the round's other questions. */
+  const decoy = useMemo(() => {
+    if (game !== "stars" || current?.type !== "mcq") return null;
+    const pool = queue.flatMap((q) => (q.type === "mcq" && q.id !== current.id ? q.options : []));
+    return pickDecoy(current.id, current.options, pool);
+  }, [game, current, queue]);
   const toggleGameMode = () => {
     const next = !gameMode;
     setGameMode(next);
@@ -505,6 +511,7 @@ export function Runner({
             combo={stats?.combo ?? 0}
             xp={tally.xp}
             pace={pace}
+            decoy={decoy}
             onChoose={(answer) => {
               setRunnerHold(true);
               return submit(undefined, current.type === "mcq" ? { type: "mcq", choice: answer } : { type: "dictation", text: answer });

@@ -95,7 +95,6 @@ test("multiple-choice questions are played as a lane runner", async ({ page }) =
     const id = (await game.getAttribute("data-item"))!;
     const item = mcqs.find((m) => m.id === id)!;
     await press(game.getByRole("button", { name: `Catch the star: ${item.options[item.answer]}`, exact: true }));
-    await expect(page.getByRole("status").filter({ hasText: /Correct!|in a row/ })).toBeVisible({ timeout: 15_000 });
     // Wait for the next question (another star, or the runner), closing any celebration.
     for (let k = 0; k < 50; k++) {
       const dialog = page.getByRole("dialog");

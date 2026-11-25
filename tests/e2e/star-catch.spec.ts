@@ -113,7 +113,7 @@ async function current(page: Page) {
   const labels = (await buttons.allInnerTexts()).map((t) =>
     t.replace(/^Catch the star: /, "").trim(),
   );
-  return { id, right: labels.indexOf(item.options[item.answer]), labels };
+  return { id, right: labels.indexOf(item.options[item.answer]), labels, options: item.options.length };
 }
 
 test("multiple-choice answers fall as stars and Nova catches the right one", async ({
@@ -131,6 +131,8 @@ test("multiple-choice answers fall as stars and Nova catches the right one", asy
   // Run under the right star (number key) and drop the stars (hold ↓) until it lands in the basket.
   for (let i = 0; i < 2; i++) {
     const q = await current(page);
+    // Two-answer questions get a third star: a word borrowed from another question.
+    expect(q.labels.length).toBe(Math.max(3, q.options));
     await page.keyboard.press(String(q.right + 1));
     await page.waitForTimeout(900);
     if (i === 0) await shot(page, "s2-aim");
