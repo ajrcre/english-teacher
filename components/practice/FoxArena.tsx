@@ -28,7 +28,7 @@ const NOVA_X = 16;
 /** Where the bubble leaves his paw, and where it hits Nova. */
 const THROW_FROM = { x: 80, y: FOX_Y + 22 };
 const HIT_AT = { x: 30, y: 46 };
-const BACKDROP = "number-the-stars";
+const BACKDROP = "grey-fox";
 
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
 
