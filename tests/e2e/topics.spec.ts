@@ -4,6 +4,9 @@ import { buildCatalog } from "@/lib/content/catalog";
 
 const catalog = buildCatalog(units);
 
+// Its own client address, so this test's signup doesn't use up the other tests' signup rate limit.
+test.use({ extraHTTPHeaders: { "x-forwarded-for": `10.6.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` } });
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("starlight.gameMode", "off"));
 });
