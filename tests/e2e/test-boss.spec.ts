@@ -51,26 +51,31 @@ async function play(page: Page, correct: boolean, shots?: string) {
   const button = game.getByRole("button", { name: `Catch the star: ${pick}`, exact: true });
   await button.focus({ timeout: 15_000 });
   await button.press("Enter");
-  if (!correct) {
-    await expect(page.locator('[data-bubble="wrong"]')).toBeVisible({ timeout: 10_000 });
-    if (shots) {
-      await page.waitForTimeout(650);
-      await shot(page, `${shots}-wrong`);
+  // Back at the castle, the outcome plays, with no explanation popping up over it…
+  // (after the winning catch there's no bubble any more: he's beaten)
+  await expect(page.locator(`[data-bubble="${correct ? "right" : "wrong"}"]`).or(page.getByText("Victory!").first())).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Not quite|Correct!/)).toHaveCount(0);
+  if (shots) {
+    await page.waitForTimeout(correct ? 400 : 650);
+    await shot(page, `${shots}-${correct ? "right" : "wrong"}`);
+  }
+  // …then the student moves on when they want.
+  const onward = page.getByRole("button", { name: /Next question|See your prize|Continue ▶/ });
+  await expect(onward).toBeVisible({ timeout: 10_000 });
+  if (!correct) await expect(page.getByRole("button", { name: "See my mistake" })).toBeVisible();
+  if (shots) await shot(page, `${shots}-${correct ? "right" : "wrong"}-ready`);
+  await onward.click();
+  await dismissCelebrations(page);
+  if (correct) {
+    // on to his next question (or, after the twelfth, the prize)
+    for (let k = 0; k < 40; k++) {
+      if (await page.getByRole("heading", { name: "Victory!" }).isVisible().catch(() => false)) return;
+      const now = await game.getAttribute("data-item", { timeout: 500 }).catch(() => null);
+      if (now && now !== id) return;
+      await page.waitForTimeout(250);
     }
-    await page.getByRole("button", { name: "Continue" }).click();
-    await dismissCelebrations(page);
-    return;
+    throw new Error(`the fox's game did not move on from ${id}`);
   }
-  // A right catch: straight on to his next question (or he's beaten).
-  for (let k = 0; k < 60; k++) {
-    await dismissCelebrations(page);
-    if (await page.getByRole("heading", { name: "Victory!" }).isVisible().catch(() => false)) return;
-    if (shots && k === 1) await shot(page, `${shots}-right`);
-    const now = await game.getAttribute("data-item", { timeout: 500 }).catch(() => null);
-    if (now && now !== id) return;
-    await page.waitForTimeout(250);
-  }
-  throw new Error(`the fox's game did not move on from ${id}`);
 }
 
 test("the Grey Fox: unlock him, beat him, win his E hat", async ({ page }) => {
@@ -122,7 +127,10 @@ test("the Grey Fox: unlock him, beat him, win his E hat", async ({ page }) => {
   await page.waitForTimeout(650);
   await shot(page, "f1-grey-star");
   await expect(page.getByLabel("2 of 3 hearts left").first()).toBeVisible();
+  // When the throw has played, the student can look at the mistake, then go on.
+  await page.getByRole("button", { name: "See my mistake" }).click();
   await expect(page.getByText("Not quite")).toBeVisible();
+  await shot(page, "f1-mistake");
   await page.getByRole("button", { name: "Continue" }).click();
   await dismissCelebrations(page);
 

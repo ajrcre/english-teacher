@@ -158,6 +158,11 @@ export function Runner({
    * as he arrives ("intro"), and after each catch for the outcome ("result").
    */
   const [foxBreak, setFoxBreak] = useState<"intro" | "result" | null>(null);
+  /**
+   * The outcome has played: the student moves on when they want ("Next question"), and after a
+   * mistake can open the explanation first ("See my mistake").
+   */
+  const [foxReady, setFoxReady] = useState(false);
   const [claim, setClaim] = useState<BossClaim | null>(null);
   const [bossUnlocked, setBossUnlocked] = useState(bossReady);
   /** Height of the feedback sheet, so the page can make room for it below the question. */
@@ -187,6 +192,7 @@ export function Runner({
     completed.current = false;
     battleOver.current = false;
     setFoxBreak(null);
+    setFoxReady(false);
     try {
       const res = await fetch("/api/session/start", {
         method: "POST",
@@ -343,6 +349,7 @@ export function Runner({
 
   const advance = useCallback(() => {
     setFoxBreak(null);
+    setFoxReady(false);
     setResponse(null);
     setToast(null);
     setRunnerHold(false);
@@ -567,6 +574,18 @@ export function Runner({
             bubble={{ key: current.key, prompt: questionTitle(current), sentence: "sentence" in current ? current.sentence : undefined, state: foxAnswer?.key === current.key ? foxAnswer.state : "ask" }}
           />
         )}
+        {isFox && foxBreak === "result" && foxReady && runnerHold && phase.kind === "feedback" && (
+          <motion.div className="mx-auto mt-4 flex w-full max-w-[30rem] flex-col gap-3 px-1 font-pixel sm:flex-row-reverse" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+            <button className="pixel-btn flex-1 text-lg" autoFocus onClick={() => next()}>
+              {battle?.outcome ? (battle.outcome === "won" ? "See your prize ▶" : "Continue ▶") : "Next question ▶"}
+            </button>
+            {foxAnswer?.key === current?.key && foxAnswer?.state === "wrong" && (
+              <button className="pixel-btn pixel-btn-ghost flex-1 text-lg" onClick={() => setRunnerHold(false)}>
+                See my mistake
+              </button>
+            )}
+          </motion.div>
+        )}
         {battle && !isFox && unitId && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <BossArena unitId={unitId} hp={battle.hp} hits={battle.hits} hearts={BOSS_RULES.hearts} heartsLeft={battle.heartsLeft} beat={battle.beat} message={battle.message} hat={hat} />
         )}
@@ -629,11 +648,12 @@ export function Runner({
             }}
             onFinished={(verdict) => {
               if (isFox) {
-                // back to his castle for the outcome: a tick and Nova's strike, or the bubble thrown
+                // Back to his castle for the outcome (a tick and Nova's strike, or the bubble thrown
+                // at her). Nothing else pops up meanwhile; once it has played, the student chooses
+                // when to go on. (After the winning catch: long enough to watch him walk off.)
                 setFoxBreak("result");
-                // (after the winning catch, long enough to watch him walk off and leave his hat)
-                if (verdict === "correct") setTimeout(() => nextRef.current(), battleOver.current ? 4200 : 1400);
-                else setRunnerHold(false);
+                setFoxReady(false);
+                setTimeout(() => setFoxReady(true), battleOver.current ? 3800 : verdict === "correct" ? 1300 : 1500);
                 return;
               }
               if (verdict === "correct") next();
