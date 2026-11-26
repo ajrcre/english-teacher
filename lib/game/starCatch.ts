@@ -231,6 +231,11 @@ export function starFallMs(approach: number): number {
   return Math.round(approach * 1.1);
 }
 
+/** Where Nova may stand in a field `w` wide: a tapped point is clamped to this. */
+export function catcherX(x: number, w: number): number {
+  return Math.max(12, Math.min(w - 12, x));
+}
+
 /** Horizontal centres for n answer stars across a field `w` wide, and a stagger for each. */
 export function starColumns(n: number, w: number): { x: number; dy: number }[] {
   const margin = 18;

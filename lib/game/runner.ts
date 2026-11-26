@@ -56,6 +56,26 @@ export function laneFromKey(key: string, current: number, lanes: number): number
   return null;
 }
 
+/**
+ * The runner field's layout for a logical height chosen to fill the screen: on a tall screen
+ * the lanes grow (easier to tap) and the sky band shows more of the unit's world.
+ */
+export const RUNNER_FIELD = { sky: 40, laneH: 28, maxSky: 56, maxLaneH: 46, floor: 4 };
+
+export function runnerLayout(want: number, lanes: number): { sky: number; laneH: number; h: number } {
+  const f = RUNNER_FIELD;
+  const base = f.sky + lanes * f.laneH + f.floor;
+  const extra = Math.max(0, Math.round(want) - base);
+  const laneH = Math.min(f.maxLaneH, f.laneH + Math.floor((extra * 0.75) / lanes));
+  const sky = Math.min(f.maxSky, f.sky + Math.max(0, extra - (laneH - f.laneH) * lanes));
+  return { sky, laneH, h: sky + lanes * laneH + f.floor };
+}
+
+/** The lane under a point of the field (logical y), clamped: above the lanes is the top lane. */
+export function laneAt(y: number, sky: number, laneH: number, lanes: number): number {
+  return Math.max(0, Math.min(lanes - 1, Math.floor((y - sky) / laneH)));
+}
+
 /** Ground colours (palette characters) for the lanes in each unit's world. */
 export const LANE_GROUND: Record<string, { a: string; b: string; edge: string; mark: string }> = {
   spelling: { a: "P", b: "M", edge: "Q", mark: "l" },

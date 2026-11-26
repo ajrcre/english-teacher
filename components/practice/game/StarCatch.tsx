@@ -6,7 +6,9 @@ import { loopStrip, spriteFrames } from "@/components/pixel/spriteCanvas";
 import { playDictation, playSfx } from "@/components/sound";
 import type { ClientItem, ItemResponse } from "@/lib/content/client";
 import { approachMs, laneGround } from "@/lib/game/runner";
+import { fieldHeight, isControl, toField } from "@/lib/game/stage";
 import {
+  catcherX,
   decoyLetter,
   fillMask,
   isNextLetter,
@@ -39,6 +41,7 @@ import { heartEmpty, heartFull, pixelStar } from "@/lib/pixel/sprites/ui";
 import { cx } from "@/lib/ui";
 import { RichSentence, SpeakerIcon, questionTitle } from "../inputs";
 import type { RunnerResult } from "./LaneRunner";
+import { useField } from "./useField";
 
 type McqItem = Extract<ClientItem, { type: "mcq" }>;
 type SpellItem = Extract<ClientItem, { type: "dictation" | "typed" }> & {
@@ -57,14 +60,14 @@ function shuffled<T>(list: T[]): T[] {
   return out;
 }
 
-/** Logical pixel size of the game (scaled up crisply). */
+/**
+ * Logical width of the game (scaled up crisply). Its height is fitted to the screen when a
+ * question starts: square at the least, and taller on a phone held upright.
+ */
 const W = 160;
-const H = 164;
+const MIN_H = 164;
+const MAX_H = 260;
 const SKY = 30;
-/** Where Nova stands, where stars land in the snow, and the basket's rim (the catch line). */
-const FEET = H - 9;
-const GROUND = H - 6;
-const RIM = FEET - BASKET_H + 3;
 const CATCH_R = 13;
 const MOVE = 0.12; // px per ms with the arrows
 const DRAG = 0.24; // px per ms towards a dragged/tapped point
@@ -140,6 +143,10 @@ export function StarCatch({
     item.type === "mcq" ? "choice" : item.type === "match" ? "match" : "spell";
   const spell = mode === "spell";
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const { areaRef, field, box } = useField(W, (area) => ({
+    h: fieldHeight(area, W, MIN_H, MAX_H),
+  }));
   const labelRefs = useRef(new Map<number, HTMLDivElement>());
   const [tokens, setTokens] = useState<
     { id: number; text: string; falling: boolean }[]
@@ -218,7 +225,13 @@ export function StarCatch({
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    if (!canvas || !ctx || !field) return;
+    const H = field.h;
+    /** Where Nova stands, where stars land in the snow, and the basket's rim (the catch line). */
+    const FEET = H - 9;
+    const GROUND = H - 6;
+    const RIM = FEET - BASKET_H + 3;
+    const section = sectionRef.current;
     ctx.imageSmoothingEnabled = false;
     const reduced =
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -626,6 +639,9 @@ export function StarCatch({
             if (Math.abs(d) < 0.5) s.target = null;
           }
           s.x = Math.max(12, Math.min(W - 12, s.x));
+          // where Nova stands, for tests and tools (only written when it changes)
+          const sx = String(Math.round(s.x));
+          if (section && section.dataset.x !== sx) section.dataset.x = sx;
         }
         s.moving = Math.abs(s.x - before) > 0.01;
         if (s.moving) s.facing = s.x > before ? 1 : -1;
@@ -955,7 +971,7 @@ export function StarCatch({
     };
     // The game restarts only for a new question, new option order, or a new hat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id, optionsKey, decoy, unitId, sprites]);
+  }, [item.id, optionsKey, decoy, unitId, sprites, field]);
 
   const n =
     item.type === "dictation" || item.type === "typed" ? item.spell.n : 0;
@@ -964,11 +980,34 @@ export function StarCatch({
       ? (item.spell.mask ?? "_".repeat(n))
       : "";
 
-  // Drag (or tap) on the field: Nova runs to that spot.
+  // Tap or drag anywhere on the game (not on its buttons): Nova runs to that spot, and follows
+  // a dragging finger. A tap while paused carries on.
   const dragging = useRef(false);
-  const aim = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    g.current.target = ((e.clientX - r.left) / r.width) * W;
+  const aim = (e: React.PointerEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !field) return;
+    const p = toField(
+      e.clientX,
+      e.clientY,
+      canvas.getBoundingClientRect(),
+      W,
+      field.h,
+    );
+    g.current.target = catcherX(p.x, W);
+    g.current.dir = 0;
+  };
+  const onPointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (isControl(e.target)) return;
+    if (g.current.paused) {
+      togglePause();
+      return;
+    }
+    dragging.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    aim(e);
+  };
+  const stopDragging = () => {
+    dragging.current = false;
   };
   const setDir = (dir: number) => {
     g.current.dir = dir;
@@ -979,12 +1018,17 @@ export function StarCatch({
 
   return (
     <section
-      className="mx-auto mt-4 w-full max-w-md font-pixel"
+      ref={sectionRef}
+      className="mx-auto mt-2 flex min-h-0 w-full flex-1 touch-none select-none flex-col font-pixel"
       aria-label="Star catch"
       data-item={item.id}
       data-mode={mode}
+      onPointerDown={onPointerDown}
+      onPointerMove={(e) => dragging.current && aim(e)}
+      onPointerUp={stopDragging}
+      onPointerCancel={stopDragging}
     >
-      <div className="pixel-panel px-4 py-3 text-[#ece4d6]">
+      <div className="pixel-panel px-4 py-3 text-[#ece4d6]" data-no-steer>
         {item.type === "mcq" || item.type === "typed" ? (
           <>
             <p className="text-xs uppercase tracking-widest text-[#a99cc4]">
@@ -1073,12 +1117,9 @@ export function StarCatch({
         )}
       </div>
 
-      {/* The field is square; on short screens it gets narrower so the question stays in view. */}
-      <div
-        className="mx-auto w-full"
-        style={{ maxWidth: "max(15rem, calc(100dvh - 21rem))" }}
-      >
-        <div className="pixel-panel relative mt-3 overflow-hidden">
+      {/* The field fills the space left between the question and the buttons. */}
+      <div className="flex min-h-0 w-full flex-1 flex-col">
+        <div className="pixel-panel relative mt-2 flex min-h-[11rem] flex-1 flex-col overflow-hidden">
           <div className="flex items-center justify-between bg-[#1d1730] px-3 py-1.5 text-[#ead39b]">
             <div
               className="flex min-w-[4.5rem] gap-1"
@@ -1104,56 +1145,61 @@ export function StarCatch({
               {combo >= 2 && <span className="text-[#a99cc4]">×{combo}</span>}
             </span>
           </div>
-          <div className="relative" style={{ aspectRatio: `${W} / ${H}` }}>
-            <canvas
-              ref={canvasRef}
-              width={W}
-              height={H}
-              className="pixelated block h-full w-full touch-none select-none"
-              onPointerDown={(e) => {
-                dragging.current = true;
-                e.currentTarget.setPointerCapture?.(e.pointerId);
-                aim(e);
-              }}
-              onPointerMove={(e) => dragging.current && aim(e)}
-              onPointerUp={() => (dragging.current = false)}
-              onPointerCancel={() => (dragging.current = false)}
-              aria-hidden="true"
-            />
-            {tokens.map((t) => (
-              <div
-                key={t.id}
-                ref={(el) => {
-                  if (el) labelRefs.current.set(t.id, el);
-                  else labelRefs.current.delete(t.id);
-                }}
-                className={cx(
-                  "pointer-events-none absolute -translate-x-1/2 whitespace-nowrap leading-none",
-                  spell
-                    ? "-translate-y-1/2 text-[22px] text-[#3a2614] [text-shadow:0_1px_0_#f6e7b8] sm:text-[26px]"
-                    : "border-2 border-[#241c2b] bg-[#f3e3b8] px-1.5 pb-[3px] pt-[4px] text-[13px] text-[#2b1f17] shadow-[2px_2px_0_#241c2b66] sm:text-[15px] before:absolute before:-top-[7px] before:left-[var(--notch,50%)] before:-translate-x-1/2 before:border-x-[5px] before:border-b-[5px] before:border-x-transparent before:border-b-[#241c2b] before:content-['']",
-                )}
-                style={{ left: "50%", top: "-20%", opacity: 0 }}
-              >
-                {t.text}
-              </div>
-            ))}
-            <p className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[11px] text-[#cf9c55]/70">
-              ◀ drag Nova or use the arrows ▶
-            </p>
-            {banner && (
-              <div
-                className={cx(
-                  "pointer-events-none absolute inset-x-0 top-[24%] text-center text-2xl [text-shadow:2px_2px_0_#241c2b] sm:text-3xl",
-                  banner.good ? "text-[#f6e7b8]" : "text-[#cf9f9b]",
-                )}
-                role="status"
-              >
-                <span className="inline-block border-2 border-[#241c2b] bg-[#241c2bd9] px-3 pb-0.5 pt-1">
-                  {banner.text}
-                </span>
-              </div>
-            )}
+          <div
+            className="relative min-h-0 flex-1"
+            style={{ background: PALETTE[laneGround(unitId).b] }}
+          >
+            <div ref={areaRef} className="absolute inset-0">
+              {field && box && (
+                <div
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                  style={{ width: box.w, height: box.h }}
+                  data-field
+                >
+                  <canvas
+                    ref={canvasRef}
+                    width={W}
+                    height={field.h}
+                    className="pixelated block h-full w-full"
+                    aria-hidden="true"
+                  />
+                  {tokens.map((t) => (
+                    <div
+                      key={t.id}
+                      ref={(el) => {
+                        if (el) labelRefs.current.set(t.id, el);
+                        else labelRefs.current.delete(t.id);
+                      }}
+                      className={cx(
+                        "pointer-events-none absolute -translate-x-1/2 whitespace-nowrap leading-none",
+                        spell
+                          ? "-translate-y-1/2 text-[22px] text-[#3a2614] [text-shadow:0_1px_0_#f6e7b8] sm:text-[26px]"
+                          : "border-2 border-[#241c2b] bg-[#f3e3b8] px-1.5 pb-[3px] pt-[4px] text-[13px] text-[#2b1f17] shadow-[2px_2px_0_#241c2b66] sm:text-[15px] before:absolute before:-top-[7px] before:left-[var(--notch,50%)] before:-translate-x-1/2 before:border-x-[5px] before:border-b-[5px] before:border-x-transparent before:border-b-[#241c2b] before:content-['']",
+                      )}
+                      style={{ left: "50%", top: "-20%", opacity: 0 }}
+                    >
+                      {t.text}
+                    </div>
+                  ))}
+                  <p className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[11px] text-[#cf9c55]/70">
+                    ◀ tap or drag to move Nova ▶
+                  </p>
+                  {banner && (
+                    <div
+                      className={cx(
+                        "pointer-events-none absolute inset-x-0 top-[24%] text-center text-2xl [text-shadow:2px_2px_0_#241c2b] sm:text-3xl",
+                        banner.good ? "text-[#f6e7b8]" : "text-[#cf9f9b]",
+                      )}
+                      role="status"
+                    >
+                      <span className="inline-block border-2 border-[#241c2b] bg-[#241c2bd9] px-3 pb-0.5 pt-1">
+                        {banner.text}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             {paused && (
               <div
                 className="absolute inset-0 grid place-items-center bg-[#0d1a2bcc] text-2xl text-[#ead39b]"
@@ -1165,7 +1211,7 @@ export function StarCatch({
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-2">
+        <div className="mt-2 flex items-center justify-center gap-2">
           <MoveButton
             dir={-1}
             label="Move left"
@@ -1209,7 +1255,10 @@ export function StarCatch({
         </div>
       </div>
 
-      <div className="pixel-panel mt-3 flex items-start gap-3 px-4 py-3 text-[#ece4d6]">
+      <div
+        className="pixel-panel mt-3 hidden items-start gap-3 px-4 py-3 text-[#ece4d6] [@media(min-height:900px)]:flex"
+        data-no-steer
+      >
         <span className="grid h-9 w-9 shrink-0 place-items-center bg-[#cf9c55]">
           <PixelSprite sprite={pixelStar} scale={3} />
         </span>

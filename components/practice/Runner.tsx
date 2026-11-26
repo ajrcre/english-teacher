@@ -457,7 +457,14 @@ export function Runner({
 
   return (
     <main className="night-sky min-h-dvh">
-      <div className="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 pb-40 pt-4 sm:px-6" style={phase.kind === "feedback" && sheetHeight ? { paddingBottom: sheetHeight + 24 } : undefined}>
+      {/* A mini-game takes the whole screen (no page scrolling); questions on cards scroll as a page. */}
+      <div
+        className={cx(
+          "mx-auto flex max-w-2xl flex-col sm:px-6",
+          asGame ? "h-dvh overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:pt-4" : "min-h-dvh px-4 pb-40 pt-4",
+        )}
+        style={phase.kind === "feedback" && sheetHeight ? { paddingBottom: sheetHeight + 24 } : undefined}
+      >
         <header className="flex items-center gap-3">
           <Link href="/home" className="grid h-10 w-10 place-items-center rounded-full bg-white/5 text-xl text-ink-200 hover:bg-white/10" aria-label="Close and go back">
             ×
@@ -493,7 +500,7 @@ export function Runner({
         ) : !isBoss && !asGame && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} hat={hat} />
         )}
-        <p className="mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">{lessonTitle ?? MODE_LABEL[mode]}</p>
+        <p className={cx("mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400", asGame && "hidden sm:block")}>{lessonTitle ?? MODE_LABEL[mode]}</p>
         {battle && unitId && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <BossArena unitId={unitId} hp={battle.hp} hits={battle.hits} hearts={BOSS_RULES.hearts} heartsLeft={battle.heartsLeft} beat={battle.beat} message={battle.message} hat={hat} />
         )}
