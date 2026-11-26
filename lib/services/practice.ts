@@ -1,7 +1,7 @@
 import { toClientItem, type ClientItem, type ItemResponse } from "@/lib/content/client";
 import { testById, type TestDef } from "@/content/tests";
 import type { Catalog } from "@/lib/content/catalog";
-import { daysUntil, testIsActive, testItemIds } from "@/lib/content/testScope";
+import { daysUntil, testIsActive, testItemIds, testLessonIds } from "@/lib/content/testScope";
 import { LLM_GRADED_TYPES, type Item, type ItemType } from "@/lib/content/schema";
 import type { ProgressRow, Repositories, StatsRow } from "@/lib/db/repositories";
 import { BOSS_RULES, type ChestContents } from "@/lib/gamification/collection";
@@ -176,22 +176,34 @@ export class PracticeService {
 
   async startSession(
     studentId: string,
-    opts: { mode: SessionMode; lessonId?: string | null; focusUnitId?: string | null },
+    opts: { mode: SessionMode; lessonId?: string | null; lessonIds?: readonly string[] | null; focusUnitId?: string | null },
   ): Promise<{ mode: SessionMode; items: (ClientItem & { lessonId: string; unitId: string; isNew: boolean })[]; estimatedSeconds: number; daily: DailyStatus; seed: string }> {
     const now = this.clock();
     const rows = await this.repos.progress.allProgress(studentId);
     const progress = new Map<string, ProgressLite>(rows.map((r) => [r.itemId, r]));
-    const [daily, pace, scope] = await Promise.all([this.dailyStatus(studentId, rows), this.paceByType(studentId), opts.mode === "lesson" || opts.mode === "boss" ? null : this.activeScope(studentId)]);
+    // Topics the student picked to practise together (lesson mode with several lessons).
+    const chosen = opts.mode === "lesson" && opts.lessonIds?.length ? new Set(opts.lessonIds) : null;
+    const usesScope = opts.mode !== "boss" && (opts.mode !== "lesson" || !!chosen);
+    const [daily, pace, scope] = await Promise.all([this.dailyStatus(studentId, rows), this.paceByType(studentId), usesScope ? this.activeScope(studentId) : null]);
+    let catalog = this.catalog.entries;
+    if (chosen) {
+      // Chosen topics: a topic that is on the switched-on test brings only its test questions
+      // (some lessons are tested only in part); any other topic comes whole.
+      const onTest = scope ? testLessonIds(scope.test) : null;
+      catalog = catalog.filter((e) => chosen.has(e.lessonId) && (!scope || !onTest!.has(e.lessonId) || scope.ids.has(e.item.id)));
+    } else if (scope) {
+      // With a test switched on, rounds use only what is on the test. Opening a lesson yourself is always allowed.
+      catalog = catalog.filter((e) => scope.ids.has(e.item.id));
+    }
     const plan = buildSession({
       mode: opts.mode,
-      // With a test switched on, rounds use only what is on the test. Opening a lesson yourself is always allowed.
-      catalog: scope ? this.catalog.entries.filter((e) => scope.ids.has(e.item.id)) : this.catalog.entries,
+      catalog,
       testPrep: !!scope,
       progress,
       now,
       today: daily.today,
       focusUnitId: opts.focusUnitId,
-      lessonId: opts.lessonId,
+      lessonId: chosen ? undefined : opts.lessonId,
       newItemsToday: daily.newItemsToday,
       secondsByType: pace,
     });
@@ -451,6 +463,14 @@ export class PracticeService {
       mastered: rows.filter((r) => scope.ids.has(r.itemId) && this.scheduler.isMastered(r)).length,
       seen: rows.filter((r) => scope.ids.has(r.itemId)).length,
       notInApp: [...scope.test.notInApp],
+      /** The test's topics, with progress counted on the questions the test covers. */
+      lessons: scope.test.rules.flatMap((r) => {
+        const ref = this.catalog.lessonById.get(r.lessonId);
+        if (!ref) return [];
+        const ids = ref.lesson.items.map((i) => i.id).filter((id) => scope.ids.has(id));
+        const mine = rows.filter((row) => ids.includes(row.itemId));
+        return [{ id: r.lessonId, title: ref.lesson.title, unitTitle: ref.unit.title, total: ids.length, seen: mine.length, mastered: mine.filter((row) => this.scheduler.isMastered(row)).length }];
+      }),
     };
     return { units, stats: summarize(toStatsState(statsRow)), statsRaw: toStatsState(statsRow), daily, test, badges: badges.map((b) => ({ id: b.badgeId, earnedAt: b.earnedAt })) };
   }

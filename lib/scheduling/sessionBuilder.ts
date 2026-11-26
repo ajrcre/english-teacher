@@ -171,6 +171,21 @@ class PlanAccumulator {
   }
 }
 
+/** Takes one question from each lesson in turn, so a round of several topics has some of each. */
+export function interleaveByLesson(list: readonly CatalogEntry[]): CatalogEntry[] {
+  const byLesson = new Map<string, CatalogEntry[]>();
+  for (const c of list) {
+    const l = byLesson.get(c.lessonId);
+    if (l) l.push(c);
+    else byLesson.set(c.lessonId, [c]);
+  }
+  if (byLesson.size < 2) return [...list];
+  const queues = [...byLesson.values()];
+  const out: CatalogEntry[] = [];
+  for (let i = 0; out.length < list.length; i++) for (const q of queues) if (i < q.length) out.push(q[i]);
+  return out;
+}
+
 /**
  * Builds one ~10-minute round. Pure function: all state comes in through `input`,
  * which keeps it easy to test and independent of the database.
@@ -234,9 +249,10 @@ export function buildSession(input: BuildInput): SessionPlan {
       break;
     }
     case "lesson": {
-      const inLesson = catalog.filter((c) => c.lessonId === input.lessonId);
+      // One lesson, or (with no lessonId) the chosen topics the catalog was narrowed to.
+      const inLesson = input.lessonId ? catalog.filter((c) => c.lessonId === input.lessonId) : catalog;
       acc.fill(inLesson.filter(isDue).sort(reviewOrder), false);
-      acc.fill(inLesson.filter(isUnseen).sort(byOrder), true);
+      acc.fill(interleaveByLesson(inLesson.filter(isUnseen).sort(byOrder)), true);
       acc.fill(inLesson.filter(notMastered).sort(leastRecent), false);
       acc.fill(inLesson.filter((c) => !!seen(c)).sort(leastRecent), false);
       break;

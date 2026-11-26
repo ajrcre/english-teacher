@@ -23,6 +23,11 @@ export function testItemIds(catalog: Catalog, test: TestDef): Set<string> {
   return out;
 }
 
+/** The lessons a test covers (some only in part: see testItemIds). */
+export function testLessonIds(test: TestDef): Set<string> {
+  return new Set(test.rules.map((r) => r.lessonId));
+}
+
 /** A test is "on" for a student until the end of the test day. */
 export function testIsActive(test: TestDef, today: string): boolean {
   return today <= test.date;

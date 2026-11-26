@@ -106,6 +106,7 @@ function readGameMode(): boolean {
 export function Runner({
   mode,
   lessonId,
+  lessonIds,
   lessonTitle,
   soundOn,
   unitId,
@@ -114,6 +115,8 @@ export function Runner({
 }: {
   mode: SessionMode;
   lessonId?: string;
+  /** Lesson mode: several topics the student chose to practise together. */
+  lessonIds?: string[];
   lessonTitle?: string;
   soundOn: boolean;
   /** The lesson's unit (boss battles use its boss and backdrop). */
@@ -124,6 +127,7 @@ export function Runner({
   hat?: string | null;
 }) {
   const isBoss = mode === "boss" && !!unitId;
+  const chosenTopics = lessonIds?.length ? lessonIds.join(",") : null;
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -168,7 +172,7 @@ export function Runner({
       const res = await fetch("/api/session/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, lessonId: lessonId ?? null }),
+        body: JSON.stringify({ mode, lessonId: lessonId ?? null, lessonIds: chosenTopics ? chosenTopics.split(",") : null }),
       });
       if (res.status === 401) {
         router.replace("/join");
@@ -199,7 +203,7 @@ export function Runner({
     } catch (e) {
       setPhase({ kind: "error", message: e instanceof Error ? e.message : "Could not start" });
     }
-  }, [mode, lessonId, router, unitId]);
+  }, [mode, lessonId, chosenTopics, router, unitId]);
 
   useEffect(() => {
     // Initial phase is already "loading"; start(false) only updates state after the fetch resolves.

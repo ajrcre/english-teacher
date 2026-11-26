@@ -110,6 +110,31 @@ describe("test prep rounds", () => {
     for (const item of s.items) expect(catalog.itemById.get(item.id)!.lessonId).toBe("giver-ch1-2-vocab");
   });
 
+  it("practises only the topics a student picks, a few of each", async () => {
+    const picked = ["gr-capitals", "giver-ch1-2-vocab"];
+    const s = await service.startSession(studentId, { mode: "lesson", lessonIds: picked });
+    const lessons = s.items.map((i) => catalog.itemById.get(i.id)!.lessonId);
+    expect(s.items.length).toBeGreaterThan(4);
+    for (const l of lessons) expect(picked).toContain(l);
+    // Interleaved, so the first questions already come from both topics.
+    expect(new Set(lessons.slice(0, 4)).size).toBe(2);
+  });
+
+  it("with the test on, a picked test topic brings only its test questions; other topics come whole", async () => {
+    await repos.users.updateStudent(studentId, { activeTest: test2.id });
+    // gr-present is on the test only for workbook pp. 139–142.
+    const s = await service.startSession(studentId, { mode: "lesson", lessonIds: ["gr-present", "giver-ch1-2-vocab"] });
+    const present = s.items.filter((i) => catalog.itemById.get(i.id)!.lessonId === "gr-present");
+    const giver = s.items.filter((i) => catalog.itemById.get(i.id)!.lessonId === "giver-ch1-2-vocab");
+    expect(present.length).toBeGreaterThan(0);
+    expect(giver.length).toBeGreaterThan(0);
+    for (const i of present) expect(scope().has(i.id)).toBe(true);
+    const o = await service.overview(studentId);
+    expect(o.test!.lessons.map((l) => l.id)).toEqual(test2.rules.map((r) => r.lessonId));
+    expect(o.test!.lessons.reduce((a, l) => a + l.total, 0)).toBe(101);
+    expect(o.test!.lessons.find((l) => l.id === "gr-present")!.total).toBeLessThan(catalog.lessonById.get("gr-present")!.lesson.items.length);
+  });
+
   it("rounds are still time-boxed, and everything in them is new on the first day", async () => {
     await repos.users.updateStudent(studentId, { activeTest: test2.id });
     const s = await service.startSession(studentId, { mode: "review", focusUnitId: null });
