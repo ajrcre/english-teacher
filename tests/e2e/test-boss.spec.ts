@@ -8,10 +8,13 @@ import type { Item } from "@/lib/content/schema";
 /**
  * The Grey Fox, the test-prep boss: unlock him by meeting the test's questions, fight him
  * (his questions come in speech bubbles; a wrong answer gets a bubble thrown at Nova), beat
- * him with 12 right answers and win his E hat, which Nova then wears. Set SHOTS_DIR for screenshots.
+ * him with 12 right answers and win his E hat, which Nova then wears. His questions are played
+ * in his own Star Catch (trembling stars, and grey stars that must not be caught).
+ * Set SHOTS_DIR for screenshots.
  */
 test.use({ extraHTTPHeaders: { "x-forwarded-for": `10.7.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` } });
 test.beforeEach(async ({ page }) => {
+  // Game mode off: the fox's Star Catch must play anyway.
   await page.addInitScript(() => localStorage.setItem("starlight.gameMode", "off"));
 });
 
@@ -35,25 +38,39 @@ async function dismissCelebrations(page: Page) {
   }
 }
 
-/** Answers the fox's current question (right or wrong) on its card. */
-async function answer(page: Page, correct: boolean, shots?: string) {
-  const card = page.locator("section[data-item]:has(button.choice:not([disabled]))");
-  await expect(card).toBeVisible({ timeout: 30_000 });
-  const id = await card.getAttribute("data-item");
+/** Plays one of the fox's questions in his Star Catch: catches the right star (or a wrong one). */
+async function play(page: Page, correct: boolean, shots?: string) {
+  const game = page.getByRole("region", { name: "Star catch" });
+  await expect(game).toBeVisible({ timeout: 30_000 });
+  const id = await game.getAttribute("data-item");
   const item = mcqs.find((m) => m.id === id)!;
   const right = item.options[item.answer];
-  const texts = (await card.locator("button.choice span:nth-child(2)").allInnerTexts()).map((t) => t.trim());
-  const pick = correct ? right : texts.find((t) => t !== right)!;
-  if (shots) await shot(page, `${shots}-ask`);
-  await card.locator("button.choice").filter({ has: page.locator("span:nth-child(2)").getByText(pick, { exact: true }) }).click();
-  await page.getByRole("button", { name: "Check answer" }).click();
-  await expect(page.locator(`[data-bubble="${correct ? "right" : "wrong"}"]`).or(page.getByText("Victory!").first())).toBeVisible({ timeout: 10_000 });
-  if (shots) {
-    await page.waitForTimeout(correct ? 150 : 700); // mid-throw for a wrong answer
-    await shot(page, `${shots}-${correct ? "right" : "wrong"}`);
+  if (shots) await shot(page, `${shots}-tremble`);
+  const labels = (await game.locator(".sr-only button").allInnerTexts()).map((t) => t.replace(/^Catch the star: /, "").trim());
+  const pick = correct ? right : labels.find((l) => l !== right)!;
+  const button = game.getByRole("button", { name: `Catch the star: ${pick}`, exact: true });
+  await button.focus({ timeout: 15_000 });
+  await button.press("Enter");
+  if (!correct) {
+    await expect(page.locator('[data-bubble="wrong"]')).toBeVisible({ timeout: 10_000 });
+    if (shots) {
+      await page.waitForTimeout(650);
+      await shot(page, `${shots}-wrong`);
+    }
+    await page.getByRole("button", { name: "Continue" }).click();
+    await dismissCelebrations(page);
+    return;
   }
-  await page.getByRole("button", { name: "Continue" }).click();
-  await dismissCelebrations(page);
+  // A right catch: straight on to his next question (or he's beaten).
+  for (let k = 0; k < 60; k++) {
+    await dismissCelebrations(page);
+    if (await page.getByRole("heading", { name: "Victory!" }).isVisible().catch(() => false)) return;
+    if (shots && k === 1) await shot(page, `${shots}-right`);
+    const now = await game.getAttribute("data-item", { timeout: 500 }).catch(() => null);
+    if (now && now !== id) return;
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`the fox's game did not move on from ${id}`);
 }
 
 test("the Grey Fox: unlock him, beat him, win his E hat", async ({ page }) => {
@@ -94,26 +111,37 @@ test("the Grey Fox: unlock him, beat him, win his E hat", async ({ page }) => {
   await shot(page, "f0-home");
   await banner.getByRole("link", { name: "⚔ Fight" }).click();
   await page.waitForURL(/mode=test-boss/);
+  // Test hook: one grey star falls right onto Nova at the start.
+  await page.goto(`${page.url()}&foxGrey=1`);
   await expect(page.getByRole("region", { name: "Boss battle: The Grey Fox" })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByLabel("3 of 3 hearts left")).toBeVisible();
-  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Star catch" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel("3 of 3 hearts left").first()).toBeVisible();
 
-  // One wrong answer: the bubble is thrown, a heart breaks. Then twelve right answers.
-  await answer(page, false, "f1");
-  await expect(page.getByLabel("2 of 3 hearts left")).toBeVisible();
-  for (let i = 0; i < 12; i++) await answer(page, true, i === 0 ? "f2" : undefined);
+  // The grey star lands in Nova's basket: like a wrong answer, the bubble is thrown and a heart breaks.
+  await expect(page.locator('[data-bubble="wrong"]')).toBeVisible({ timeout: 15_000 });
+  await page.waitForTimeout(650);
+  await shot(page, "f1-grey-star");
+  await expect(page.getByLabel("2 of 3 hearts left").first()).toBeVisible();
+  await expect(page.getByText("Not quite")).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await dismissCelebrations(page);
+
+  // A wrong answer star costs another heart. Then twelve right catches.
+  await play(page, false, "f2");
+  await expect(page.getByLabel("1 of 3 hearts left").first()).toBeVisible();
+  for (let i = 0; i < 12; i++) await play(page, true, i === 0 ? "f3" : undefined);
 
   await expect(page.getByRole("heading", { name: "Victory!" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("The E hat is yours!")).toBeVisible({ timeout: 15_000 });
   await dismissCelebrations(page);
   await page.waitForTimeout(800);
   await dismissCelebrations(page);
-  await shot(page, "f3-victory");
+  await shot(page, "f4-victory");
 
   // It's in the shop like the bought hats, and Nova is wearing it.
   await page.getByRole("link", { name: "See your hats" }).click();
   const hat = page.locator("li", { hasText: "The Fox's E Hat" });
   await expect(hat.getByText("Wearing ✓")).toBeVisible({ timeout: 30_000 });
   await hat.scrollIntoViewIfNeeded();
-  await shot(page, "f4-shop");
+  await shot(page, "f5-shop");
 });

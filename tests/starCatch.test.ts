@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { units } from "@/content/units";
 import { buildCatalog } from "@/lib/content/catalog";
 import { toClientItem } from "@/lib/content/client";
-import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy } from "@/lib/game/starCatch";
+import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy, foxGreyX, FOX_STAR_RULES, GREY_STAR } from "@/lib/game/starCatch";
 
 const q = (options: string[]) => ({ type: "mcq", prompt: "Choose the best word.", options });
 
@@ -119,5 +119,25 @@ describe("star catch rules", () => {
     }
     expect(covered).toBeGreaterThan(35);
     expect(matchKey("x", [["a", "b"]])).toBeUndefined();
+  });
+});
+
+describe("the Grey Fox's Star Catch", () => {
+  it("drops grey stars inside the field, often near Nova", () => {
+    let seed = 1;
+    const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const xs = Array.from({ length: 200 }, () => foxGreyX(rand, 80, 160));
+    for (const x of xs) {
+      expect(x).toBeGreaterThanOrEqual(16);
+      expect(x).toBeLessThanOrEqual(144);
+    }
+    expect(xs.filter((x) => Math.abs(x - 80) <= 18).length).toBeGreaterThan(60);
+    expect(foxGreyX(() => 0.1, 2, 160)).toBe(16);
+  });
+
+  it("drops the answer stars fast once they let go, and grey ones a little slower", () => {
+    expect(FOX_STAR_RULES.dropMs).toBeLessThan(FOX_STAR_RULES.greyDropMs);
+    expect(FOX_STAR_RULES.greyEveryMs[0]).toBeLessThan(FOX_STAR_RULES.greyEveryMs[1]);
+    expect(GREY_STAR.length).toBeGreaterThan(0);
   });
 });

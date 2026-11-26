@@ -38,6 +38,7 @@ function inside(pts: [number, number][], x: number, y: number): boolean {
 type StarLook =
   | { kind: "gold"; f: number }
   | { kind: "glow"; f: number }
+  | { kind: "grey"; f: number }
   | { kind: "broken" };
 
 /** Colours for each look: [highlight, light, body, shade, deep shade]. */
@@ -45,6 +46,8 @@ const TONES = {
   gold: ["f", "y", "Y", "a", "A"],
   glow: ["w", "f", "y", "Y", "a"],
   broken: ["w", "W", "e", "g", "G"],
+  /** The Grey Fox's stars: dull grey ones you must not catch. */
+  grey: ["e", "g", ">", "G", "<"],
 } as const;
 
 function star(look: StarLook): PixelCanvas {
@@ -106,7 +109,7 @@ function star(look: StarLook): PixelCanvas {
     [10, 15],
   ];
   const [sx, sy] = spots[f % spots.length];
-  c.set(sx, sy, "w");
+  c.set(sx, sy, look.kind === "grey" ? "W" : "w");
   if (f % 2 === 0)
     c.set(sx - 1, sy, tone[0])
       .set(sx + 1, sy, tone[0])
@@ -135,6 +138,10 @@ export const glowingStar: Sprite = sprite(
   ...[0, 1, 2, 3].map((f) => star({ kind: "glow", f })),
 );
 export const crackedStar: Sprite = sprite(star({ kind: "broken" }));
+/** A grey star: in the Grey Fox's Star Catch, catching one counts as a wrong answer. */
+export const greyStar: Sprite = sprite(
+  ...[0, 1, 2, 3].map((f) => star({ kind: "grey", f })),
+);
 
 /** Tiny grey shards that fly off a broken star (3 shapes). */
 export const shard: Sprite = sprite(

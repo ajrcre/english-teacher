@@ -85,6 +85,8 @@ export const LANE_GROUND: Record<string, { a: string; b: string; edge: string; m
   grammar: { a: "K", b: "t", edge: "T", mark: "Y" },
   "word-treasury": { a: "H", b: "F", edge: "E", mark: "a" },
   "short-stories": { a: "t", b: "T", edge: "d", mark: "Z" },
+  /** The Grey Fox's castle: grey cobbles. */
+  "grey-fox": { a: ">", b: "<", edge: "(", mark: "{" },
 };
 
 export function laneGround(unitId: string) {

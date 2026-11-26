@@ -3,10 +3,10 @@ import { TRANSPARENT } from "../palette";
 import { ANCHOR_X, ANCHOR_Y, hatCanvas } from "./hats";
 
 /**
- * The Grey Fox: the test-prep boss. A cute but very cool grey fox: big shiny red eyes with a
- * smug half-lidded look, a sly smirk, a red scarf, and a tall hat with a big E (the hat he
- * drops when he is beaten). He stands tall on his hind legs, arms crossed. He asks his questions in speech bubbles and
- * throws a bubble at Nova when she gets one wrong. 36×52, facing left (towards Nova).
+ * The Grey Fox: the test-prep boss. A cute but very cool grey fox with a poker face (solid red
+ * eyes, no pupils) and a tall hat with a big E (the hat he drops when he is beaten). Short and
+ * round, he stands on his hind legs, arms crossed. He asks his questions in speech bubbles and
+ * throws a bubble at Nova when she gets one wrong. 34×42, facing left (towards Nova).
  */
 export interface FoeDef {
   name: string;
@@ -23,25 +23,13 @@ export interface FoeDef {
   hurt: Sprite;
 }
 
-/** He stands tall on his hind legs: a taller sprite than the other bosses. */
-export const FOX_W = 36;
-export const FOX_H = 52;
+/** He stands on his hind legs, short and round (a big head on a small body). */
+export const FOX_W = 34;
+export const FOX_H = 42;
 type Pose = { kind: "idle"; f: number } | { kind: "talk"; f: number } | { kind: "attack" } | { kind: "throw"; f: number } | { kind: "hurt" };
 
 const LIGHT: Record<string, string> = { G: "g", g: "e", e: "W", R: "r", r: "p" };
 const DARK: Record<string, string> = { g: "G", e: "g", W: "e" };
-
-/** A flickering red-black aura hugging the silhouette. */
-function aura(c: PixelCanvas, frame: number): void {
-  const src = c.clone();
-  for (let y = 0; y < c.h; y++)
-    for (let x = 0; x < c.w; x++) {
-      if (src.get(x, y) !== TRANSPARENT) continue;
-      let near = false;
-      for (let dy = -2; dy <= 2 && !near; dy++) for (let dx = -2; dx <= 2 && !near; dx++) if (Math.abs(dx) + Math.abs(dy) <= 2 && src.get(x + dx, y + dy) !== TRANSPARENT) near = true;
-      if (near && (x + y + frame) % 3 === 0) c.set(x, y, (x + frame) % 2 ? "R" : "m");
-    }
-}
 
 function fox(p: Pose): PixelCanvas {
   const c = new PixelCanvas(FOX_W, FOX_H);
@@ -54,16 +42,16 @@ function fox(p: Pose): PixelCanvas {
 
   // a big fluffy tail curling up behind him, swishing, with a cream tip
   const sw = p.kind === "idle" && f % 2 ? 1 : 0;
-  c.ellipse(27 + sw, 40, 4.5, 6, "g");
-  c.ellipse(30 + sw, 32, 4, 5, "g");
-  c.ellipse(31 + sw, 26, 3, 3.5, "W");
-  // standing tall on two hind legs, cream feet pointing forward
-  c.rect(13, 37, 3, 11, "G").rect(20, 37, 3, 11, "G");
-  c.ellipse(12, 48, 3, 1.5, "W").ellipse(19, 48, 3, 1.5, "W");
-  // upright, slim body (darker than his head) with a cream tummy
+  c.ellipse(26 + sw, 33, 4.5, 5, "g");
+  c.ellipse(29 + sw, 27, 3.5, 4, "g");
+  c.ellipse(30 + sw, 22, 2.5, 3, "W");
+  // short stubby legs on two feet
+  c.rect(13, 35, 3, 4, "G").rect(20, 35, 3, 4, "G");
+  c.ellipse(12, 39.5, 2.5, 1.5, "W").ellipse(19, 39.5, 2.5, 1.5, "W");
+  // a small round body (darker than his head) with a cream tummy
   const bx = 18 + Math.round(lean / 2);
-  c.ellipse(bx, 31 + up, 6, 8.5, "G");
-  c.ellipse(bx - 2, 32 + up, 3.5, 6.5, "e");
+  c.ellipse(bx, 30 + up, 6.5, 6, "G");
+  c.ellipse(bx - 2, 31 + up, 3.5, 4.5, "e");
 
   // a big round head (cute proportions)
   const hx = 16 + lean;
@@ -84,13 +72,6 @@ function fox(p: Pose): PixelCanvas {
   c.ellipse(hx - 8, hy + 3, 2.5, 2, "e");
   c.rect(hx - 11, hy + 1, 2, 2, "k");
   c.set(hx - 11, hy + 1, "g");
-  // a red scarf, its end flying out behind: the cool part
-  c.hline(hx - 3, hx + 7, hy + 7, "r").hline(hx - 2, hx + 7, hy + 8, "R");
-  const flap = f % 2; // the ends flap in the wind
-  c.line(hx + 7, hy + 7, hx + 12, hy + 4 + flap, "r").line(hx + 12, hy + 4 + flap, hx + 17, hy + 3 - flap, "r");
-  c.line(hx + 7, hy + 8, hx + 12, hy + 5 + flap, "R").line(hx + 12, hy + 5 + flap, hx + 17, hy + 4 - flap, "R");
-  c.line(hx + 7, hy + 9, hx + 11, hy + 9 - flap, "r").line(hx + 11, hy + 9 - flap, hx + 15, hy + 8, "R");
-
   // a poker face: narrow eyes of solid glowing red (no pupils) under flat, heavy lids, and a straight mouth that
   // never gives anything away (not when he talks, not when he throws, not even when he's hit)
   const ey = hy - 1;
@@ -113,7 +94,7 @@ function fox(p: Pose): PixelCanvas {
   // front paws (arms): crossed over his chest while he waits, pointing while he talks,
   // swinging the bubble when he throws
   const sx = bx + 3; // shoulder
-  const sy = 27 + up;
+  const sy = 26 + up;
   const arm = (x: number, y: number, holding = false) => {
     c.line(sx, sy + 2, x, y + 2, "k");
     c.line(sx, sy, x, y, "g").line(sx, sy + 1, x, y + 1, "g").line(sx + 1, sy + 1, x + 1, y + 1, "g");
@@ -123,25 +104,24 @@ function fox(p: Pose): PixelCanvas {
       c.set(x + 1, y - 5, "V").set(x + 1, y - 3, "V");
     }
   };
-  if (thr === 0) arm(30, 18, true); // wound back behind him
-  else if (thr === 1) arm(27, 7, true); // swung up high
+  if (thr === 0) arm(29, 18, true); // wound back behind him
+  else if (thr === 1) arm(26, 8, true); // swung up high
   else if (thr === 2) arm(2, 26, false); // flung forward: the bubble is away
-  else if (thr === 3) arm(6, 34, false); // follow-through
-  else if (p.kind === "attack") arm(4, 28, false);
+  else if (thr === 3) arm(6, 32, false); // follow-through
+  else if (p.kind === "attack") arm(4, 27, false);
   else if (p.kind === "talk") arm(3, 25 + (f % 2), false); // points at Nova
   else if (!hurt) {
     // arms crossed: the cool pose
-    c.hline(bx - 7, bx + 5, 28 + up, "g").hline(bx - 7, bx + 5, 29 + up, "g").hline(bx - 6, bx + 4, 30 + up, "k");
-    c.hline(bx - 6, bx + 6, 31 + up, "g").hline(bx - 6, bx + 6, 32 + up, "g").hline(bx - 5, bx + 5, 33 + up, "k");
-    c.ellipse(bx - 7, 28.5 + up, 1.6, 1.4, "W").ellipse(bx + 6, 31.5 + up, 1.6, 1.4, "W");
-  } else arm(26, 36, false); // flung back when hit
+    c.hline(bx - 7, bx + 5, 27 + up, "g").hline(bx - 7, bx + 5, 28 + up, "g").hline(bx - 6, bx + 4, 29 + up, "k");
+    c.hline(bx - 6, bx + 6, 30 + up, "g").hline(bx - 6, bx + 6, 31 + up, "g").hline(bx - 5, bx + 5, 32 + up, "k");
+    c.ellipse(bx - 7, 27.5 + up, 1.6, 1.4, "W").ellipse(bx + 6, 30.5 + up, 1.6, 1.4, "W");
+  } else arm(26, 33, false); // flung back when hit
 
   c.shade(LIGHT, DARK);
   c.outline("k");
   // his hat, worn at the back of his head, knocked up when he's hit
   const hat = hatCanvas("e", "front");
   c.stamp(hat, Math.round(hx + 1) - ANCHOR_X, Math.round(hy - 6) - ANCHOR_Y + (hurt ? -2 : 0));
-  aura(c, p.kind === "idle" ? f : p.kind === "talk" ? f + 1 : 2);
   return c;
 }
 

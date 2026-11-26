@@ -57,6 +57,7 @@ describe("pixel art", () => {
       ["grey fox attack", GREY_FOX.attack],
       ["grey fox throw", GREY_FOX.throw],
       ["grey fox hurt", GREY_FOX.hurt],
+      ["grey star", starCatch.greyStar],
       ["bubble fly", BUBBLE_FLY],
       ["bubble break", BUBBLE_BREAK],
       ["bubble pop", BUBBLE_POP],
@@ -101,7 +102,7 @@ describe("pixel art", () => {
     for (const s of [novaWalk, novaRun, novaSit, novaTrip, novaJump]) expect([s.w, s.h]).toEqual([novaWalk.w, novaWalk.h]);
   });
 
-  it("the Grey Fox stands tall, with a 4-frame idle, a talk loop and a 4-frame throw", () => {
+  it("the Grey Fox stands on two legs, with a 4-frame idle, a talk loop and a 4-frame throw", () => {
     expect(GREY_FOX.sprite.frames).toHaveLength(4);
     expect(GREY_FOX.throw.frames).toHaveLength(4);
     expect(GREY_FOX.talk.frames).toHaveLength(2);

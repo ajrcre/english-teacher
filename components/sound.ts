@@ -14,6 +14,11 @@ export function setSoundEnabled(on: boolean): void {
   enabled = on;
 }
 
+/** Whether sound is on (for sounds made in code, like the Grey Fox's). */
+export function soundEnabled(): boolean {
+  return enabled;
+}
+
 function audio(src: string): HTMLAudioElement {
   let a = cache.get(src);
   if (!a) {

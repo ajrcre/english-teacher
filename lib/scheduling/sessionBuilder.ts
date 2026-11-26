@@ -1,4 +1,5 @@
 import { ESTIMATED_SECONDS, LLM_GRADED_TYPES, type Item, type ItemType } from "@/lib/content/schema";
+import { starEligible } from "@/lib/game/starCatch";
 import { BOSS_RULES, TEST_BOSS_RULES } from "@/lib/gamification/collection";
 import { addDays, dayStart } from "@/lib/time";
 
@@ -144,11 +145,16 @@ export function bossEligibility(catalog: readonly CatalogEntry[], progress: Read
 export function testBossEligibility(testCatalog: readonly CatalogEntry[], progress: ReadonlyMap<string, ProgressLite>): BossEligibility {
   const seen = testCatalog.filter((c) => progress.has(c.item.id)).length;
   const needed = Math.max(TEST_BOSS_RULES.hp, Math.ceil(testCatalog.length * TEST_BOSS_RULES.unlockSeenShare));
-  const pool = seenQuickPool(testCatalog, progress).length;
+  const pool = foxPool(testCatalog, progress).length;
   return { available: seen >= needed && pool >= TEST_BOSS_RULES.hp, seen, needed, hp: TEST_BOSS_RULES.hp };
 }
 
 export const testBossBattleSize = () => TEST_BOSS_RULES.hp + TEST_BOSS_RULES.hearts - 1;
+
+/** The Grey Fox's questions: met before, and playable as his Star Catch (multiple choice that fits on stars). */
+export function foxPool(testCatalog: readonly CatalogEntry[], progress: ReadonlyMap<string, ProgressLite>): CatalogEntry[] {
+  return seenQuickPool(testCatalog, progress).filter((c) => c.item.type === "mcq" && starEligible(c.item));
+}
 
 class PlanAccumulator {
   readonly entries: SessionEntry[] = [];
@@ -287,7 +293,7 @@ export function buildSession(input: BuildInput): SessionPlan {
     }
     case "test-boss": {
       const battle = new PlanAccumulator(Infinity, input.secondsByType);
-      for (const c of seenQuickPool(catalog, progress).slice(0, testBossBattleSize())) battle.tryAdd(c, false);
+      for (const c of foxPool(catalog, progress).slice(0, testBossBattleSize())) battle.tryAdd(c, false);
       return { mode: "test-boss", entries: battle.entries, estimatedSeconds: battle.seconds, newCount: 0 };
     }
     case "mistakes": {

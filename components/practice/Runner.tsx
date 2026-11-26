@@ -149,8 +149,15 @@ export function Runner({
   const [doneBanner, setDoneBanner] = useState(false);
   const [tally, setTally] = useState<Tally>(EMPTY_TALLY);
   const [battle, setBattle] = useState<Battle | null>(null);
+  /** The battle's outcome as soon as it's known: a mini-game moves on before the next render. */
+  const battleOver = useRef(false);
   /** The Grey Fox's bubble for the question just answered: ticked (right) or thrown (wrong). */
   const [foxAnswer, setFoxAnswer] = useState<{ key: string; state: "right" | "wrong" } | null>(null);
+  /**
+   * The Grey Fox's Star Catch takes the whole screen; his castle arena shows only in between:
+   * as he arrives ("intro"), and after each catch for the outcome ("result").
+   */
+  const [foxBreak, setFoxBreak] = useState<"intro" | "result" | null>(null);
   const [claim, setClaim] = useState<BossClaim | null>(null);
   const [bossUnlocked, setBossUnlocked] = useState(bossReady);
   /** Height of the feedback sheet, so the page can make room for it below the question. */
@@ -178,6 +185,8 @@ export function Runner({
   const start = useCallback(async (showLoading = true) => {
     if (showLoading) setPhase({ kind: "loading" });
     completed.current = false;
+    battleOver.current = false;
+    setFoxBreak(null);
     try {
       const res = await fetch("/api/session/start", {
         method: "POST",
@@ -207,6 +216,7 @@ export function Runner({
       if (isFox) {
         setBattle({ hp: TEST_BOSS_RULES.hp, hits: 0, heartsLeft: TEST_BOSS_RULES.hearts, run: 0, beat: null, message: `${GREY_FOX.name} appears! ${GREY_FOX.intro}`, outcome: null });
         setFoxAnswer(null);
+        setFoxBreak("intro");
       }
       if (mode === "boss" && unitId) {
         const boss = bossFor(unitId);
@@ -281,7 +291,11 @@ export function Runner({
       setDaily(data.daily);
       setTally((t) => ({ ...t, answered: t.answered + 1, correct: t.correct + (verdict === "correct" ? 1 : 0) }));
       applyRewards(data.rewards);
-      if (battle) setBattle(nextBeat(battle, verdict === "correct", isFox ? GREY_FOX.name : bossFor(unitId!).name, isFox));
+      if (battle) {
+        const after = nextBeat(battle, verdict === "correct", isFox ? GREY_FOX.name : bossFor(unitId!).name, isFox);
+        battleOver.current = !!after.outcome;
+        setBattle(after);
+      }
       if (isFox) {
         setFoxAnswer({ key: current.key, state: verdict === "correct" ? "right" : "wrong" });
         // Bring the arena into view: the tick, or the throw at Nova, plays up there.
@@ -328,10 +342,11 @@ export function Runner({
   }
 
   const advance = useCallback(() => {
+    setFoxBreak(null);
     setResponse(null);
     setToast(null);
     setRunnerHold(false);
-    if (battle?.outcome || index + 1 >= queue.length) {
+    if (battle?.outcome || battleOver.current || index + 1 >= queue.length) {
       setPhase({ kind: "summary" });
       return;
     }
@@ -349,6 +364,17 @@ export function Runner({
     }
     advance();
   }, [advance, celebration, showNextCelebration]);
+
+  const nextRef = useRef(next);
+  useEffect(() => {
+    nextRef.current = next;
+  }, [next]);
+  // The Grey Fox arrives: his castle for a moment, then his first Star Catch.
+  useEffect(() => {
+    if (foxBreak !== "intro") return;
+    const id = setTimeout(() => setFoxBreak((b) => (b === "intro" ? null : b)), 2200);
+    return () => clearTimeout(id);
+  }, [foxBreak]);
 
   const closeCelebration = useCallback(() => {
     if (celebrationQueue.current.length) {
@@ -446,14 +472,18 @@ export function Runner({
   // then in the lane runner; spelling words are played as Star Catch letters.
   const playing = phase.kind === "answering" || phase.kind === "submitting" || phase.kind === "feedback";
   const game = useMemo((): "runner" | "stars" | "spell" | "match" | null => {
+    // The Grey Fox sends every one of his questions into his own Star Catch.
+    if (isFox) return current && playing && current.type === "mcq" && starEligible(current) ? "stars" : null;
     if (inBattle || !gameMode || !current || !playing) return null;
     if ((current.type === "dictation" || current.type === "typed") && current.spell) return "spell";
     if (current.type === "match" && current.pairKey) return "match";
     if (current.type !== "mcq" || !runnerEligible(current)) return null;
     const before = queue.slice(0, index).filter((q) => q.type === "mcq" && runnerEligible(q)).length;
     return mcqGame(before, starEligible(current));
-  }, [inBattle, gameMode, current, playing, queue, index]);
+  }, [isFox, inBattle, gameMode, current, playing, queue, index]);
   const asGame = game !== null;
+  /** The game is on screen (not during one of the Grey Fox's breaks). */
+  const showGame = asGame && !(isFox && foxBreak);
   /** Star Catch: a third star for two-answer questions, borrowed from the round's other questions. */
   const decoy = useMemo(() => {
     if (game !== "stars" || current?.type !== "mcq") return null;
@@ -485,7 +515,7 @@ export function Runner({
       <div
         className={cx(
           "mx-auto flex max-w-2xl flex-col sm:px-6",
-          asGame ? "h-dvh overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:pt-4" : "min-h-dvh px-4 pb-40 pt-4",
+          showGame ? "h-dvh overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:pt-4" : "min-h-dvh px-4 pb-40 pt-4",
         )}
         style={phase.kind === "feedback" && sheetHeight ? { paddingBottom: sheetHeight + 24 } : undefined}
       >
@@ -525,7 +555,7 @@ export function Runner({
           <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} hat={hat} />
         )}
         <p className={cx("mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400", asGame && "hidden sm:block")}>{lessonTitle ?? MODE_LABEL[mode]}</p>
-        {battle && isFox && current && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+        {battle && isFox && current && !showGame && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <FoxArena
             hp={battle.hp}
             hits={battle.hits}
@@ -581,21 +611,30 @@ export function Runner({
             }}
           />
         )}
-        {(game === "stars" || game === "spell" || game === "match") && current && (
+        {(game === "stars" || game === "spell" || game === "match") && current && showGame && (
           <StarCatch
             key={current.key}
             item={current as Parameters<typeof StarCatch>[0]["item"]}
-            unitId={current.unitId}
+            unitId={isFox ? "grey-fox" : current.unitId}
             hat={hat}
             combo={stats?.combo ?? 0}
             xp={tally.xp}
             pace={pace}
             decoy={decoy}
+            variant={isFox ? "fox" : undefined}
+            foxHearts={isFox && battle ? { left: battle.heartsLeft, of: TEST_BOSS_RULES.hearts } : undefined}
             onChoose={(response) => {
               setRunnerHold(true);
               return submit(undefined, response);
             }}
             onFinished={(verdict) => {
+              if (isFox) {
+                // back to his castle for the outcome: a tick and Nova's strike, or the bubble thrown
+                setFoxBreak("result");
+                if (verdict === "correct") setTimeout(() => nextRef.current(), 1400);
+                else setRunnerHold(false);
+                return;
+              }
               if (verdict === "correct") next();
               else setRunnerHold(false);
             }}

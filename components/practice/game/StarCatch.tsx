@@ -7,9 +7,13 @@ import { playDictation, playSfx } from "@/components/sound";
 import type { ClientItem, ItemResponse } from "@/lib/content/client";
 import { approachMs, laneGround } from "@/lib/game/runner";
 import { fieldHeight, isControl, toField } from "@/lib/game/stage";
+import { bubbleShatter } from "@/components/foxSounds";
 import {
   catcherX,
   decoyLetter,
+  FOX_STAR_RULES,
+  foxGreyX,
+  GREY_STAR,
   fillMask,
   isNextLetter,
   isPair,
@@ -33,6 +37,7 @@ import {
   crackedStar,
   fallingStar,
   glowingStar,
+  greyStar,
   shard,
   STAR_H,
   STAR_W,
@@ -86,6 +91,10 @@ interface Star {
   vy: number;
   state: StarState;
   at: number;
+  /** The Grey Fox's game: the star trembles at the top until then, then drops. */
+  holdUntil?: number;
+  /** The Grey Fox's game: a grey star, which must not be caught. */
+  grey?: boolean;
 }
 
 interface Particle {
@@ -104,6 +113,8 @@ interface Particle {
  * right catch's sparkle and cheer, which play on as the next question's stars appear.
  */
 const carry = { x: W / 2, winAt: -1e9, winText: "" };
+/** Tests: ?foxGrey drops one grey star right above Nova, once per page load. */
+let foxGreyAsked = false;
 
 /**
  * Star Catch.
@@ -123,10 +134,16 @@ export function StarCatch({
   xp,
   pace,
   decoy = null,
+  variant,
+  foxHearts,
   onChoose,
   onFinished,
 }: {
   item: StarCatchItem;
+  /** "fox": the Grey Fox's version (trembling stars, grey stars); its question is in his bubble. */
+  variant?: "fox";
+  /** The Grey Fox's game: Nova's hearts in his battle, shown in the bar above the field. */
+  foxHearts?: { left: number; of: number };
   /** A wrong answer from another question, added as a third star when there are only two. */
   decoy?: string | null;
   unitId: string;
@@ -142,6 +159,7 @@ export function StarCatch({
   const mode: "choice" | "spell" | "match" =
     item.type === "mcq" ? "choice" : item.type === "match" ? "match" : "spell";
   const spell = mode === "spell";
+  const fox = variant === "fox" && mode === "choice";
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const { areaRef, field, box } = useField(W, (area) => ({
@@ -250,6 +268,13 @@ export function StarCatch({
     let lastXs: number[] = [];
     let missed = 0;
     let respawnAt = 0;
+    // The Grey Fox's grey stars: the first comes after a moment. (Tests can ask for one right
+    // above Nova with ?foxGrey.)
+    let greyHere =
+      fox &&
+      !foxGreyAsked &&
+      new URLSearchParams(window.location.search).has("foxGrey");
+    let greyAt = performance.now() + (greyHere ? 900 : 1500);
     s.phase = "play";
     s.boost = false;
     s.stars = [];
@@ -272,7 +297,7 @@ export function StarCatch({
     const syncTokens = () =>
       setTokens(
         s.stars
-          .filter((t) => t.state !== "gone")
+          .filter((t) => t.state !== "gone" && !t.grey)
           .map((t) => ({
             id: t.id,
             text: t.text,
@@ -284,7 +309,12 @@ export function StarCatch({
     let choiceVy = 0;
     const dropStars = (labels: string[], reading: number, slower = 1) => {
       const cols = starColumns(labels.length, W);
-      choiceVy = fallPx / starFallMs(reading) / slower;
+      choiceVy = fox
+        ? fallPx / FOX_STAR_RULES.dropMs
+        : fallPx / starFallMs(reading) / slower;
+      const holdUntil = fox
+        ? performance.now() + 500 + starFallMs(reading) * slower
+        : undefined;
       s.stars = labels.map((o, i) => ({
         id: nextId++,
         text: o,
@@ -295,6 +325,7 @@ export function StarCatch({
         vy: choiceVy,
         state: "fall",
         at: 0,
+        holdUntil,
       }));
       syncTokens();
     };
@@ -513,6 +544,13 @@ export function StarCatch({
         }
         return;
       }
+      if (t.grey) {
+        // the Grey Fox's grey star: caught, it counts as a wrong answer
+        bubbleShatter();
+        for (const o of s.stars) if (o.grey && o !== t) o.state = "gone";
+        void judge({ type: "mcq", choice: GREY_STAR }, t);
+        return;
+      }
       if (!key) {
         t.state = "caught";
         t.at = now;
@@ -658,11 +696,45 @@ export function StarCatch({
 
         // stars fall
         if (s.phase === "play") {
+          // The Grey Fox's game: DROP lets the trembling stars go at once, and grey stars fall
+          // every so often while the answers wait at the top.
+          if (fox) {
+            if (s.boost)
+              for (const t of s.stars) if (t.holdUntil) t.holdUntil = 0;
+            const waiting = s.stars.some(
+              (t) => !t.grey && t.state === "fall" && (t.holdUntil ?? 0) > now,
+            );
+            if (waiting && now >= greyAt) {
+              s.stars.push({
+                id: nextId++,
+                text: "",
+                idx: -2,
+                x: greyHere ? Math.round(s.x) : foxGreyX(Math.random, s.x, W),
+                y: -STAR_H,
+                startY: -STAR_H,
+                vy: fallPx / FOX_STAR_RULES.greyDropMs,
+                state: "fall",
+                at: now,
+                grey: true,
+              });
+              if (greyHere) foxGreyAsked = true;
+              greyHere = false;
+              const [lo, hi] = FOX_STAR_RULES.greyEveryMs;
+              greyAt = now + lo + Math.random() * (hi - lo);
+              if (section)
+                section.dataset.grey = String(
+                  Number(section.dataset.grey ?? 0) + 1,
+                );
+            }
+          }
           for (const t of s.stars) {
             if (t.state !== "fall") continue;
-            let v = t.vy * (s.boost ? (key ? 3 : 6) : 1);
-            if (!key && reduced && !s.boost) v = t.y < t.startY ? t.vy * 8 : 0;
-            if (!key && t.y < t.startY) v = Math.max(v, 0.12); // slide into view first
+            let v = t.vy * (s.boost && !fox ? (key ? 3 : 6) : 1);
+            if (!key && reduced && !s.boost && !fox)
+              v = t.y < t.startY ? t.vy * 8 : 0;
+            if (fox && !t.grey && t.y >= t.startY && (t.holdUntil ?? 0) > now)
+              v = 0; // trembling at the top
+            if (!key && !t.grey && t.y < t.startY) v = Math.max(v, 0.12); // slide into view first
             const was = t.y + STAR_H;
             t.y += v * dt;
             const bottom = t.y + STAR_H;
@@ -696,7 +768,7 @@ export function StarCatch({
               spawnAt =
                 now + STAR_RULES.letterGapMs * pace * (reduced ? 1.6 : 1);
             }
-          } else if (!s.stars.some((t) => t.state === "fall")) {
+          } else if (!s.stars.some((t) => t.state === "fall" && !t.grey)) {
             // every answer landed in the snow: drop them again, a little slower
             if (!respawnAt) {
               respawnAt = now + 700;
@@ -751,10 +823,23 @@ export function StarCatch({
       const elapsed = Math.max(0, now - s.at);
       for (const t of s.stars) {
         if (t.state === "gone") continue;
-        let spr = fallingStar;
+        let spr = t.grey ? greyStar : fallingStar;
         let f = frameOf(fallingStar, 5, now + t.id * 170);
         let y = t.y;
         let x = t.x;
+        // the Grey Fox's stars tremble before they drop (harder just before they go)
+        if (
+          fox &&
+          !reduced &&
+          !t.grey &&
+          t.state === "fall" &&
+          t.y >= t.startY &&
+          (t.holdUntil ?? 0) > now
+        ) {
+          const amp = (t.holdUntil ?? 0) - now < FOX_STAR_RULES.warnMs ? 2 : 1;
+          x += (Math.floor(now / 45) + t.id) % 2 ? amp : -amp;
+          if (amp > 1) y += Math.floor(now / 60) % 2;
+        }
         if (t.state === "caught") {
           y = RIM - STAR_H + 7;
           x = s.x;
@@ -779,7 +864,12 @@ export function StarCatch({
           ctx.globalAlpha = Math.max(0, 1 - (now - t.at) / 400);
           y = GROUND - STAR_H + 4;
         }
-        if (t.state === "fall" && t.y > -STAR_H + 2) {
+        if (
+          t.state === "fall" &&
+          t.y > -STAR_H + 2 &&
+          !t.grey &&
+          !(fox && (t.holdUntil ?? 0) > now)
+        ) {
           const len = combo >= 3 ? 9 : 6;
           for (let k = 1; k <= len; k++) {
             ctx.globalAlpha = Math.max(0, 0.75 - k / (len + 1));
@@ -1031,6 +1121,11 @@ export function StarCatch({
       <div className="pixel-panel px-4 py-3 text-[#ece4d6]" data-no-steer>
         {item.type === "mcq" || item.type === "typed" ? (
           <>
+            {fox && (
+              <p className="text-[11px] uppercase tracking-widest text-[#cf9c55]">
+                The Grey Fox asks:
+              </p>
+            )}
             <p className="text-xs uppercase tracking-widest text-[#a99cc4]">
               {questionTitle(item)}
             </p>
@@ -1124,11 +1219,21 @@ export function StarCatch({
             <div
               className="flex min-w-[4.5rem] gap-1"
               aria-label={
-                mode !== "choice"
-                  ? `${hearts} ${hearts === 1 ? "heart" : "hearts"} left`
-                  : undefined
+                foxHearts
+                  ? `${foxHearts.left} of ${foxHearts.of} hearts left`
+                  : mode !== "choice"
+                    ? `${hearts} ${hearts === 1 ? "heart" : "hearts"} left`
+                    : undefined
               }
             >
+              {foxHearts &&
+                Array.from({ length: foxHearts.of }, (_, i) => (
+                  <PixelSprite
+                    key={i}
+                    sprite={i < foxHearts.left ? heartFull : heartEmpty}
+                    scale={2}
+                  />
+                ))}
               {mode !== "choice" &&
                 Array.from({ length: STAR_RULES.hearts }, (_, i) => (
                   <PixelSprite
@@ -1138,7 +1243,9 @@ export function StarCatch({
                   />
                 ))}
             </div>
-            <span className="text-sm tracking-[0.2em]">STAR CATCH</span>
+            <span className="text-sm tracking-[0.2em]">
+              {fox ? "THE GREY FOX" : "STAR CATCH"}
+            </span>
             <span className="flex min-w-[4.5rem] items-center justify-end gap-1 text-sm">
               <PixelSprite sprite={pixelStar} scale={2} />
               {xp}

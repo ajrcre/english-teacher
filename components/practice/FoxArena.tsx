@@ -12,6 +12,7 @@ import { novaSprites } from "@/lib/pixel/sprites/nova";
 import { heartEmpty, heartFull, sword } from "@/lib/pixel/sprites/ui";
 import { cx } from "@/lib/ui";
 import { RichSentence } from "./inputs";
+import { bubblePop, bubbleShatter, foxHurt, foxTalk, foxThrow, foxVanish, hatBoing } from "../foxSounds";
 
 /** The Grey Fox's question, said in a speech bubble; it reacts to the answer. */
 export interface FoxBubble {
@@ -22,11 +23,11 @@ export interface FoxBubble {
 }
 
 /** Where things stand, in backdrop pixels (the scene is 128×72). */
-const FOX_X = 84;
+const FOX_X = 86;
 const FOX_Y = 66 - FOX_H;
 const NOVA_X = 16;
 /** Where the bubble leaves his paw, and where it hits Nova. */
-const THROW_FROM = { x: 80, y: FOX_Y + 22 };
+const THROW_FROM = { x: FOX_X + 2, y: FOX_Y + 24 };
 const HIT_AT = { x: 30, y: 46 };
 const BACKDROP = "grey-fox";
 
@@ -56,7 +57,7 @@ function useElapsed(since: number | string | null, until: number): number {
  * while Nova strikes; a wrong one and he snatches the bubble back, winds up and throws it at Nova,
  * where it shatters. When his lives run out he vanishes and his E hat drops to the ground.
  */
-export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bubble }: { hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string; hat?: string | null; bubble: FoxBubble | null }) {
+export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bubble, compact = false }: { hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string; hat?: string | null; bubble: FoxBubble | null; /** A mini-game is playing below: keep the panel short. */ compact?: boolean }) {
   const reduced = useReducedMotion() ?? false;
   const nova = novaSprites(hatOf(hat));
   const backdrop = useMemo(() => backdropFor(BACKDROP), []);
@@ -68,6 +69,36 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
   // Timelines: a wrong answer's throw (~1.4 s), a right answer's strike (~0.8 s), and talking.
   const t = useElapsed(beat ? beat.id : null, 1500);
   const talking = useElapsed(bubble?.state === "ask" ? bubble.key : null, 1300);
+  // His 8-bit sounds, in time with the sprites.
+  const bubbleKey = bubble?.key ?? null;
+  const bubbleState = bubble?.state ?? null;
+  useEffect(() => {
+    if (bubbleKey && bubbleState === "ask" && !defeated) foxTalk();
+    if (bubbleState === "right") {
+      const id = setTimeout(bubblePop, 450);
+      return () => clearTimeout(id);
+    }
+  }, [bubbleKey, bubbleState, defeated]);
+  useEffect(() => {
+    if (!beat) return;
+    if (beat.kind === "hurt") {
+      foxThrow();
+      const id = setTimeout(bubbleShatter, reduced ? 0 : 640);
+      return () => clearTimeout(id);
+    }
+    const id = setTimeout(foxHurt, 180);
+    return () => clearTimeout(id);
+  }, [beat, reduced]);
+  useEffect(() => {
+    if (!defeated) return;
+    const a = setTimeout(foxVanish, 350);
+    const b = setTimeout(hatBoing, 900);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+  }, [defeated]);
+
   const throwing = hurtBeat && !reduced && t < 640;
   const flying = hurtBeat && !reduced && t >= 300 && t < 660;
   const shattering = hurtBeat && t >= (reduced ? 0 : 640) && t < (reduced ? 600 : 1150);
@@ -84,7 +115,7 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
   else if (bubble?.state === "ask" && talking < 1200 && !reduced) foxSprite = GREY_FOX.talk;
 
   return (
-    <section className="pixel-panel relative mx-auto mt-4 w-[calc(100%-8px)] max-w-[30rem] overflow-hidden font-pixel" aria-label={`Boss battle: ${GREY_FOX.name}`}>
+    <section className={cx("pixel-panel relative mx-auto w-[calc(100%-8px)] overflow-hidden font-pixel", compact ? "mt-2 max-w-[19rem] sm:max-w-[26rem]" : "mt-4 max-w-[30rem]")} aria-label={`Boss battle: ${GREY_FOX.name}`}>
       <div className="relative overflow-hidden" style={{ aspectRatio: `${BACKDROP_W} / ${BACKDROP_H}` }}>
         <PixelScene sprite={backdrop} />
 
@@ -145,7 +176,7 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
 
         {/* Nova's strike */}
         {hitBeat && t < 1100 && (
-          <div key={`fx-${beat!.id}`} className="pointer-events-none absolute" style={{ left: pct(FOX_X - 4, BACKDROP_W), top: pct(FOX_Y + 12, BACKDROP_H), width: pct(18, BACKDROP_W) }}>
+          <div key={`fx-${beat!.id}`} className="pointer-events-none absolute" style={{ left: pct(FOX_X - 4, BACKDROP_W), top: pct(FOX_Y + 10, BACKDROP_H), width: pct(18, BACKDROP_W) }}>
             <motion.div initial={{ opacity: 0, rotate: -40, scale: 0.6 }} animate={{ opacity: [0, 1, 0], rotate: [-40, 30], scale: [0.6, 1.2] }} transition={{ duration: 0.45, delay: 0.15 }}>
               <PixelSprite sprite={sword} className="h-auto w-full" />
             </motion.div>
@@ -179,12 +210,12 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
         {/* Beaten: he vanishes in a pop, and his hat drops to the ground */}
         {defeated && (
           <>
-            <motion.div className="pointer-events-none absolute" style={{ left: pct(FOX_X - 4, BACKDROP_W), top: pct(FOX_Y + 6, BACKDROP_H), width: pct(44, BACKDROP_W) }} initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ delay: 0.5, duration: 0.4 }}>
+            <motion.div className="pointer-events-none absolute" style={{ left: pct(FOX_X - 3, BACKDROP_W), top: pct(FOX_Y + 2, BACKDROP_H), width: pct(FOX_W + 6, BACKDROP_W) }} initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ delay: 0.5, duration: 0.4 }}>
               <PixelSprite sprite={BUBBLE_POP} fps={8} className="h-auto w-full" />
             </motion.div>
             <motion.div
               className="absolute"
-              style={{ left: pct(FOX_X + 10, BACKDROP_W), width: pct(16, BACKDROP_W) }}
+              style={{ left: pct(FOX_X + FOX_W / 2 - 8, BACKDROP_W), width: pct(16, BACKDROP_W) }}
               initial={reduced ? { top: pct(52, BACKDROP_H) } : { top: pct(FOX_Y, BACKDROP_H), rotate: -25, opacity: 0 }}
               animate={{ top: pct(52, BACKDROP_H), rotate: 0, opacity: 1 }}
               transition={reduced ? { duration: 0 } : { delay: 0.45, type: "spring", stiffness: 260, damping: 9 }}
@@ -199,12 +230,12 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
       </div>
 
       {/* His speech bubble, its tail pointing up to his mouth */}
-      <div className="relative min-h-[5.5rem] bg-[#241c2b] px-3 pb-2 pt-3">
+      <div className={cx("relative bg-[#241c2b] px-3 pt-3", compact ? "pb-2" : "min-h-[5.5rem] pb-2")}>
         <AnimatePresence mode="popLayout">
           {bubble && !defeated && (
             <motion.div
               key={bubble.key}
-              className="relative origin-[73%_0%] border-2 border-[#0f0b14] bg-[#f3e3b8] px-3 py-2 text-[#2b1f17] shadow-[3px_3px_0_#0f0b1466]"
+              className={cx("relative origin-[73%_0%] border-2 border-[#0f0b14] bg-[#f3e3b8] text-[#2b1f17] shadow-[3px_3px_0_#0f0b1466]", compact ? "px-2.5 py-1.5" : "px-3 py-2")}
               initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.2, y: -16 }}
               animate={
                 bubble.state === "ask"
@@ -225,9 +256,9 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
             >
               <span aria-hidden className="absolute -top-[10px] right-[24%] h-0 w-0 border-x-[8px] border-b-[10px] border-x-transparent border-b-[#0f0b14]" />
               <span aria-hidden className="absolute -top-[6px] right-[calc(24%+2px)] h-0 w-0 border-x-[6px] border-b-[7px] border-x-transparent border-b-[#f3e3b8]" />
-              <p className="text-[11px] uppercase tracking-widest text-[#776a9c]">{GREY_FOX.name} asks:</p>
-              <p className="font-sans text-base font-semibold leading-snug sm:text-lg">{bubble.prompt}</p>
-              {bubble.sentence && <RichSentence text={bubble.sentence} className="mt-1 font-sans text-base leading-snug sm:text-lg" />}
+              {!compact && <p className="text-[11px] uppercase tracking-widest text-[#776a9c]">{GREY_FOX.name} asks:</p>}
+              <p className={cx("font-sans font-semibold leading-snug", compact ? "text-sm sm:text-base" : "text-base sm:text-lg")}>{bubble.prompt}</p>
+              {bubble.sentence && <RichSentence text={bubble.sentence} className={cx("mt-0.5 font-sans leading-snug", compact ? "text-sm sm:text-base" : "text-base sm:text-lg")} />}
               {/* A right answer: a big green tick stamped on the bubble, then it pops */}
               {bubble.state === "right" && (
                 <>
@@ -245,7 +276,7 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
             </motion.div>
           )}
         </AnimatePresence>
-        <p className="mt-2 text-sm leading-snug text-[#ece4d6]" aria-live="polite">
+        <p className={cx("mt-2 text-sm leading-snug text-[#ece4d6]", compact && "sr-only")} aria-live="polite">
           {message}
         </p>
       </div>
