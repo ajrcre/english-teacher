@@ -67,14 +67,8 @@ async function play(page: Page, correct: boolean, shots?: string) {
   await onward.click();
   await dismissCelebrations(page);
   if (correct) {
-    // on to his next question (or, after the twelfth, the prize)
-    for (let k = 0; k < 40; k++) {
-      if (await page.getByRole("heading", { name: "Victory!" }).isVisible().catch(() => false)) return;
-      const now = await game.getAttribute("data-item", { timeout: 500 }).catch(() => null);
-      if (now && now !== id) return;
-      await page.waitForTimeout(250);
-    }
-    throw new Error(`the fox's game did not move on from ${id}`);
+    // on to his next game (it may be the same question again, if it was missed before), or the prize
+    await expect(game.or(page.getByRole("heading", { name: "Victory!" }))).toBeVisible({ timeout: 15_000 });
   }
 }
 

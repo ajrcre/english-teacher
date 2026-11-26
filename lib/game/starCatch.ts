@@ -232,8 +232,9 @@ export function starFallMs(approach: number): number {
 }
 
 /**
- * The Grey Fox's Star Catch (only in his battle): the answer stars tremble at the top for the
- * reading time, then drop straight and fast; meanwhile grey stars fall that must not be caught.
+ * The Grey Fox's Star Catch (only in his battle): the answer stars wait at the top for the
+ * reading time, tremble for the last moment, then drop straight and fast; meanwhile grey stars
+ * fall that must not be caught.
  */
 export const FOX_STAR_RULES = {
   /** Time for an answer star to drop from the top to Nova's basket, once it lets go (ms). */
@@ -242,6 +243,8 @@ export const FOX_STAR_RULES = {
   greyDropMs: 700,
   /** A grey star every so often while the answers tremble (ms, random in this range). */
   greyEveryMs: [1200, 1800] as const,
+  /** The stars hang still while the question is read, and tremble only this long before they drop (ms). */
+  shakeMs: 1500,
   /** Shaking harder in the last moments before the drop (ms). */
   warnMs: 600,
 };

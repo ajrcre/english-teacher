@@ -491,6 +491,8 @@ export function Runner({
   const asGame = game !== null;
   /** The game is on screen (not during one of the Grey Fox's breaks). */
   const showGame = asGame && !(isFox && foxBreak);
+  /** The Grey Fox's battle is played full screen, his castle included (not its result page). */
+  const foxScreen = isFox && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty";
   /** Star Catch: a third star for two-answer questions, borrowed from the round's other questions. */
   const decoy = useMemo(() => {
     if (game !== "stars" || current?.type !== "mcq") return null;
@@ -521,10 +523,13 @@ export function Runner({
       {/* A mini-game takes the whole screen (no page scrolling); questions on cards scroll as a page. */}
       <div
         className={cx(
-          "mx-auto flex max-w-2xl flex-col sm:px-6",
-          showGame ? "h-dvh overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:pt-4" : "min-h-dvh px-4 pb-40 pt-4",
+          "mx-auto flex flex-col sm:px-6",
+          // the Grey Fox's battle uses the whole screen, his castle as wide as it fits
+          foxScreen ? "max-w-none" : "max-w-2xl",
+          showGame || foxScreen ? "h-dvh overflow-hidden px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] sm:pt-4" : "min-h-dvh px-4 pb-40 pt-4",
         )}
-        style={phase.kind === "feedback" && sheetHeight ? { paddingBottom: sheetHeight + 24 } : undefined}
+        // room below for the feedback sheet, only while it is actually open
+        style={phase.kind === "feedback" && !runnerHold && sheetHeight ? { paddingBottom: sheetHeight + 24 } : undefined}
       >
         <header className="flex items-center gap-3">
           <Link href="/home" className="grid h-10 w-10 place-items-center rounded-full bg-white/5 text-xl text-ink-200 hover:bg-white/10" aria-label="Close and go back">
@@ -561,9 +566,10 @@ export function Runner({
         ) : !inBattle && !asGame && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} hat={hat} />
         )}
-        <p className={cx("mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400", asGame && "hidden sm:block")}>{lessonTitle ?? MODE_LABEL[mode]}</p>
+        <p className={cx("mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400", (asGame || foxScreen) && "hidden sm:block")}>{lessonTitle ?? MODE_LABEL[mode]}</p>
         {battle && isFox && current && !showGame && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <FoxArena
+            fill
             hp={battle.hp}
             hits={battle.hits}
             hearts={TEST_BOSS_RULES.hearts}
@@ -575,7 +581,7 @@ export function Runner({
           />
         )}
         {isFox && foxBreak === "result" && foxReady && runnerHold && phase.kind === "feedback" && (
-          <motion.div className="mx-auto mt-4 flex w-full max-w-[30rem] flex-col gap-3 px-1 font-pixel sm:flex-row-reverse" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <motion.div className="mx-auto mt-3 flex w-full max-w-[30rem] shrink-0 flex-col gap-2 px-1 font-pixel sm:flex-row-reverse sm:gap-3" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
             <button className="pixel-btn flex-1 text-lg" autoFocus onClick={() => next()}>
               {battle?.outcome ? (battle.outcome === "won" ? "See your prize ▶" : "Continue ▶") : "Next question ▶"}
             </button>

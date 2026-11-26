@@ -138,6 +138,8 @@ describe("the Grey Fox's Star Catch", () => {
   it("drops the answer stars fast once they let go, and grey ones a little slower", () => {
     expect(FOX_STAR_RULES.dropMs).toBeLessThan(FOX_STAR_RULES.greyDropMs);
     expect(FOX_STAR_RULES.greyEveryMs[0]).toBeLessThan(FOX_STAR_RULES.greyEveryMs[1]);
+    expect(FOX_STAR_RULES.shakeMs).toBe(1500);
+    expect(FOX_STAR_RULES.warnMs).toBeLessThan(FOX_STAR_RULES.shakeMs);
     expect(GREY_STAR.length).toBeGreaterThan(0);
   });
 });

@@ -827,14 +827,15 @@ export function StarCatch({
         let f = frameOf(fallingStar, 5, now + t.id * 170);
         let y = t.y;
         let x = t.x;
-        // the Grey Fox's stars tremble before they drop (harder just before they go)
+        // the Grey Fox's stars hang still, then tremble just before they drop (harder at the end)
         if (
           fox &&
           !reduced &&
           !t.grey &&
           t.state === "fall" &&
           t.y >= t.startY &&
-          (t.holdUntil ?? 0) > now
+          (t.holdUntil ?? 0) > now &&
+          (t.holdUntil ?? 0) - now <= FOX_STAR_RULES.shakeMs
         ) {
           const amp = (t.holdUntil ?? 0) - now < FOX_STAR_RULES.warnMs ? 2 : 1;
           x += (Math.floor(now / 45) + t.id) % 2 ? amp : -amp;
