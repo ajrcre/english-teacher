@@ -58,6 +58,8 @@ export interface ShopItem {
   title: string;
   description: string;
   price: number;
+  /** Can't be bought: won in a battle instead (says how). */
+  earnedBy?: string;
 }
 
 export const SHOP_ITEMS: ShopItem[] = [
@@ -67,6 +69,7 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "hat-pirate", kind: "hat", title: "Pirate Hat", description: "Sail the word seas.", price: 60 },
   { id: "hat-wizard", kind: "hat", title: "Wizard Hat", description: "Grammar spells, cast correctly.", price: 90 },
   { id: "hat-crown", kind: "hat", title: "Golden Crown", description: "For the ruler of the sky.", price: 150 },
+  { id: "hat-e", kind: "hat", title: "The Fox's E Hat", description: "Knocked off the Grey Fox's head.", price: 0, earnedBy: "Beat the Grey Fox to win it" },
   { id: "shield", kind: "shield", title: "Streak Shield", description: "Saves your streak if you miss a day.", price: 30 },
   { id: "frame-bronze", kind: "frame", title: "Bronze Frame", description: "A warm bronze ring for your avatar.", price: 20 },
   { id: "frame-silver", kind: "frame", title: "Silver Frame", description: "A cool silver ring for your avatar.", price: 40 },
@@ -96,6 +99,21 @@ export const BOSS_RULES = {
   starsPerHeart: 5,
   repeatWinXp: 20,
 };
+
+/** The Grey Fox: the test-prep boss, fought on questions from the switched-on class test. */
+export const TEST_BOSS_RULES = {
+  /** His lives: right answers needed to beat him. */
+  hp: 12,
+  hearts: 3,
+  /** Share of the test's questions the student must have met before he appears. */
+  unlockSeenShare: 0.3,
+  windowMinutes: 40,
+  /** What he drops when first beaten. */
+  prize: "hat-e",
+};
+
+/** His row in boss_defeats (keyed by the test, not a lesson). */
+export const testBossKey = (testId: string) => `test:${testId}`;
 
 export interface ChestContents {
   tier: "wood" | "boss";

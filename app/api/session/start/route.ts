@@ -21,5 +21,6 @@ export const POST = handler(async (request: Request) => {
   const student = await repos.users.findStudent(session.studentId);
   if (!student) throw new HttpError(401, "Please sign in");
   if (input.mode === "boss" && !(await practice.bossStatus(student.id, input.lessonId!)).available) throw new HttpError(409, "Practise this lesson a little more to unlock its boss");
+  if (input.mode === "test-boss" && !(await practice.testBossStatus(student.id))?.available) throw new HttpError(409, "Practise more of the test's questions to meet the Grey Fox");
   return json(await practice.startSession(student.id, { mode: input.mode, lessonId: input.lessonId, lessonIds: input.lessonIds, focusUnitId: student.focusUnit }));
 });

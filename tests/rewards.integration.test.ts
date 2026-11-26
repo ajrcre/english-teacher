@@ -12,6 +12,9 @@ import { GraderRegistry } from "@/lib/grading/registry";
 import { LeitnerScheduler } from "@/lib/scheduling/leitner";
 import { PracticeService } from "@/lib/services/practice";
 import { RewardError, RewardsService } from "@/lib/services/rewards";
+import { testById } from "@/content/tests";
+import { testItemIds } from "@/lib/content/testScope";
+import { TEST_BOSS_RULES } from "@/lib/gamification/collection";
 
 const catalog = buildCatalog(units);
 const LESSON = "gr-stative"; // 10 multiple-choice questions: the boss unlocks after 5
@@ -158,5 +161,72 @@ describe("chests and the shop", () => {
     await rewards.buy(studentId, "px-dragon");
     expect(await rewards.canUse(studentId, { avatar: "px-dragon" })).toBe(true);
     expect((await repos.users.findStudent(studentId))?.avatar).toBe("px-dragon");
+  });
+});
+
+describe("the Grey Fox (test-prep boss)", () => {
+  const test2 = "year7-test-2";
+  const scopeMcqs = () => {
+    const ids = testItemIds(catalog, testById(test2)!);
+    return [...ids].map((id) => catalog.itemById.get(id)!.item).filter((i): i is Extract<Item, { type: "mcq" }> => i.type === "mcq");
+  };
+  async function say(itemId: string, correct: boolean, mode: "review" | "test-boss") {
+    tick();
+    const item = catalog.itemById.get(itemId)!.item as Extract<Item, { type: "mcq" }>;
+    const choice = correct ? item.options[item.answer] : item.options[(item.answer + 1) % item.options.length];
+    const r = await practice.submitAnswer(studentId, { itemId, response: { type: "mcq", choice }, seconds: 5, mode });
+    if (r.status !== "graded") throw new Error("expected graded");
+  }
+
+  it("needs a test switched on and enough of its questions met", async () => {
+    expect(await practice.testBossStatus(studentId)).toBeNull();
+    await repos.users.updateStudent(studentId, { activeTest: test2 });
+    const before = (await practice.testBossStatus(studentId))!;
+    expect(before).toMatchObject({ available: false, seen: 0, hp: TEST_BOSS_RULES.hp, defeated: 0 });
+    for (const it of scopeMcqs().slice(0, before.needed)) await say(it.id, true, "review");
+    expect((await practice.testBossStatus(studentId))!.available).toBe(true);
+    expect((await practice.overview(studentId)).test!.boss).toMatchObject({ available: true });
+  });
+
+  it("is beaten with 12 right answers, and drops his E hat, which Nova wears", async () => {
+    await repos.users.updateStudent(studentId, { activeTest: test2 });
+    const needed = (await practice.testBossStatus(studentId))!.needed;
+    for (const it of scopeMcqs().slice(0, needed)) await say(it.id, true, "review");
+    // The hat can't be bought.
+    await repos.progress.saveStats(studentId, { stars: 500 });
+    await expect(rewards.buy(studentId, "hat-e")).rejects.toBeInstanceOf(RewardError);
+    expect((await rewards.shop(studentId)).items.find((i) => i.id === "hat-e")).toMatchObject({ owned: false, earnedBy: expect.any(String) });
+
+    const battle = await practice.startSession(studentId, { mode: "test-boss" });
+    expect(battle.items).toHaveLength(TEST_BOSS_RULES.hp + TEST_BOSS_RULES.hearts - 1);
+    const scope = testItemIds(catalog, testById(test2)!);
+    for (const it of battle.items) expect(scope.has(it.id)).toBe(true);
+
+    // Not finished yet: no victory to claim.
+    await expect(practice.completeTestBoss(studentId)).rejects.toBeInstanceOf(RewardError);
+    // Two wrong answers (a heart each), then twelve right.
+    await say(battle.items[0].id, false, "test-boss");
+    await say(battle.items[1].id, false, "test-boss");
+    for (const it of battle.items.slice(2)) await say(it.id, true, "test-boss");
+    const win = await practice.completeTestBoss(studentId);
+    expect(win).toMatchObject({ first: true, rewarded: true, heartsLeft: 1 });
+    expect(win.rewards.events).toContainEqual({ kind: "hat", id: "hat-e" });
+    expect((await repos.users.findStudent(studentId))?.hat).toBe("hat-e");
+    expect((await rewards.owned(studentId)).hats).toEqual(["hat-e"]);
+    expect((await rewards.shop(studentId)).items.find((i) => i.id === "hat-e")).toMatchObject({ owned: true, equipped: true });
+    expect((await practice.testBossStatus(studentId))!.defeated).toBe(1);
+    // The same answers can't be claimed twice.
+    await expect(practice.completeTestBoss(studentId)).rejects.toBeInstanceOf(RewardError);
+  });
+
+  it("refuses a victory after three mistakes", async () => {
+    await repos.users.updateStudent(studentId, { activeTest: test2 });
+    const needed = (await practice.testBossStatus(studentId))!.needed;
+    for (const it of scopeMcqs().slice(0, needed)) await say(it.id, true, "review");
+    const battle = await practice.startSession(studentId, { mode: "test-boss" });
+    for (const it of battle.items.slice(0, 3)) await say(it.id, false, "test-boss");
+    for (const it of battle.items.slice(0, 12)) await say(it.id, true, "test-boss");
+    await expect(practice.completeTestBoss(studentId)).rejects.toThrow(/hearts/);
+    expect((await repos.users.findStudent(studentId))?.hat ?? null).toBeNull();
   });
 });

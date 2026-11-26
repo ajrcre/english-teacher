@@ -8,7 +8,11 @@ import { Art, StarGlyph } from "@/components/Art";
 import { BadgeIcon } from "@/components/pixel/BadgeIcon";
 import { PixelSprite } from "@/components/pixel/PixelSprite";
 import { ChestReveal } from "@/components/rewards/ChestReveal";
-import { BOSS_RULES, type ChestContents } from "@/lib/gamification/collection";
+import { BOSS_RULES, TEST_BOSS_RULES, type ChestContents } from "@/lib/gamification/collection";
+import { GREY_FOX } from "@/lib/pixel/sprites/greyFox";
+import { hatSprite } from "@/lib/pixel/sprites/hats";
+import { novaSprites } from "@/lib/pixel/sprites/nova";
+import { FoxArena } from "./FoxArena";
 import { bossFor } from "@/lib/pixel/sprites/bosses";
 import { heartEmpty, heartFull } from "@/lib/pixel/sprites/ui";
 import type { ClientItem, ItemResponse } from "@/lib/content/client";
@@ -80,6 +84,7 @@ const MODE_LABEL: Record<SessionMode, string> = {
   lesson: "Lesson practice",
   mistakes: "Mistake gym",
   boss: "Boss battle",
+  "test-boss": "Boss battle",
 };
 
 const MAX_RETRIES = 3;
@@ -127,6 +132,9 @@ export function Runner({
   hat?: string | null;
 }) {
   const isBoss = mode === "boss" && !!unitId;
+  /** The Grey Fox, the test-prep boss. */
+  const isFox = mode === "test-boss";
+  const inBattle = isBoss || isFox;
   const chosenTopics = lessonIds?.length ? lessonIds.join(",") : null;
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
@@ -141,6 +149,8 @@ export function Runner({
   const [doneBanner, setDoneBanner] = useState(false);
   const [tally, setTally] = useState<Tally>(EMPTY_TALLY);
   const [battle, setBattle] = useState<Battle | null>(null);
+  /** The Grey Fox's bubble for the question just answered: ticked (right) or thrown (wrong). */
+  const [foxAnswer, setFoxAnswer] = useState<{ key: string; state: "right" | "wrong" } | null>(null);
   const [claim, setClaim] = useState<BossClaim | null>(null);
   const [bossUnlocked, setBossUnlocked] = useState(bossReady);
   /** Height of the feedback sheet, so the page can make room for it below the question. */
@@ -194,6 +204,10 @@ export function Runner({
         const monster = bossFor(items[0]?.unitId ?? unitId!);
         setStory({ hits: 0, beat: null, message: `${monster.name} is loose in this chapter! Write good answers to drive it back.` });
       }
+      if (isFox) {
+        setBattle({ hp: TEST_BOSS_RULES.hp, hits: 0, heartsLeft: TEST_BOSS_RULES.hearts, run: 0, beat: null, message: `${GREY_FOX.name} appears! ${GREY_FOX.intro}`, outcome: null });
+        setFoxAnswer(null);
+      }
       if (mode === "boss" && unitId) {
         const boss = bossFor(unitId);
         setBattle({ hp: items.length, hits: 0, heartsLeft: BOSS_RULES.hearts, run: 0, beat: null, message: `${boss.name} appears! ${boss.intro}`, outcome: null });
@@ -203,7 +217,7 @@ export function Runner({
     } catch (e) {
       setPhase({ kind: "error", message: e instanceof Error ? e.message : "Could not start" });
     }
-  }, [mode, lessonId, chosenTopics, router, unitId]);
+  }, [mode, lessonId, chosenTopics, router, unitId, isFox]);
 
   useEffect(() => {
     // Initial phase is already "loading"; start(false) only updates state after the fetch resolves.
@@ -267,7 +281,12 @@ export function Runner({
       setDaily(data.daily);
       setTally((t) => ({ ...t, answered: t.answered + 1, correct: t.correct + (verdict === "correct" ? 1 : 0) }));
       applyRewards(data.rewards);
-      if (battle) setBattle(nextBeat(battle, verdict === "correct", bossFor(unitId!).name));
+      if (battle) setBattle(nextBeat(battle, verdict === "correct", isFox ? GREY_FOX.name : bossFor(unitId!).name, isFox));
+      if (isFox) {
+        setFoxAnswer({ key: current.key, state: verdict === "correct" ? "right" : "wrong" });
+        // Bring the arena into view: the tick, or the throw at Nova, plays up there.
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       if (!battle && STORY_TYPES.has(current.type)) {
         const name = bossFor(current.unitId).name;
         const left = queue.filter((q) => STORY_TYPES.has(q.type)).length - (story.hits + (verdict === "incorrect" ? 0 : 1));
@@ -347,10 +366,10 @@ export function Runner({
   useEffect(() => {
     if (phase.kind !== "summary" || completed.current) return;
     completed.current = true;
-    if (isBoss) {
+    if (inBattle) {
       if (battle?.outcome !== "won") return;
       void (async () => {
-        const res = await fetch("/api/boss/complete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonId }) });
+        const res = await fetch("/api/boss/complete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(isFox ? { test: true } : { lessonId }) });
         const data = (await res.json()) as { rewards: Rewards; stats: StatsSummary; heartsLeft: number; first: boolean; rewarded: boolean; error?: string };
         if (!res.ok) {
           setClaim({ status: "error", error: data.error ?? "Could not record the victory" });
@@ -391,6 +410,7 @@ export function Runner({
       if (!sheet) return;
       const h = sheet.getBoundingClientRect().height;
       setSheetHeight(h);
+      if (isFox) return; // the Grey Fox's arena stays in view instead
       requestAnimationFrame(() => {
         // The right answer and the student's pick, if they're marked; otherwise the question card.
         const marked = [...document.querySelectorAll<HTMLElement>('main section [data-state="right"], main section [data-state="wrong"]')];
@@ -404,7 +424,7 @@ export function Runner({
       });
     }, 380);
     return () => clearTimeout(t);
-  }, [phase.kind, runnerHold]);
+  }, [phase.kind, runnerHold, isFox]);
 
   // Enter = continue after feedback.
   useEffect(() => {
@@ -426,13 +446,13 @@ export function Runner({
   // then in the lane runner; spelling words are played as Star Catch letters.
   const playing = phase.kind === "answering" || phase.kind === "submitting" || phase.kind === "feedback";
   const game = useMemo((): "runner" | "stars" | "spell" | "match" | null => {
-    if (isBoss || !gameMode || !current || !playing) return null;
+    if (inBattle || !gameMode || !current || !playing) return null;
     if ((current.type === "dictation" || current.type === "typed") && current.spell) return "spell";
     if (current.type === "match" && current.pairKey) return "match";
     if (current.type !== "mcq" || !runnerEligible(current)) return null;
     const before = queue.slice(0, index).filter((q) => q.type === "mcq" && runnerEligible(q)).length;
     return mcqGame(before, starEligible(current));
-  }, [isBoss, gameMode, current, playing, queue, index]);
+  }, [inBattle, gameMode, current, playing, queue, index]);
   const asGame = game !== null;
   /** Star Catch: a third star for two-answer questions, borrowed from the round's other questions. */
   const decoy = useMemo(() => {
@@ -473,12 +493,12 @@ export function Runner({
           <Link href="/home" className="grid h-10 w-10 place-items-center rounded-full bg-white/5 text-xl text-ink-200 hover:bg-white/10" aria-label="Close and go back">
             ×
           </Link>
-          {isBoss ? (
+          {inBattle ? (
             <p className="flex-1 text-center font-pixel text-lg tracking-widest text-[#ead39b]">BOSS BATTLE</p>
           ) : (
             <p className="flex-1 truncate text-center font-pixel text-base tracking-wider text-[#ead39b]">{MODE_LABEL[mode]}</p>
           )}
-          {!isBoss && (
+          {!inBattle && (
             <button type="button" onClick={toggleGameMode} className="rounded-full bg-white/5 px-3 py-1.5 font-pixel text-sm text-[#ead39b] hover:bg-white/10" aria-pressed={gameMode} title="Play questions as mini-games (Star Catch and the runner), or answer them on cards">
               {gameMode ? "🎮 Game" : "📝 Cards"}
             </button>
@@ -488,7 +508,7 @@ export function Runner({
             {tally.xp}
           </div>
         </header>
-        {!isBoss && gameMode && current && STORY_TYPES.has(current.type) && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" ? (
+        {!inBattle && gameMode && current && STORY_TYPES.has(current.type) && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" ? (
           <BossArena
             unitId={current.unitId}
             hp={Math.max(story.hits, queue.filter((q) => STORY_TYPES.has(q.type)).length)}
@@ -501,11 +521,23 @@ export function Runner({
             label={`Story monster: ${bossFor(current.unitId).name}`}
             winText="It flees!"
           />
-        ) : !isBoss && !asGame && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+        ) : !inBattle && !asGame && current && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <JourneyStrip unitId={current.unitId} progress={phase.kind === "summary" ? 1 : journey.progress} beat={journey.beat} done={phase.kind === "summary"} hat={hat} />
         )}
         <p className={cx("mt-3 text-center text-xs font-semibold uppercase tracking-[0.16em] text-ink-400", asGame && "hidden sm:block")}>{lessonTitle ?? MODE_LABEL[mode]}</p>
-        {battle && unitId && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+        {battle && isFox && current && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
+          <FoxArena
+            hp={battle.hp}
+            hits={battle.hits}
+            hearts={TEST_BOSS_RULES.hearts}
+            heartsLeft={battle.heartsLeft}
+            beat={battle.beat}
+            message={battle.message}
+            hat={hat}
+            bubble={{ key: current.key, prompt: questionTitle(current), sentence: "sentence" in current ? current.sentence : undefined, state: foxAnswer?.key === current.key ? foxAnswer.state : "ask" }}
+          />
+        )}
+        {battle && !isFox && unitId && phase.kind !== "summary" && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty" && (
           <BossArena unitId={unitId} hp={battle.hp} hits={battle.hits} hearts={BOSS_RULES.hearts} heartsLeft={battle.heartsLeft} beat={battle.beat} message={battle.message} hat={hat} />
         )}
 
@@ -575,7 +607,8 @@ export function Runner({
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 {current.retry ? <Chip tone="rose">Second chance</Chip> : current.isNew ? <Chip tone="amber">New</Chip> : <Chip tone="ink">Review</Chip>}
               </div>
-              <QuestionTitle item={current} />
+              {/* With the Grey Fox, the question is in his speech bubble above. */}
+              {isFox ? <p className="text-sm font-semibold uppercase tracking-wider text-text-soft">Your answer</p> : <QuestionTitle item={current} />}
               <div className="mt-5">
                 <QuestionInput key={current.key} item={current} onChange={setResponse} onSubmit={() => !locked && response && void submit()} locked={locked} review={review} />
               </div>
@@ -583,8 +616,9 @@ export function Runner({
           </AnimatePresence>
         )}
 
+        {phase.kind === "summary" && isFox && battle && <FoxResult battle={battle} claim={claim} onAgain={() => void start()} />}
         {phase.kind === "summary" && isBoss && battle && <BossResult unitId={unitId!} lessonId={lessonId!} battle={battle} claim={claim} tally={tally} onAgain={() => void start()} />}
-        {phase.kind === "summary" && !isBoss && <Summary tally={tally} stats={stats} daily={daily} mode={mode} lessonId={lessonId} bossReady={bossUnlocked} onAgain={() => void start()} />}
+        {phase.kind === "summary" && !inBattle && <Summary tally={tally} stats={stats} daily={daily} mode={mode} lessonId={lessonId} bossReady={bossUnlocked} onAgain={() => void start()} />}
       </div>
 
       {/* Bottom action area: submit, or feedback panel. */}
@@ -816,19 +850,75 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /** Works out the next moment of a boss battle after an answer. */
-function nextBeat(b: Battle, correct: boolean, bossName: string): Battle {
+function nextBeat(b: Battle, correct: boolean, bossName: string, fox = false): Battle {
   const id = (b.beat?.id ?? 0) + 1;
   if (correct) {
     const hits = b.hits + 1;
     const run = b.run + 1;
     const crit = run >= 3;
     const left = b.hp - hits;
-    const message = left <= 0 ? `${bossName} is beaten! The star is free!` : crit ? `Critical hit! ${run} in a row! ${left} to go.` : left === 1 ? "Nova strikes! One more hit to win!" : `Nova strikes! ${left} hits to go.`;
+    const message = left <= 0 ? (fox ? `${bossName} is beaten! His hat falls off…` : `${bossName} is beaten! The star is free!`) : crit ? `Critical hit! ${run} in a row! ${left} to go.` : left === 1 ? "Nova strikes! One more hit to win!" : `Nova strikes! ${left} hits to go.`;
     return { ...b, hits, run, beat: { id, kind: crit ? "crit" : "hit" }, message, outcome: left <= 0 ? "won" : null };
   }
   const heartsLeft = b.heartsLeft - 1;
-  const message = heartsLeft <= 0 ? `${bossName} got away this time…` : `Ouch! ${bossName} hits back. ${heartsLeft === 1 ? "Last heart" : `${heartsLeft} hearts left`}. That question will come back.`;
+  const message = heartsLeft <= 0 ? `${bossName} got away this time…` : fox ? `${bossName} throws his bubble at Nova! ${heartsLeft === 1 ? "Last heart" : `${heartsLeft} hearts left`}. That question will come back.` : `Ouch! ${bossName} hits back. ${heartsLeft === 1 ? "Last heart" : `${heartsLeft} hearts left`}. That question will come back.`;
   return { ...b, heartsLeft, run: 0, beat: { id, kind: "hurt" }, message, outcome: heartsLeft <= 0 ? "lost" : null };
+}
+
+/** After the Grey Fox: his E hat falls to the ground and is Nova's (first win), or he got away. */
+function FoxResult({ battle, claim, onAgain }: { battle: Battle; claim: BossClaim | null; onAgain: () => void }) {
+  const won = battle.outcome === "won";
+  const gotHat = won && claim?.status === "done" && claim.first;
+  return (
+    <section className="mt-8 text-center font-pixel">
+      <div className="pixel-panel mx-auto max-w-sm p-5">
+        {won ? (
+          <motion.div className="mx-auto grid place-items-center" initial={{ y: -60, rotate: -25, opacity: 0 }} animate={{ y: 0, rotate: 0, opacity: 1 }} transition={{ type: "spring", stiffness: 240, damping: 9 }}>
+            <PixelSprite sprite={hatSprite("e")} scale={7} title="The Grey Fox's E hat" />
+          </motion.div>
+        ) : (
+          <div className="mx-auto grid place-items-center">
+            <PixelSprite sprite={GREY_FOX.sprite} scale={3} fps={2} />
+          </div>
+        )}
+        <h1 className="mt-3 text-3xl text-[#ead39b]">{won ? "Victory!" : "He got away!"}</h1>
+        <p className="mt-1 text-[#ece4d6]">{won ? `You beat ${GREY_FOX.name}! His E hat fell right off.` : `${GREY_FOX.name} slipped away with a smirk. Practise the test topics a little and try again!`}</p>
+        <div className="mt-3 flex justify-center gap-1" aria-label={`${battle.heartsLeft} hearts left`}>
+          {Array.from({ length: TEST_BOSS_RULES.hearts }, (_, i) => (
+            <PixelSprite key={i} sprite={i < battle.heartsLeft ? heartFull : heartEmpty} scale={3} />
+          ))}
+        </div>
+        {won && (!claim || claim.status === "pending") && <p className="mt-3 text-[#a99cc4]">Picking up the hat…</p>}
+        {won && claim?.status === "error" && <p className="mt-3 text-[#cf9f9b]">{claim.error}</p>}
+        {gotHat && (
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <PixelSprite sprite={novaSprites("e").idle} scale={3} fps={3} title="Nova wearing the E hat" />
+            <p className="max-w-[12rem] text-left text-lg leading-snug text-[#ead39b]">The E hat is yours! Nova is wearing it now.</p>
+          </div>
+        )}
+        {won && claim?.status === "done" && (
+          <p className="mt-3 text-[#ece4d6]">
+            {claim.rewarded ? `+${claim.xp} XP${claim.stars ? ` · +${claim.stars} stars` : ""}` : <span className="text-sm text-[#a99cc4]">You already beat him today. Come back tomorrow for more loot!</span>}
+          </p>
+        )}
+      </div>
+      <div className="mx-auto mt-8 flex max-w-sm flex-col gap-3">
+        {!won && (
+          <button className="pixel-btn text-lg" onClick={onAgain}>
+            Try again
+          </button>
+        )}
+        {gotHat && (
+          <Link href="/shop" className="pixel-btn pixel-btn-ghost">
+            See your hats
+          </Link>
+        )}
+        <Link href="/home" className="btn btn-ghost font-sans">
+          Back to your sky
+        </Link>
+      </div>
+    </section>
+  );
 }
 
 function BossResult({ unitId, lessonId, battle, claim, tally, onAgain }: { unitId: string; lessonId: string; battle: Battle; claim: BossClaim | null; tally: Tally; onAgain: () => void }) {

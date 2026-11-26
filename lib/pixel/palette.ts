@@ -46,6 +46,7 @@ export const PALETTE: Record<string, string> = {
   V: "#776a9c", // purple
   u: "#4b416b", // deep purple
   m: "#2d2744", // shadow purple
+  "*": "#e0463c", // glowing red (the Grey Fox's eyes: the one bright red, so they stand out)
 
   // ---- scenery shades (backdrops) ----
   "0": "#0b1424", // deepest night

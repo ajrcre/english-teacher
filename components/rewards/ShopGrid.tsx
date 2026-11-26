@@ -105,6 +105,8 @@ export function ShopGrid({ initial, avatar }: { initial: ShopView; avatar: strin
                             Wear
                           </button>
                         )
+                      ) : item.earnedBy ? (
+                        <span className="block py-2 text-sm leading-snug text-[#cf9c55]">🔒 {item.earnedBy}</span>
                       ) : (
                         <button
                           className="pixel-btn w-[calc(100%-8px)] text-base"

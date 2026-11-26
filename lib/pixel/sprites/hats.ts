@@ -1,11 +1,11 @@
-import { PixelCanvas } from "../canvas";
+import { PixelCanvas, sprite, type Sprite } from "../canvas";
 
 /**
  * Hats for Nova, bought in the star shop. Each hat is drawn on its own small canvas with its
  * bottom-centre at (ANCHOR_X, ANCHOR_Y); Nova's sprites stamp it onto her head in every pose.
  * Two sizes: "front" (battle Nova, a wide head) and "side" (journey Nova, a narrower head).
  */
-export const HAT_IDS = ["party", "beanie", "flower", "pirate", "wizard", "crown"] as const;
+export const HAT_IDS = ["party", "beanie", "flower", "pirate", "wizard", "crown", "e"] as const;
 export type HatId = (typeof HAT_IDS)[number];
 
 export const ANCHOR_X = 8;
@@ -79,6 +79,19 @@ function draw(id: HatId, view: "front" | "side"): PixelCanvas {
       c.hline(cx - hw + 1, cx + hw - 1, by, "A");
       break;
     }
+    case "e": {
+      // The Grey Fox's hat, won by beating him: a tall dark hat with a red band and a big E.
+      const h = H(7);
+      c.rect(cx - hw + 1, by - h, 2 * hw - 1, h, "u");
+      c.hline(cx - hw - 1, cx + hw + 1, by, "m");
+      c.hline(cx - hw + 1, cx + hw - 1, by - 1, "R");
+      const top = by - h + 1;
+      const bottom = by - 2;
+      const mid = Math.round((top + bottom) / 2);
+      c.vline(cx - 1, top, bottom, "w");
+      for (const y of [top, mid, bottom]) c.hline(cx - 1, cx + 1, y, "w");
+      break;
+    }
   }
   c.shade(LIGHT, DARK);
   c.outline("k");
@@ -93,6 +106,11 @@ export function hatCanvas(id: HatId, view: "front" | "side"): PixelCanvas {
   let c = cache.get(key);
   if (!c) cache.set(key, (c = draw(id, view)));
   return c;
+}
+
+/** A hat on its own, as a sprite (e.g. dropped on the ground after a battle). */
+export function hatSprite(id: HatId, view: "front" | "side" = "front"): Sprite {
+  return sprite(hatCanvas(id, view));
 }
 
 export function isHat(id: string | null | undefined): id is HatId {

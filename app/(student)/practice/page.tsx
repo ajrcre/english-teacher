@@ -7,7 +7,7 @@ import { requireStudentPage } from "@/lib/student";
 
 export const metadata: Metadata = { title: "Practice" };
 
-const MODES: SessionMode[] = ["review", "explore", "lesson", "mistakes", "boss"];
+const MODES: SessionMode[] = ["review", "explore", "lesson", "mistakes", "boss", "test-boss"];
 
 export default async function PracticePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
@@ -23,6 +23,10 @@ export default async function PracticePage({ searchParams }: { searchParams: Pro
   if (lessonIds.length) {
     const first = lessonById.get(lessonIds[0])!;
     lessonTitle = lessonIds.length === 1 ? `${first.unit.title} · ${first.lesson.title}` : `Your ${lessonIds.length} topics`;
+  } else if (mode === "test-boss") {
+    const fox = await services.practice.testBossStatus(student.id);
+    if (!fox?.available) redirect("/home");
+    lessonTitle = "The Grey Fox · test boss";
   } else if (mode === "lesson" || mode === "boss") {
     const ref = lessonId ? lessonById.get(lessonId) : undefined;
     if (!ref || !lessonId) redirect("/home");

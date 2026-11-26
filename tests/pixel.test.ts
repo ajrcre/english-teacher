@@ -13,6 +13,8 @@ import { STICKER_ART_IDS, stickerArt } from "@/lib/pixel/sprites/stickers";
 import * as runner from "@/lib/pixel/sprites/runner";
 import * as starCatch from "@/lib/pixel/sprites/starCatch";
 import * as ui from "@/lib/pixel/sprites/ui";
+import { BUBBLE_BREAK, BUBBLE_FLY, BUBBLE_POP, FOX_H, FOX_W, GREY_FOX } from "@/lib/pixel/sprites/greyFox";
+import { hatSprite } from "@/lib/pixel/sprites/hats";
 
 const catalog = buildCatalog(units);
 
@@ -50,6 +52,15 @@ describe("pixel art", () => {
         [`${b.name} attack`, b.attack],
         [`${b.name} hurt`, b.hurt],
       ]),
+      ["grey fox", GREY_FOX.sprite],
+      ["grey fox talk", GREY_FOX.talk],
+      ["grey fox attack", GREY_FOX.attack],
+      ["grey fox throw", GREY_FOX.throw],
+      ["grey fox hurt", GREY_FOX.hurt],
+      ["bubble fly", BUBBLE_FLY],
+      ["bubble break", BUBBLE_BREAK],
+      ["bubble pop", BUBBLE_POP],
+      ["E hat", hatSprite("e")],
       ...BACKDROP_IDS.map((id): [string, Sprite] => [`backdrop ${id}`, backdropFor(id)]),
       ...STICKER_ART_IDS.map((id): [string, Sprite] => [`sticker ${id}`, stickerArt(id)]),
       ...Object.entries(SHOP_AVATAR_ART),
@@ -88,6 +99,16 @@ describe("pixel art", () => {
     expect(novaSprite.frames).toHaveLength(4);
     for (const s of [novaWalk, novaRun]) expect(s.frames).toHaveLength(4);
     for (const s of [novaWalk, novaRun, novaSit, novaTrip, novaJump]) expect([s.w, s.h]).toEqual([novaWalk.w, novaWalk.h]);
+  });
+
+  it("the Grey Fox stands tall, with a 4-frame idle, a talk loop and a 4-frame throw", () => {
+    expect(GREY_FOX.sprite.frames).toHaveLength(4);
+    expect(GREY_FOX.throw.frames).toHaveLength(4);
+    expect(GREY_FOX.talk.frames).toHaveLength(2);
+    for (const s of [GREY_FOX.sprite, GREY_FOX.talk, GREY_FOX.attack, GREY_FOX.throw, GREY_FOX.hurt]) expect([s.w, s.h]).toEqual([FOX_W, FOX_H]);
+    expect(FOX_H).toBeGreaterThan(FOX_W);
+    expect(BUBBLE_FLY.frames).toHaveLength(4);
+    expect(BUBBLE_BREAK.frames).toHaveLength(6);
   });
 
   it("backdrops are 128×72 and animated", () => {

@@ -251,6 +251,17 @@ export class RewardsRepository {
       .where(and(eq(bossDefeats.studentId, studentId), eq(bossDefeats.lessonId, lessonId)));
   }
 
+  /** Verdicts of answers given in a mode since a moment, newest first (the Grey Fox spans many lessons). */
+  async recentVerdictsByMode(studentId: string, mode: string, since: Date): Promise<string[]> {
+    const rows = await this.db
+      .select({ verdict: attempts.verdict })
+      .from(attempts)
+      .where(and(eq(attempts.studentId, studentId), eq(attempts.mode, mode), gte(attempts.createdAt, since)))
+      .orderBy(desc(attempts.createdAt), desc(attempts.id))
+      .limit(80);
+    return rows.map((r) => r.verdict);
+  }
+
   /** Verdicts of boss-mode answers for a lesson since a moment, newest first (to check a claimed victory). */
   async recentBossVerdicts(studentId: string, lessonId: string, since: Date): Promise<string[]> {
     const rows = await this.db
