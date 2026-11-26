@@ -57,6 +57,7 @@ describe("pixel art", () => {
       ["grey fox attack", GREY_FOX.attack],
       ["grey fox throw", GREY_FOX.throw],
       ["grey fox hurt", GREY_FOX.hurt],
+      ["grey fox walk", GREY_FOX.walk],
       ["grey star", starCatch.greyStar],
       ["bubble fly", BUBBLE_FLY],
       ["bubble break", BUBBLE_BREAK],
@@ -106,7 +107,8 @@ describe("pixel art", () => {
     expect(GREY_FOX.sprite.frames).toHaveLength(4);
     expect(GREY_FOX.throw.frames).toHaveLength(4);
     expect(GREY_FOX.talk.frames).toHaveLength(2);
-    for (const s of [GREY_FOX.sprite, GREY_FOX.talk, GREY_FOX.attack, GREY_FOX.throw, GREY_FOX.hurt]) expect([s.w, s.h]).toEqual([FOX_W, FOX_H]);
+    for (const s of [GREY_FOX.sprite, GREY_FOX.talk, GREY_FOX.attack, GREY_FOX.throw, GREY_FOX.hurt, GREY_FOX.walk]) expect([s.w, s.h]).toEqual([FOX_W, FOX_H]);
+    expect(GREY_FOX.walk.frames).toHaveLength(4);
     expect(FOX_H).toBeGreaterThan(FOX_W);
     expect(BUBBLE_FLY.frames).toHaveLength(4);
     expect(BUBBLE_BREAK.frames).toHaveLength(6);

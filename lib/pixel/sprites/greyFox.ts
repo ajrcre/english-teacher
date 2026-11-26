@@ -20,34 +20,41 @@ export interface FoeDef {
   attack: Sprite;
   /** Throwing a speech bubble: wind up, swing over, let go, follow through (4 frames). */
   throw: Sprite;
+  /** Hit: he doesn't even flinch (eyes shut for a moment, arms still crossed). */
   hurt: Sprite;
+  /** Beaten: he walks off, facing away from Nova and without his hat (4 frames). */
+  walk: Sprite;
 }
 
 /** He stands on his hind legs, short and round (a big head on a small body). */
 export const FOX_W = 34;
 export const FOX_H = 42;
-type Pose = { kind: "idle"; f: number } | { kind: "talk"; f: number } | { kind: "attack" } | { kind: "throw"; f: number } | { kind: "hurt" };
+type Pose = { kind: "idle"; f: number } | { kind: "talk"; f: number } | { kind: "attack" } | { kind: "throw"; f: number } | { kind: "hurt" } | { kind: "walk"; f: number };
 
 const LIGHT: Record<string, string> = { G: "g", g: "e", e: "W", R: "r", r: "p" };
 const DARK: Record<string, string> = { g: "G", e: "g", W: "e" };
 
 function fox(p: Pose): PixelCanvas {
   const c = new PixelCanvas(FOX_W, FOX_H);
-  const f = p.kind === "idle" || p.kind === "talk" || p.kind === "throw" ? p.f : 0;
+  const f = p.kind === "idle" || p.kind === "talk" || p.kind === "throw" || p.kind === "walk" ? p.f : 0;
   const thr = p.kind === "throw" ? p.f : -1;
+  /** Hit: he doesn't care. Same pose as waiting, eyes shut for a moment. */
   const hurt = p.kind === "hurt";
-  const up = p.kind === "idle" ? [0, -1, -1, 0][f % 4] : 0;
-  // leans back to wind up, forward to throw; recoils when hit (the legs stay planted)
-  const lean = thr === 0 ? 2 : thr === 1 ? 1 : thr === 2 ? -3 : thr === 3 ? -2 : p.kind === "attack" ? -1 : hurt ? 2 : 0;
+  const walk = p.kind === "walk";
+  const up = p.kind === "idle" ? [0, -1, -1, 0][f % 4] : walk ? [0, -1, 0, -1][f % 4] : 0;
+  // leans back to wind up, forward to throw (the legs stay planted)
+  const lean = thr === 0 ? 2 : thr === 1 ? 1 : thr === 2 ? -3 : thr === 3 ? -2 : p.kind === "attack" ? -1 : 0;
 
   // a big fluffy tail curling up behind him, swishing, with a cream tip
   const sw = p.kind === "idle" && f % 2 ? 1 : 0;
   c.ellipse(26 + sw, 33, 4.5, 5, "g");
   c.ellipse(29 + sw, 27, 3.5, 4, "g");
   c.ellipse(30 + sw, 22, 2.5, 3, "W");
-  // short stubby legs on two feet
-  c.rect(13, 35, 3, 4, "G").rect(20, 35, 3, 4, "G");
-  c.ellipse(12, 39.5, 2.5, 1.5, "W").ellipse(19, 39.5, 2.5, 1.5, "W");
+  // short stubby legs on two feet (stepping when he walks off)
+  const stepA = walk && f % 2 === 0 ? 1 : 0;
+  const stepB = walk && f % 2 === 1 ? 1 : 0;
+  c.rect(13, 35 - stepA, 3, 4, "G").rect(20, 35 - stepB, 3, 4, "G");
+  c.ellipse(12, 39.5 - stepA, 2.5, 1.5, "W").ellipse(19, 39.5 - stepB, 2.5, 1.5, "W");
   // a small round body (darker than his head) with a cream tummy
   const bx = 18 + Math.round(lean / 2);
   c.ellipse(bx, 30 + up, 6.5, 6, "G");
@@ -55,17 +62,12 @@ function fox(p: Pose): PixelCanvas {
 
   // a big round head (cute proportions)
   const hx = 16 + lean;
-  const hy = 16 + up + (hurt ? 1 : 0);
-  // ears: big and pointy with pink insides, flattened when he's hit
-  if (hurt) {
-    c.tri(hx - 3, hy - 5, hx + 4, hy - 9, hx + 3, hy - 3, "g");
-    c.tri(hx + 3, hy - 4, hx + 11, hy - 7, hx + 7, hy - 1, "g");
-  } else {
-    c.tri(hx - 9, hy - 1, hx - 10, hy - 13, hx - 3, hy - 6, "g");
-    c.tri(hx + 5, hy - 6, hx + 11, hy - 13, hx + 9, hy, "g");
-    c.tri(hx - 8, hy - 3, hx - 9, hy - 10, hx - 5, hy - 6, "p");
-    c.tri(hx + 6, hy - 6, hx + 10, hy - 10, hx + 8, hy - 2, "p");
-  }
+  const hy = 16 + up;
+  // ears: big and pointy with pink insides
+  c.tri(hx - 9, hy - 1, hx - 10, hy - 13, hx - 3, hy - 6, "g");
+  c.tri(hx + 5, hy - 6, hx + 11, hy - 13, hx + 9, hy, "g");
+  c.tri(hx - 8, hy - 3, hx - 9, hy - 10, hx - 5, hy - 6, "p");
+  c.tri(hx + 6, hy - 6, hx + 10, hy - 10, hx + 8, hy - 2, "p");
   c.ellipse(hx, hy, 9, 7.5, "g");
   // cream face mask and a short snout with a shiny black nose
   c.ellipse(hx - 3, hy + 3, 6, 4, "e");
@@ -110,19 +112,27 @@ function fox(p: Pose): PixelCanvas {
   else if (thr === 3) arm(6, 32, false); // follow-through
   else if (p.kind === "attack") arm(4, 27, false);
   else if (p.kind === "talk") arm(3, 25 + (f % 2), false); // points at Nova
-  else if (!hurt) {
+  else {
     // arms crossed: the cool pose
     c.hline(bx - 7, bx + 5, 27 + up, "g").hline(bx - 7, bx + 5, 28 + up, "g").hline(bx - 6, bx + 4, 29 + up, "k");
     c.hline(bx - 6, bx + 6, 30 + up, "g").hline(bx - 6, bx + 6, 31 + up, "g").hline(bx - 5, bx + 5, 32 + up, "k");
     c.ellipse(bx - 7, 27.5 + up, 1.6, 1.4, "W").ellipse(bx + 6, 30.5 + up, 1.6, 1.4, "W");
-  } else arm(26, 33, false); // flung back when hit
+  }
 
   c.shade(LIGHT, DARK);
   c.outline("k");
-  // his hat, worn at the back of his head, knocked up when he's hit
+  // his hat, worn at the back of his head (left behind when he walks off)
+  if (walk) return flipped(c);
   const hat = hatCanvas("e", "front");
-  c.stamp(hat, Math.round(hx + 1) - ANCHOR_X, Math.round(hy - 6) - ANCHOR_Y + (hurt ? -2 : 0));
+  c.stamp(hat, Math.round(hx + 1) - ANCHOR_X, Math.round(hy - 6) - ANCHOR_Y);
   return c;
+}
+
+/** The same drawing facing the other way (walking off, away from Nova). */
+function flipped(c: PixelCanvas): PixelCanvas {
+  const out = new PixelCanvas(c.w, c.h);
+  for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) out.set(c.w - 1 - x, y, c.get(x, y));
+  return out;
 }
 
 export const GREY_FOX: FoeDef = {
@@ -133,6 +143,7 @@ export const GREY_FOX: FoeDef = {
   attack: sprite(fox({ kind: "attack" })),
   throw: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "throw", f }))),
   hurt: sprite(fox({ kind: "hurt" })),
+  walk: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "walk", f }))),
 };
 
 // --- The thrown speech bubble -----------------------------------------------------------

@@ -631,7 +631,8 @@ export function Runner({
               if (isFox) {
                 // back to his castle for the outcome: a tick and Nova's strike, or the bubble thrown
                 setFoxBreak("result");
-                if (verdict === "correct") setTimeout(() => nextRef.current(), 1400);
+                // (after the winning catch, long enough to watch him walk off and leave his hat)
+                if (verdict === "correct") setTimeout(() => nextRef.current(), battleOver.current ? 4200 : 1400);
                 else setRunnerHold(false);
                 return;
               }

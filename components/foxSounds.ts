@@ -5,7 +5,8 @@ import { soundEnabled } from "./sound";
 /**
  * The Grey Fox's 8-bit sounds, made in code with Web Audio (no files): chip-tune blips for his
  * talking, a whoosh when he throws a bubble, glassy tinkles when it shatters, a little arpeggio
- * when a right answer pops it, and a poof and a boing when he's beaten and his hat drops.
+ * when a right answer pops it, and a boing and footsteps when he's beaten: his hat drops and
+ * he walks off.
  * Silent when sound is off.
  */
 let ctx: AudioContext | null = null;
@@ -101,20 +102,19 @@ export function bubblePop(): void {
   [523, 659, 784, 1047].forEach((f, i) => tone(a, a.currentTime + i * 0.06, 0.09, f, f, "square", 0.045));
 }
 
-/** Nova's hit lands on him: a short falling tone. */
+/** Nova's hit lands on him, and he doesn't care: two flat, bored blips. */
 export function foxHurt(): void {
   const a = audio();
   if (!a) return;
-  tone(a, a.currentTime, 0.18, 330, 150, "square", 0.05);
+  tone(a, a.currentTime, 0.07, 160, 158, "square", 0.04);
+  tone(a, a.currentTime + 0.12, 0.09, 140, 138, "square", 0.035);
 }
 
-/** Beaten: he vanishes in a poof, with a little chime. */
-export function foxVanish(): void {
+/** Beaten, he just walks off: soft footsteps fading away. */
+export function foxSteps(): void {
   const a = audio();
   if (!a) return;
-  const t = a.currentTime;
-  hiss(a, t, 0.5, 2000, 200, 0.14, "lowpass");
-  [784, 988, 1319].forEach((f, i) => tone(a, t + 0.2 + i * 0.08, 0.16, f, f, "triangle", 0.04));
+  for (let i = 0; i < 8; i++) hiss(a, a.currentTime + i * 0.3, 0.06, 900, 500, 0.09 * (1 - i / 9), "lowpass");
 }
 
 /** His hat lands on the ground: boing. */

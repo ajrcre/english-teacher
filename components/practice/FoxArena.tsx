@@ -12,7 +12,7 @@ import { novaSprites } from "@/lib/pixel/sprites/nova";
 import { heartEmpty, heartFull, sword } from "@/lib/pixel/sprites/ui";
 import { cx } from "@/lib/ui";
 import { RichSentence } from "./inputs";
-import { bubblePop, bubbleShatter, foxHurt, foxTalk, foxThrow, foxVanish, hatBoing } from "../foxSounds";
+import { bubblePop, bubbleShatter, foxHurt, foxSteps, foxTalk, foxThrow, hatBoing } from "../foxSounds";
 
 /** The Grey Fox's question, said in a speech bubble; it reacts to the answer. */
 export interface FoxBubble {
@@ -91,8 +91,8 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
   }, [beat, reduced]);
   useEffect(() => {
     if (!defeated) return;
-    const a = setTimeout(foxVanish, 350);
-    const b = setTimeout(hatBoing, 900);
+    const a = setTimeout(hatBoing, 650);
+    const b = setTimeout(foxSteps, 900);
     return () => {
       clearTimeout(a);
       clearTimeout(b);
@@ -164,10 +164,11 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
               key="fox"
               className="absolute"
               style={{ left: pct(FOX_X, BACKDROP_W), top: pct(FOX_Y, BACKDROP_H), width: pct(FOX_W, BACKDROP_W) }}
-              exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.4, y: "-20%", filter: "brightness(3)" }}
+              exit={{ opacity: 0, transition: { duration: 0 } }}
               transition={{ duration: 0.6 }}
             >
-              <div className="px-anim" style={foxHit ? { animation: "px-shake 0.35s linear, px-flash 0.45s steps(2)" } : undefined}>
+              {/* Hit, he doesn't even flinch: just shuts his eyes for a moment. */}
+              <div>
                 <PixelSprite sprite={foxSprite} frame={foxFrame} fps={foxSprite === GREY_FOX.talk ? 6 : 4} className="h-auto w-full" />
               </div>
             </motion.div>
@@ -207,22 +208,28 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
         )}
         {novaHurt && <motion.div key={`hurt-${beat!.id}`} className="pointer-events-none absolute inset-0 bg-[#b05a5c]" initial={{ opacity: 0.45 }} animate={{ opacity: 0 }} transition={{ duration: 0.6 }} />}
 
-        {/* Beaten: he vanishes in a pop, and his hat drops to the ground */}
+        {/* Beaten: his hat falls off, and he just turns and walks away without it */}
         {defeated && (
           <>
-            <motion.div className="pointer-events-none absolute" style={{ left: pct(FOX_X - 3, BACKDROP_W), top: pct(FOX_Y + 2, BACKDROP_H), width: pct(FOX_W + 6, BACKDROP_W) }} initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ delay: 0.5, duration: 0.4 }}>
-              <PixelSprite sprite={BUBBLE_POP} fps={8} className="h-auto w-full" />
+            <motion.div
+              className="absolute"
+              style={{ top: pct(FOX_Y, BACKDROP_H), width: pct(FOX_W, BACKDROP_W) }}
+              initial={{ left: pct(FOX_X, BACKDROP_W) }}
+              animate={{ left: pct(BACKDROP_W + 4, BACKDROP_W) }}
+              transition={reduced ? { duration: 0 } : { delay: 0.9, duration: 2.6, ease: "linear" }}
+            >
+              <PixelSprite sprite={GREY_FOX.walk} fps={reduced ? 0 : 7} className="h-auto w-full" title="The Grey Fox walks away" />
             </motion.div>
             <motion.div
               className="absolute"
               style={{ left: pct(FOX_X + FOX_W / 2 - 8, BACKDROP_W), width: pct(16, BACKDROP_W) }}
               initial={reduced ? { top: pct(52, BACKDROP_H) } : { top: pct(FOX_Y, BACKDROP_H), rotate: -25, opacity: 0 }}
               animate={{ top: pct(52, BACKDROP_H), rotate: 0, opacity: 1 }}
-              transition={reduced ? { duration: 0 } : { delay: 0.45, type: "spring", stiffness: 260, damping: 9 }}
+              transition={reduced ? { duration: 0 } : { delay: 0.15, type: "spring", stiffness: 260, damping: 9 }}
             >
               <PixelSprite sprite={hatSprite("e")} className="h-auto w-full" title="The Grey Fox's E hat" />
             </motion.div>
-            <motion.div className="pointer-events-none absolute text-center text-xl text-[#f6e7b8] [text-shadow:2px_2px_0_#241c2b] sm:text-3xl" style={{ left: "50%", top: "30%" }} initial={{ opacity: 0, scale: 0.5, x: "-50%" }} animate={{ opacity: 1, scale: 1, x: "-50%" }} transition={{ delay: 0.9, type: "spring" }}>
+            <motion.div className="pointer-events-none absolute text-center text-xl text-[#f6e7b8] [text-shadow:2px_2px_0_#241c2b] sm:text-3xl" style={{ left: "50%", top: "30%" }} initial={{ opacity: 0, scale: 0.5, x: "-50%" }} animate={{ opacity: 1, scale: 1, x: "-50%" }} transition={{ delay: 1.6, type: "spring" }}>
               Victory!
             </motion.div>
           </>
