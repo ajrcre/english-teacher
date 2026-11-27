@@ -59,6 +59,7 @@ describe("pixel art", () => {
       ["grey fox throw", GREY_FOX.throw],
       ["grey fox throw star", GREY_FOX.throwStar],
       ["grey fox throw star (right)", GREY_FOX.throwStarRight],
+      ["grey fox eat", GREY_FOX.eat],
       ["lantern light", lightOrb],
       ["lantern burst", lightBurst],
       ["grey fox hurt", GREY_FOX.hurt],

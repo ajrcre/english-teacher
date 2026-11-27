@@ -24,6 +24,8 @@ export interface FoeDef {
   throwStar: Sprite;
   /** The same, facing right (he throws from the left of the field); his hat still reads E. */
   throwStarRight: Sprite;
+  /** Angry, he eats Nova's pause button: jaws wide open, then chewing (3 frames). */
+  eat: Sprite;
   /** Hit: he doesn't even flinch (eyes shut for a moment, arms still crossed). */
   hurt: Sprite;
   /** Beaten: he walks off, facing away from Nova and without his hat (4 frames). */
@@ -33,7 +35,7 @@ export interface FoeDef {
 /** He stands on his hind legs, short and round (a big head on a small body). */
 export const FOX_W = 34;
 export const FOX_H = 42;
-type Pose = { kind: "idle"; f: number } | { kind: "talk"; f: number } | { kind: "attack" } | { kind: "throw"; f: number; star?: boolean; facingRight?: boolean } | { kind: "hurt" } | { kind: "walk"; f: number };
+type Pose = { kind: "idle"; f: number } | { kind: "talk"; f: number } | { kind: "attack" } | { kind: "throw"; f: number; star?: boolean; facingRight?: boolean } | { kind: "hurt" } | { kind: "walk"; f: number } | { kind: "eat"; f: number };
 
 /** Where his paw holds what he throws, in the frame where he swings it up high (frame 1). */
 export const THROW_PAW = { x: 27, y: 4 };
@@ -43,14 +45,15 @@ const DARK: Record<string, string> = { g: "G", e: "g", W: "e" };
 
 function fox(p: Pose): PixelCanvas {
   const c = new PixelCanvas(FOX_W, FOX_H);
-  const f = p.kind === "idle" || p.kind === "talk" || p.kind === "throw" || p.kind === "walk" ? p.f : 0;
+  const f = p.kind === "idle" || p.kind === "talk" || p.kind === "throw" || p.kind === "walk" || p.kind === "eat" ? p.f : 0;
+  const eat = p.kind === "eat";
   const thr = p.kind === "throw" ? p.f : -1;
   /** Hit: he doesn't care. Same pose as waiting, eyes shut for a moment. */
   const hurt = p.kind === "hurt";
   const walk = p.kind === "walk";
   const up = p.kind === "idle" ? [0, -1, -1, 0][f % 4] : walk ? [0, -1, 0, -1][f % 4] : 0;
   // leans back to wind up, forward to throw (the legs stay planted)
-  const lean = thr === 0 ? 2 : thr === 1 ? 1 : thr === 2 ? -3 : thr === 3 ? -2 : p.kind === "attack" ? -1 : 0;
+  const lean = thr === 0 ? 2 : thr === 1 ? 1 : thr === 2 ? -3 : thr === 3 ? -2 : p.kind === "attack" ? -1 : eat ? -2 : 0;
 
   // a big fluffy tail curling up behind him, swishing, with a cream tip
   const sw = p.kind === "idle" && f % 2 ? 1 : 0;
@@ -99,6 +102,21 @@ function fox(p: Pose): PixelCanvas {
   const talk = p.kind === "talk" && f % 2 === 0;
   c.hline(hx - 7, hx - 3, hy + 5, "k");
   if (talk || thr === 2) c.hline(hx - 6, hx - 4, hy + 6, "R");
+  if (eat) {
+    // angry brows, slanting down to his snout
+    c.line(hx - 9, ey - 3, hx - 5, ey - 2, "k").line(hx + 3, ey - 3, hx - 1, ey - 2, "k");
+    if (f === 0) {
+      // jaws wide open, teeth showing
+      c.rect(hx - 10, hy + 4, 7, 4, "R");
+      c.hline(hx - 10, hx - 3, hy + 3, "k").hline(hx - 10, hx - 3, hy + 8, "k");
+      c.set(hx - 9, hy + 4, "w").set(hx - 6, hy + 4, "w").set(hx - 8, hy + 7, "w").set(hx - 5, hy + 7, "w");
+    } else {
+      // chewing: puffed cheeks, a wobbly mouth
+      c.ellipse(hx - 4, hy + 4, 3.5, 2.5, "e");
+      const w = f === 1 ? 0 : 1;
+      c.line(hx - 8, hy + 5 + w, hx - 6, hy + 6 - w, "k").line(hx - 6, hy + 6 - w, hx - 4, hy + 5 + w, "k");
+    }
+  }
 
   // front paws (arms): crossed over his chest while he waits, pointing while he talks,
   // swinging the bubble when he throws
@@ -127,6 +145,7 @@ function fox(p: Pose): PixelCanvas {
   else if (thr === 2) arm(2, 26, false); // flung forward: the bubble is away
   else if (thr === 3) arm(6, 32, false); // follow-through
   else if (p.kind === "attack") arm(4, 27, false);
+  else if (eat) arm(3, 23 - (f % 2), false); // paws up to his mouth
   else if (p.kind === "talk") arm(3, 25 + (f % 2), false); // points at Nova
   else {
     // arms crossed: the cool pose
@@ -166,6 +185,7 @@ export const GREY_FOX: FoeDef = {
   throw: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "throw", f }))),
   throwStar: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "throw", f, star: true }))),
   throwStarRight: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "throw", f, star: true, facingRight: true }))),
+  eat: sprite(...[0, 1, 2].map((f) => fox({ kind: "eat", f }))),
   hurt: sprite(fox({ kind: "hurt" })),
   walk: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "walk", f }))),
 };

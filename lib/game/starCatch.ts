@@ -244,25 +244,46 @@ export const FOX_STAR_RULES = {
   /** Time for an answer star to drop from the top to Nova's basket, once it lets go (ms). */
   dropMs: 450,
   /** He steps in from the edge of the field (ms). */
-  enterMs: 250,
+  enterMs: 200,
   /** He winds up, grey star in paw, while its landing spot blinks (ms). */
-  windMs: 650,
+  windMs: 450,
   /** The grey star's flight, in an arc, to where it lands (ms). */
-  flightMs: 950,
+  flightMs: 750,
   /** He follows through, then steps back out of the field (ms). */
-  leaveMs: 450,
+  leaveMs: 400,
   /** How high the grey star flies above the straight line to its landing spot (px). */
   arcPx: 34,
   /** A pause between his throws (ms, random in this range). */
-  greyEveryMs: [700, 1300] as const,
+  greyEveryMs: [500, 1000] as const,
   /** The stars hang still while the question is read, and tremble only this long before they drop (ms). */
   shakeMs: 1500,
   /** Shaking harder in the last moments before the drop (ms). */
   warnMs: 600,
 };
 
+/**
+ * Angry at half his lives, he throws faster and more often (and eats the pause button if
+ * Nova reaches for it).
+ */
+export const FOX_RAGE_RULES = {
+  ...FOX_STAR_RULES,
+  enterMs: 150,
+  windMs: 330,
+  flightMs: 600,
+  leaveMs: 350,
+  greyEveryMs: [250, 600] as const,
+};
+
+export type FoxThrowRules = Pick<typeof FOX_STAR_RULES, "enterMs" | "windMs" | "flightMs" | "leaveMs" | "arcPx"> & { greyEveryMs: readonly [number, number] };
+
 /** Warning a student gets before a grey star lands: from his wind-up to the landing (ms). */
 export const FOX_WARNING_MS = FOX_STAR_RULES.windMs + FOX_STAR_RULES.flightMs;
+export const FOX_RAGE_WARNING_MS = FOX_RAGE_RULES.windMs + FOX_RAGE_RULES.flightMs;
+
+/** He gets angry once he has lost half his lives. */
+export function foxAngry(hits: number, hp: number): boolean {
+  return hp > 0 && hits >= Math.ceil(hp / 2) && hits < hp;
+}
 
 export interface FoxThrowStage {
   stage: "enter" | "wind" | "throw" | "leave" | "gone";
@@ -275,8 +296,8 @@ export interface FoxThrowStage {
 }
 
 /** Where the Grey Fox is in one throw, `e` ms after he starts stepping in. */
-export function foxThrowStage(e: number): FoxThrowStage {
-  const { enterMs, windMs, leaveMs } = FOX_STAR_RULES;
+export function foxThrowStage(e: number, rules: FoxThrowRules = FOX_STAR_RULES): FoxThrowStage {
+  const { enterMs, windMs, leaveMs } = rules;
   const t = Math.max(0, e);
   if (t < enterMs) return { stage: "enter", frame: 0, out: 1 - t / enterMs, released: false };
   if (t < enterMs + windMs) return { stage: "wind", frame: t - enterMs < windMs * 0.5 ? 0 : 1, out: 0, released: false };

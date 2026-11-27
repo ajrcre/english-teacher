@@ -14,7 +14,7 @@ import { cx } from "@/lib/ui";
 import { useField } from "./game/useField";
 import { RichSentence } from "./inputs";
 import { LANTERN_HIT_MS, LanternStrike } from "./LanternStrike";
-import { bubblePop, bubbleShatter, foxHurt, foxSteps, foxTalk, foxThrow, hatBoing } from "../foxSounds";
+import { bubblePop, bubbleShatter, foxGrowl, foxHurt, foxSteps, foxTalk, foxThrow, hatBoing } from "../foxSounds";
 
 /** The Grey Fox's question, said in a speech bubble; it reacts to the answer. */
 export interface FoxBubble {
@@ -62,7 +62,7 @@ function useElapsed(since: number | string | null, until: number): number {
  * while Nova strikes; a wrong one and he snatches the bubble back, winds up and throws it at Nova,
  * where it shatters. When his lives run out he vanishes and his E hat drops to the ground.
  */
-export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bubble, compact = false, fill = false }: { hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string; hat?: string | null; bubble: FoxBubble | null; /** A mini-game is playing below: keep the panel short. */ compact?: boolean; /** Fill the space it is given (the whole screen in his battle), the castle scaled to fit. */ fill?: boolean }) {
+export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bubble, compact = false, fill = false, angry = false }: { /** Half his lives gone: he is angry (a red glow around him). */ angry?: boolean; hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string; hat?: string | null; bubble: FoxBubble | null; /** A mini-game is playing below: keep the panel short. */ compact?: boolean; /** Fill the space it is given (the whole screen in his battle), the castle scaled to fit. */ fill?: boolean }) {
   const { areaRef, box } = useField(BACKDROP_W, () => ({ h: BACKDROP_H }));
   const reduced = useReducedMotion() ?? false;
   const nova = novaSprites(hatOf(hat));
@@ -95,6 +95,12 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
     const id = setTimeout(foxHurt, reduced ? 0 : LANTERN_HIT_MS);
     return () => clearTimeout(id);
   }, [beat, reduced]);
+  // He gets angry: a growl, once.
+  useEffect(() => {
+    if (!angry) return;
+    const id = setTimeout(foxGrowl, 900);
+    return () => clearTimeout(id);
+  }, [angry]);
   useEffect(() => {
     if (!defeated) return;
     const a = setTimeout(hatBoing, 650);
@@ -173,8 +179,10 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
             exit={{ opacity: 0, transition: { duration: 0 } }}
             transition={{ duration: 0.6 }}
           >
+            {/* Angry: a red glow pulses around him */}
+            {angry && <div aria-hidden className="px-anim absolute -inset-[12%] rounded-full bg-[radial-gradient(closest-side,#e0463c88,#e0463c00)]" style={reduced ? undefined : { animation: "fox-rage 1.1s ease-in-out infinite" }} data-angry />}
             {/* Hit, he doesn't even flinch: just shuts his eyes for a moment. */}
-            <div>
+            <div className="relative">
               <PixelSprite sprite={foxSprite} frame={foxFrame} fps={foxSprite === GREY_FOX.talk ? 6 : 4} className="h-auto w-full" />
             </div>
           </motion.div>

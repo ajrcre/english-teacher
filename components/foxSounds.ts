@@ -125,3 +125,22 @@ export function hatBoing(): void {
   tone(a, t, 0.16, 200, 520, "square", 0.05);
   tone(a, t + 0.16, 0.12, 380, 240, "square", 0.035);
 }
+
+/** Angry, he eats the pause button: three big crunchy chomps. */
+export function foxChomp(): void {
+  const a = audio();
+  if (!a) return;
+  const t = a.currentTime;
+  for (let i = 0; i < 3; i++) {
+    hiss(a, t + i * 0.17, 0.09, 2200, 500, 0.16, "highpass");
+    tone(a, t + i * 0.17, 0.08, 200, 80, "square", 0.06);
+  }
+}
+
+/** He gets angry: a low growl. */
+export function foxGrowl(): void {
+  const a = audio();
+  if (!a) return;
+  tone(a, a.currentTime, 0.5, 90, 70, "sawtooth", 0.05);
+  hiss(a, a.currentTime, 0.45, 300, 200, 0.08, "lowpass");
+}

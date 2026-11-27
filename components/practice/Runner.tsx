@@ -27,7 +27,7 @@ import { LaneRunner, type RunnerResult } from "./game/LaneRunner";
 import { StarCatch } from "./game/StarCatch";
 import { JourneyStrip, type JourneyBeat } from "./JourneyStrip";
 import { nextPace, runnerEligible } from "@/lib/game/runner";
-import { mcqGame, pickDecoy, starEligible } from "@/lib/game/starCatch";
+import { foxAngry, mcqGame, pickDecoy, starEligible } from "@/lib/game/starCatch";
 import { parseGamePick, type GamePick } from "@/lib/game/pick";
 import { GamePicker } from "./GamePicker";
 import { QuestionInput, RichSentence, SpeakerIcon, questionTitle } from "./inputs";
@@ -165,6 +165,8 @@ export function Runner({
    * mistake can open the explanation first ("See my mistake").
    */
   const [foxReady, setFoxReady] = useState(false);
+  /** Angry at half his lives, the Grey Fox ate the pause button: no pausing for the rest of the battle. */
+  const [pauseEaten, setPauseEaten] = useState(false);
   const [claim, setClaim] = useState<BossClaim | null>(null);
   const [bossUnlocked, setBossUnlocked] = useState(bossReady);
   /** Height of the feedback sheet, so the page can make room for it below the question. */
@@ -196,6 +198,7 @@ export function Runner({
     battleOver.current = false;
     setFoxBreak(null);
     setFoxReady(false);
+    setPauseEaten(false);
     try {
       const res = await fetch("/api/session/start", {
         method: "POST",
@@ -575,6 +578,7 @@ export function Runner({
             beat={battle.beat}
             message={battle.message}
             hat={hat}
+            angry={foxAngry(battle.hits, battle.hp)}
             bubble={{ key: current.key, prompt: questionTitle(current), sentence: "sentence" in current ? current.sentence : undefined, state: foxAnswer?.key === current.key ? foxAnswer.state : "ask" }}
           />
         )}
@@ -646,6 +650,9 @@ export function Runner({
             decoy={decoy}
             variant={isFox ? "fox" : undefined}
             foxHearts={isFox && battle ? { left: battle.heartsLeft, of: TEST_BOSS_RULES.hearts } : undefined}
+            foxAngry={isFox && !!battle && foxAngry(battle.hits, battle.hp)}
+            pauseEaten={pauseEaten}
+            onEatPause={() => setPauseEaten(true)}
             onChoose={(response) => {
               setRunnerHold(true);
               return submit(undefined, response);
@@ -921,7 +928,8 @@ function nextBeat(b: Battle, correct: boolean, bossName: string, fox = false): B
     const run = b.run + 1;
     const crit = run >= 3;
     const left = b.hp - hits;
-    const message = left <= 0 ? (fox ? `${bossName} is beaten! His hat falls off…` : `${bossName} is beaten! The star is free!`) : crit ? `Critical hit! ${run} in a row! ${left} to go.` : left === 1 ? "Nova strikes! One more hit to win!" : `Nova strikes! ${left} hits to go.`;
+    const angry = fox && hits === Math.ceil(b.hp / 2) && left > 0;
+    const message = left <= 0 ? (fox ? `${bossName} is beaten! His hat falls off…` : `${bossName} is beaten! The star is free!`) : angry ? `Half his lives gone: ${bossName} is ANGRY! He throws faster now… and keep away from the pause button!` : crit ? `Critical hit! ${run} in a row! ${left} to go.` : left === 1 ? "Nova strikes! One more hit to win!" : `Nova strikes! ${left} hits to go.`;
     return { ...b, hits, run, beat: { id, kind: crit ? "crit" : "hit" }, message, outcome: left <= 0 ? "won" : null };
   }
   const heartsLeft = b.heartsLeft - 1;

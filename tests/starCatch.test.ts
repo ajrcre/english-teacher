@@ -3,7 +3,7 @@ import { units } from "@/content/units";
 import { buildCatalog } from "@/lib/content/catalog";
 import { toClientItem } from "@/lib/content/client";
 import { parseGamePick } from "@/lib/game/pick";
-import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy, foxGreyX, FOX_STAR_RULES, GREY_STAR, FOX_WARNING_MS, foxThrowStage, arcPoint, foxSide } from "@/lib/game/starCatch";
+import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy, foxGreyX, FOX_STAR_RULES, GREY_STAR, FOX_WARNING_MS, foxThrowStage, arcPoint, foxSide, FOX_RAGE_RULES, FOX_RAGE_WARNING_MS, foxAngry } from "@/lib/game/starCatch";
 
 const q = (options: string[]) => ({ type: "mcq", prompt: "Choose the best word.", options });
 
@@ -142,8 +142,11 @@ describe("the Grey Fox's Star Catch", () => {
   });
 
   it("drops the answer stars fast once they let go, and grey ones a little slower", () => {
-    // a thrown grey star gives well over a second and a half to step aside
-    expect(FOX_WARNING_MS).toBeGreaterThanOrEqual(1500);
+    // a thrown grey star gives over a second to step aside; angry, a little less
+    expect(FOX_WARNING_MS).toBeGreaterThanOrEqual(1100);
+    expect(FOX_RAGE_WARNING_MS).toBeLessThan(FOX_WARNING_MS);
+    expect(FOX_RAGE_WARNING_MS).toBeGreaterThanOrEqual(850);
+    expect(FOX_RAGE_RULES.greyEveryMs[1]).toBeLessThan(FOX_STAR_RULES.greyEveryMs[1]);
     expect(FOX_STAR_RULES.greyEveryMs[0]).toBeLessThan(FOX_STAR_RULES.greyEveryMs[1]);
     expect(FOX_STAR_RULES.shakeMs).toBe(1500);
     expect(FOX_STAR_RULES.warnMs).toBeLessThan(FOX_STAR_RULES.shakeMs);
@@ -189,5 +192,21 @@ describe("the Grey Fox's throw", () => {
   it("throws from the side further from the landing spot", () => {
     expect(foxSide(30, 160)).toBe(1);
     expect(foxSide(130, 160)).toBe(-1);
+  });
+});
+
+describe("the angry Grey Fox", () => {
+  it("gets angry at half his lives, until he is beaten", () => {
+    expect(foxAngry(5, 12)).toBe(false);
+    expect(foxAngry(6, 12)).toBe(true);
+    expect(foxAngry(11, 12)).toBe(true);
+    expect(foxAngry(12, 12)).toBe(false);
+    expect(foxAngry(0, 0)).toBe(false);
+  });
+
+  it("throws on his faster timings when angry", () => {
+    const { enterMs, windMs } = FOX_RAGE_RULES;
+    expect(foxThrowStage(enterMs + windMs, FOX_RAGE_RULES).released).toBe(true);
+    expect(foxThrowStage(enterMs + windMs, FOX_STAR_RULES).released).toBe(false);
   });
 });

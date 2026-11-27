@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PixelSprite } from "@/components/pixel/PixelSprite";
 import { loopStrip, spriteFrames } from "@/components/pixel/spriteCanvas";
@@ -7,11 +8,12 @@ import { playDictation, playSfx } from "@/components/sound";
 import type { ClientItem, ItemResponse } from "@/lib/content/client";
 import { approachMs, laneGround } from "@/lib/game/runner";
 import { fieldHeight, isControl, toField } from "@/lib/game/stage";
-import { bubbleShatter, foxThrow } from "@/components/foxSounds";
+import { bubbleShatter, foxChomp, foxThrow } from "@/components/foxSounds";
 import {
   catcherX,
   decoyLetter,
   arcPoint,
+  FOX_RAGE_RULES,
   FOX_STAR_RULES,
   foxGreyX,
   foxSide,
@@ -155,9 +157,18 @@ export function StarCatch({
   decoy = null,
   variant,
   foxHearts,
+  foxAngry = false,
+  pauseEaten = false,
+  onEatPause,
   onChoose,
   onFinished,
 }: {
+  /** The Grey Fox's game: he is angry (half his lives gone): faster throws, and he eats the pause button. */
+  foxAngry?: boolean;
+  /** He has eaten the pause button: no more pausing in this battle. */
+  pauseEaten?: boolean;
+  /** Called once he has eaten it. */
+  onEatPause?: () => void;
   item: StarCatchItem;
   /** "fox": the Grey Fox's version (trembling stars, grey stars); its question is in his bubble. */
   variant?: "fox";
@@ -179,6 +190,13 @@ export function StarCatch({
     item.type === "mcq" ? "choice" : item.type === "match" ? "match" : "spell";
   const spell = mode === "spell";
   const fox = variant === "fox" && mode === "choice";
+  /** His throwing speed, read by the game loop. */
+  const rules = useRef(foxAngry ? FOX_RAGE_RULES : FOX_STAR_RULES);
+  useEffect(() => {
+    rules.current = foxAngry ? FOX_RAGE_RULES : FOX_STAR_RULES;
+  }, [foxAngry]);
+  /** He is eating the pause button right now. */
+  const [chomping, setChomping] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const { areaRef, field, box } = useField(W, (area) => ({
@@ -240,6 +258,29 @@ export function StarCatch({
     g.current.paused = !g.current.paused;
     setPaused(g.current.paused);
   };
+  /**
+   * The pause button (or P / Escape). Once the Grey Fox is angry he won't let Nova rest: he
+   * leaps in and eats the button instead, and the game goes on.
+   */
+  const askPause = () => {
+    if (fox && foxAngry && !g.current.paused) {
+      if (pauseEaten || chomping) return;
+      setChomping(true);
+      setBanner({ text: "CHOMP! No pausing!", good: false });
+      setTimeout(foxChomp, 420);
+      setTimeout(() => {
+        setChomping(false);
+        setBanner(null);
+        onEatPause?.();
+      }, 1700);
+      return;
+    }
+    togglePause();
+  };
+  const askPauseRef = useRef(askPause);
+  useEffect(() => {
+    askPauseRef.current = askPause;
+  });
   /** A mouse or tap click shouldn't leave focus on a control (keyboard focus is kept). */
   const release = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (e.detail > 0) e.currentTarget.blur();
@@ -754,7 +795,7 @@ export function StarCatch({
               greyHere = false;
             }
             if (thr) {
-              const st = foxThrowStage(clock - thr.at);
+              const st = foxThrowStage(clock - thr.at, rules.current);
               if (st.released && !thr.launched) {
                 thr.launched = true;
                 const from = foxPaw(thr.side);
@@ -783,7 +824,7 @@ export function StarCatch({
               }
               if (st.stage === "gone") {
                 thr = null;
-                const [lo, hi] = FOX_STAR_RULES.greyEveryMs;
+                const [lo, hi] = rules.current.greyEveryMs;
                 greyAt = clock + lo + Math.random() * (hi - lo);
               }
             }
@@ -802,7 +843,7 @@ export function StarCatch({
               const pt = arcPoint(
                 t.arc.from,
                 t.arc.to,
-                (clock - t.arc.at) / FOX_STAR_RULES.flightMs,
+                (clock - t.arc.at) / rules.current.flightMs,
               );
               t.x = pt.x;
               t.y = pt.y;
@@ -874,7 +915,7 @@ export function StarCatch({
         const p = t.arc
           ? Math.max(
               0,
-              Math.min(1, (clock - t.arc.at) / FOX_STAR_RULES.flightMs),
+              Math.min(1, (clock - t.arc.at) / rules.current.flightMs),
             )
           : Math.max(0, Math.min(1, (t.y + STAR_H - SKY) / (GROUND - SKY)));
         const sx = t.arc ? t.arc.to.x : t.x;
@@ -895,7 +936,7 @@ export function StarCatch({
 
       // where a grey star will land blinks red: from his wind-up until it lands
       const marks: number[] = [];
-      if (thr && !foxThrowStage(clock - thr.at).released) marks.push(thr.toX);
+      if (thr && !foxThrowStage(clock - thr.at, rules.current).released) marks.push(thr.toX);
       for (const t of s.stars)
         if (t.arc && t.state === "fall") marks.push(t.arc.to.x);
       if (marks.length && Math.floor(clock / 130) % 2 === 0) {
@@ -920,7 +961,7 @@ export function StarCatch({
 
       // the Grey Fox at the side of the field, throwing a grey star
       if (thr) {
-        const st = foxThrowStage(clock - thr.at);
+        const st = foxThrowStage(clock - thr.at, rules.current);
         if (st.stage !== "gone") {
           const fx = foxX(thr.side, st.out);
           ctx.fillStyle = col("k");
@@ -1121,7 +1162,7 @@ export function StarCatch({
       )
         return;
       if (e.key === "p" || e.key === "P" || e.key === "Escape") {
-        togglePause();
+        askPauseRef.current();
         return;
       }
       if (s.phase !== "play" || s.paused) return;
@@ -1434,7 +1475,7 @@ export function StarCatch({
           </div>
         </div>
 
-        <div className="mt-2 flex items-center justify-center gap-2">
+        <div className="relative mt-2 flex items-center justify-center gap-2">
           <MoveButton
             dir={-1}
             label="Move left"
@@ -1464,17 +1505,50 @@ export function StarCatch({
             onHold={setDir}
             onStep={step}
           />
-          <button
-            type="button"
-            className="pixel-btn pixel-btn-ghost w-14"
-            onClick={(e) => {
-              release(e);
-              togglePause();
-            }}
-            aria-label={paused ? "Resume" : "Pause"}
-          >
-            {paused ? "▶" : "❚❚"}
-          </button>
+          {pauseEaten && fox ? (
+            // only crumbs are left of it
+            <span
+              className="grid h-11 w-14 place-items-center text-xs leading-none text-[#776a9c]"
+              role="img"
+              aria-label="The Grey Fox ate the pause button"
+              title="The Grey Fox ate the pause button"
+            >
+              ∴ ·
+            </span>
+          ) : (
+            <motion.button
+              type="button"
+              className="pixel-btn pixel-btn-ghost w-14"
+              onClick={(e) => {
+                release(e);
+                askPause();
+              }}
+              aria-label={paused ? "Resume" : "Pause"}
+              animate={
+                chomping
+                  ? { scale: [1, 1, 1.15, 0.6, 0], rotate: [0, 0, -12, 10, 0], opacity: [1, 1, 1, 1, 0] }
+                  : { scale: 1, rotate: 0, opacity: 1 }
+              }
+              transition={chomping ? { duration: 0.9, times: [0, 0.4, 0.55, 0.75, 1] } : { duration: 0 }}
+            >
+              {paused ? "▶" : "❚❚"}
+            </motion.button>
+          )}
+          {/* Angry, the Grey Fox leaps in from the side, gobbles the pause button and runs off */}
+          <AnimatePresence>
+            {chomping && (
+              <motion.div
+                key="chomp"
+                className="pointer-events-none absolute bottom-0 right-0 z-30 w-24 sm:w-28"
+                initial={{ x: "160%", y: "-10%" }}
+                animate={{ x: ["160%", "10%", "10%", "10%", "180%"], y: ["-10%", "-60%", "-25%", "-25%", "-40%"] }}
+                transition={{ duration: 1.7, times: [0, 0.22, 0.32, 0.75, 1], ease: "easeOut" }}
+                data-chomp
+              >
+                <ChompFox />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -1519,6 +1593,20 @@ export function StarCatch({
       </div>
     </section>
   );
+}
+
+/** The Grey Fox eating the pause button: jaws open as he leaps in, then he chews. */
+function ChompFox() {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    const start = performance.now();
+    const id = setInterval(() => {
+      const ms = performance.now() - start;
+      setFrame(ms < 520 ? 0 : 1 + (Math.floor(ms / 120) % 2));
+    }, 60);
+    return () => clearInterval(id);
+  }, []);
+  return <PixelSprite sprite={GREY_FOX.eat} frame={frame} className="h-auto w-full" />;
 }
 
 /** Hold to keep Nova running that way; a keyboard press takes one step. */

@@ -131,7 +131,24 @@ test("the Grey Fox: unlock him, beat him, win his E hat", async ({ page }) => {
   // A wrong answer star costs another heart. Then twelve right catches.
   await play(page, false, "f2");
   await expect(page.getByLabel("1 of 3 hearts left").first()).toBeVisible();
-  for (let i = 0; i < 12; i++) await play(page, true, i === 0 ? "f3" : undefined);
+  for (let i = 0; i < 12; i++) {
+    if (i === 6) {
+      // Half his lives gone, he is angry: reach for the pause button and he leaps in to eat it
+      // (the game goes on meanwhile, so catch the star straight after).
+      const game = page.getByRole("region", { name: "Star catch" });
+      await expect(game).toBeVisible({ timeout: 30_000 });
+      await game.getByRole("button", { name: "Pause" }).click();
+      await expect(page.locator("[data-chomp]")).toBeVisible();
+      await expect(game.getByText("Paused")).toHaveCount(0);
+    }
+    if (i === 7) {
+      // Only crumbs are left of it, for the rest of the battle.
+      const game = page.getByRole("region", { name: "Star catch" });
+      await expect(game.getByRole("img", { name: "The Grey Fox ate the pause button" })).toBeVisible({ timeout: 30_000 });
+      await expect(game.getByRole("button", { name: "Pause" })).toHaveCount(0);
+    }
+    await play(page, true, i === 0 ? "f3" : i === 7 ? "f7" : undefined);
+  }
 
   await expect(page.getByRole("heading", { name: "Victory!" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("The E hat is yours!")).toBeVisible({ timeout: 15_000 });
