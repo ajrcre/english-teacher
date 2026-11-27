@@ -14,7 +14,8 @@ import { cx } from "@/lib/ui";
 import { useField } from "./game/useField";
 import { RichSentence } from "./inputs";
 import { LANTERN_HIT_MS, LanternStrike } from "./LanternStrike";
-import { bubblePop, bubbleShatter, foxGrowl, foxHurt, foxSteps, foxTalk, foxThrow, hatBoing } from "../foxSounds";
+import { bubblePop, bubbleShatter, foxGrowl, foxHurt, foxSteps, foxTalk, foxThrow, hatBoing, lightsOut } from "../foxSounds";
+import { bulb, BULB_W } from "@/lib/pixel/sprites/lantern";
 
 /** The Grey Fox's question, said in a speech bubble; it reacts to the answer. */
 export interface FoxBubble {
@@ -34,6 +35,11 @@ const HIT_AT = { x: 30, y: 46 };
 /** Nova's raised lantern, and where its light strikes him. */
 const LANTERN_AT = { x: NOVA_X + 24, y: 45 };
 const STRIKE_AT = { x: FOX_X + 16, y: FOX_Y + 22 };
+/** The castle's hanging bulb, just in front of him, its cord within reach of his paw. */
+const BULB_X = FOX_X - 7;
+const BULB_Y = FOX_Y + 6;
+/** Lights out (ms after the hit that leaves him one life): he pulls the cord, it flickers, it's dark. */
+const LIGHTS = { pull: 950, flicker: 1300, off: 1800 };
 const BACKDROP = "grey-fox";
 
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
@@ -62,7 +68,7 @@ function useElapsed(since: number | string | null, until: number): number {
  * while Nova strikes; a wrong one and he snatches the bubble back, winds up and throws it at Nova,
  * where it shatters. When his lives run out he vanishes and his E hat drops to the ground.
  */
-export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bubble, compact = false, fill = false, angry = false }: { /** Half his lives gone: he is angry (a red glow around him). */ angry?: boolean; hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string; hat?: string | null; bubble: FoxBubble | null; /** A mini-game is playing below: keep the panel short. */ compact?: boolean; /** Fill the space it is given (the whole screen in his battle), the castle scaled to fit. */ fill?: boolean }) {
+export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bubble, compact = false, fill = false, angry = false, showdown = false }: { /** Half his lives gone: he is angry (a red glow around him). */ angry?: boolean; /** His last life: the lights are out, only Nova's lantern shines (and his red eyes). */ showdown?: boolean; hp: number; hits: number; hearts: number; heartsLeft: number; beat: BattleBeat | null; message: string; hat?: string | null; bubble: FoxBubble | null; /** A mini-game is playing below: keep the panel short. */ compact?: boolean; /** Fill the space it is given (the whole screen in his battle), the castle scaled to fit. */ fill?: boolean }) {
   const { areaRef, box } = useField(BACKDROP_W, () => ({ h: BACKDROP_H }));
   const reduced = useReducedMotion() ?? false;
   const nova = novaSprites(hatOf(hat));
@@ -73,7 +79,7 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
   const hitBeat = !!beat && !hurtBeat;
 
   // Timelines: a wrong answer's throw (~1.4 s), a right answer's strike (~0.8 s), and talking.
-  const t = useElapsed(beat ? beat.id : null, 1500);
+  const t = useElapsed(beat ? beat.id : null, 2600);
   const talking = useElapsed(bubble?.state === "ask" ? bubble.key : null, 1300);
   // His 8-bit sounds, in time with the sprites.
   const bubbleKey = bubble?.key ?? null;
@@ -95,6 +101,13 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
     const id = setTimeout(foxHurt, reduced ? 0 : LANTERN_HIT_MS);
     return () => clearTimeout(id);
   }, [beat, reduced]);
+  // Lights out: the click of the cord, then the flicker.
+  const lightsBeat = showdown && hitBeat && !reduced ? beat!.id : null;
+  useEffect(() => {
+    if (lightsBeat === null) return;
+    const id = setTimeout(lightsOut, LIGHTS.flicker);
+    return () => clearTimeout(id);
+  }, [lightsBeat]);
   // He gets angry: a growl, once.
   useEffect(() => {
     if (!angry) return;
@@ -116,6 +129,12 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
   const shattering = hurtBeat && t >= (reduced ? 0 : 640) && t < (reduced ? 600 : 1150);
   const novaHurt = hurtBeat && t >= (reduced ? 0 : 640) && t < 1300;
   const novaStrike = hitBeat && t < 750;
+  // His last life starts with this hit: he reaches up, pulls the bulb's cord, it flickers and
+  // dies, and the dark comes down. (Back at the castle later on, it is simply dark.)
+  const switching = showdown && hitBeat && !reduced;
+  const pulling = switching && t >= LIGHTS.pull && t < LIGHTS.flicker;
+  const bulbLit = !showdown || (switching && (t < LIGHTS.flicker || (t < LIGHTS.off && Math.floor(t / 90) % 2 === 0)));
+  const darkness = !showdown ? 0 : !switching ? 1 : Math.max(0, Math.min(1, (t - LIGHTS.off) / 400));
   const foxHit = hitBeat && t >= (reduced ? 0 : LANTERN_HIT_MS) && t < LANTERN_HIT_MS + 450;
 
   let foxSprite = GREY_FOX.sprite;
@@ -124,6 +143,7 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
     foxSprite = GREY_FOX.throw;
     foxFrame = Math.min(3, Math.floor(t / 160));
   } else if (foxHit) foxSprite = GREY_FOX.hurt;
+  else if (pulling) foxSprite = GREY_FOX.attack;
   else if (bubble?.state === "ask" && talking < 1200 && !reduced) foxSprite = GREY_FOX.talk;
 
   const scene = (
@@ -191,11 +211,38 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
 
       {/* Nova's strike: a ball of light from her lantern bursts on him */}
       {hitBeat && t < 1300 && (
-        <div key={`fx-${beat!.id}`} className="pointer-events-none absolute inset-0">
+        <div key={`fx-${beat!.id}`} className="pointer-events-none absolute inset-0 z-[6]">
           <LanternStrike from={LANTERN_AT} to={STRIKE_AT} w={BACKDROP_W} h={BACKDROP_H} reduced={reduced} />
           <span className="px-anim absolute whitespace-nowrap text-lg text-[#f6e7b8] [text-shadow:2px_2px_0_#241c2b] sm:text-2xl" style={{ left: pct(FOX_X + 4, BACKDROP_W), top: pct(FOX_Y + 4, BACKDROP_H), animation: `px-float-up 1s ease-out ${reduced ? 0 : LANTERN_HIT_MS / 1000}s both` }}>
             {beat!.kind === "crit" ? "CRIT! −1" : "−1"}
           </span>
+        </div>
+      )}
+
+      {/* His last life: the castle goes dark but for a pool of light around Nova's lantern,
+          and his red eyes glowing in the dark */}
+      {/* The castle's hanging bulb (from his anger on, so it can be switched off) */}
+      {(angry || showdown) && !defeated && (
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <span className="absolute bg-[#241c2b]" style={{ left: pct(BULB_X + 4, BACKDROP_W), top: 0, width: pct(1, BACKDROP_W), height: pct(BULB_Y + (pulling ? 2 : 0), BACKDROP_H) }} />
+          <div className="absolute" style={{ left: pct(BULB_X, BACKDROP_W), top: pct(BULB_Y + (pulling ? 2 : 0), BACKDROP_H), width: pct(BULB_W, BACKDROP_W), filter: bulbLit ? "drop-shadow(0 0 6px #f6e7b8)" : undefined }}>
+            <PixelSprite sprite={bulb} frame={bulbLit ? 0 : 1} className="h-auto w-full" />
+          </div>
+          {/* the pull cord, down to his paw */}
+          <span className="absolute bg-[#8f877c]" style={{ left: pct(BULB_X + 7, BACKDROP_W), top: pct(BULB_Y + 8, BACKDROP_H), width: pct(1, BACKDROP_W), height: pct(pulling ? 14 : 12, BACKDROP_H) }} />
+        </div>
+      )}
+      {showdown && !defeated && darkness > 0 && (
+        <div className="pointer-events-none absolute inset-0 z-[5]" style={{ opacity: darkness }} data-dark>
+          <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse 17% 30% at ${pct(LANTERN_AT.x, BACKDROP_W)} ${pct(LANTERN_AT.y + 4, BACKDROP_H)}, rgba(246,231,184,0.08) 0 55%, rgba(6,4,14,0.6) 75%, rgba(6,4,14,0.93) 100%)` }} />
+          {!foxHit &&
+            [9, 15].map((ex) => (
+              <span
+                key={ex}
+                className="absolute bg-[#e0463c] shadow-[0_0_6px_2px_#e0463c99]"
+                style={{ left: pct(FOX_X + ex, BACKDROP_W), top: pct(FOX_Y + 15, BACKDROP_H), width: pct(3, BACKDROP_W), height: pct(2, BACKDROP_H) }}
+              />
+            ))}
         </div>
       )}
 

@@ -13,11 +13,14 @@ import {
   catcherX,
   decoyLetter,
   arcPoint,
+  BEAM_HALF,
   FOX_RAGE_RULES,
   FOX_STAR_RULES,
   foxGreyX,
   foxSide,
   foxThrowStage,
+  inBeam,
+  SHOWDOWN_HOLD,
   GREY_STAR,
   fillMask,
   isNextLetter,
@@ -35,6 +38,7 @@ import { backdropFor } from "@/lib/pixel/sprites/backdrops";
 import {
   FOX_H,
   FOX_W,
+  foxThrowEyes,
   GREY_FOX,
   THROW_PAW,
 } from "@/lib/pixel/sprites/greyFox";
@@ -158,6 +162,7 @@ export function StarCatch({
   variant,
   foxHearts,
   foxAngry = false,
+  foxShowdown = false,
   pauseEaten = false,
   onEatPause,
   onChoose,
@@ -165,6 +170,8 @@ export function StarCatch({
 }: {
   /** The Grey Fox's game: he is angry (half his lives gone): faster throws, and he eats the pause button. */
   foxAngry?: boolean;
+  /** His last life: the lights are out, only Nova's lantern lights the field. */
+  foxShowdown?: boolean;
   /** He has eaten the pause button: no more pausing in this battle. */
   pauseEaten?: boolean;
   /** Called once he has eaten it. */
@@ -195,6 +202,11 @@ export function StarCatch({
   useEffect(() => {
     rules.current = foxAngry ? FOX_RAGE_RULES : FOX_STAR_RULES;
   }, [foxAngry]);
+  /** The lights are out (read by the game loop). */
+  const dark = useRef(fox && foxShowdown);
+  useEffect(() => {
+    dark.current = fox && foxShowdown;
+  }, [fox, foxShowdown]);
   /** He is eating the pause button right now. */
   const [chomping, setChomping] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -309,6 +321,11 @@ export function StarCatch({
     const FEET = H - 9;
     const GROUND = H - 6;
     const RIM = FEET - BASKET_H + 3;
+    /** The darkness of his last life, drawn on its own layer with the lantern's light cut out. */
+    const shade = document.createElement("canvas");
+    shade.width = W;
+    shade.height = H;
+    const sctx = shade.getContext("2d");
     /** The Grey Fox stands on the ground at the side of the field, mostly in view. */
     const FOX_Y = GROUND - FOX_H + 1;
     const foxX = (side: 1 | -1, out = 0) =>
@@ -393,7 +410,9 @@ export function StarCatch({
         ? fallPx / FOX_STAR_RULES.dropMs
         : fallPx / starFallMs(reading) / slower;
       const holdUntil = fox
-        ? performance.now() + 500 + starFallMs(reading) * slower
+        ? performance.now() +
+          500 +
+          starFallMs(reading) * slower * (dark.current ? SHOWDOWN_HOLD : 1)
         : undefined;
       s.stars = labels.map((o, i) => ({
         id: nextId++,
@@ -786,7 +805,10 @@ export function StarCatch({
               (t) => !t.grey && t.state === "fall" && (t.holdUntil ?? 0) > now,
             );
             // He steps in from the far side, winds up (its landing spot blinks), and throws.
-            if (!thr && waiting && clock >= greyAt) {
+            // (tests can stop his throws with window.__starlightNoGrey, to play the answers alone)
+            const noGrey = !!(window as { __starlightNoGrey?: boolean })
+              .__starlightNoGrey;
+            if (!thr && waiting && clock >= greyAt && !noGrey) {
               const toX = greyHere
                 ? Math.round(s.x)
                 : foxGreyX(Math.random, s.x, W);
@@ -935,11 +957,14 @@ export function StarCatch({
       ctx.globalAlpha = 1;
 
       // where a grey star will land blinks red: from his wind-up until it lands
-      const marks: number[] = [];
-      if (thr && !foxThrowStage(clock - thr.at, rules.current).released) marks.push(thr.toX);
-      for (const t of s.stars)
-        if (t.arc && t.state === "fall") marks.push(t.arc.to.x);
-      if (marks.length && Math.floor(clock / 130) % 2 === 0) {
+      // (in the dark it is drawn on top of the darkness, so it can always be seen)
+      const drawMarks = () => {
+        const marks: number[] = [];
+        if (thr && !foxThrowStage(clock - thr.at, rules.current).released)
+          marks.push(thr.toX);
+        for (const t of s.stars)
+          if (t.arc && t.state === "fall") marks.push(t.arc.to.x);
+        if (!marks.length || Math.floor(clock / 130) % 2 !== 0) return;
         ctx.fillStyle = col("*");
         for (const mx of marks) {
           const cx0 = Math.round(mx);
@@ -957,7 +982,8 @@ export function StarCatch({
           ])
             ctx.fillRect(cx0 + dx, cy0 + dy, 1, 1);
         }
-      }
+      };
+      if (!dark.current) drawMarks();
 
       // the Grey Fox at the side of the field, throwing a grey star
       if (thr) {
@@ -1066,7 +1092,13 @@ export function StarCatch({
           }
           label.style.top = `${(ly / H) * 100}%`;
           label.style.opacity =
-            t.state === "landed" ? "0" : y < -STAR_H / 2 ? "0" : "1";
+            t.state === "landed"
+              ? "0"
+              : y < -STAR_H / 2
+                ? "0"
+                : dark.current && !inBeam(x, s.x)
+                  ? "0"
+                  : "1";
         }
       }
 
@@ -1149,6 +1181,45 @@ export function StarCatch({
           Math.round(p.x + p.vx * age),
           Math.round(p.y + p.vy * age),
         );
+      }
+
+      // His last life: the lights are out. Only the beam rising from Nova's lantern, and a pool of
+      // light around her, show the field; his red eyes and the landing marks glow in the dark.
+      if (dark.current && sctx) {
+        const bx = Math.round(s.x);
+        sctx.clearRect(0, 0, W, H);
+        sctx.fillStyle = "rgba(6,4,14,0.94)";
+        sctx.fillRect(0, 0, W, H);
+        sctx.clearRect(bx - BEAM_HALF, 0, BEAM_HALF * 2 + 1, H);
+        // a pixel-stepped pool of light around her lantern
+        const cy = FEET - 10;
+        const R = 30;
+        for (let dy = -R; dy <= R; dy++) {
+          const half = Math.floor(Math.sqrt(R * R - dy * dy));
+          sctx.clearRect(bx - half, cy + dy, half * 2 + 1, 1);
+        }
+        // soft edges: a half-dark band along the beam
+        sctx.fillStyle = "rgba(6,4,14,0.5)";
+        sctx.fillRect(bx - BEAM_HALF, 0, 3, cy - R + 6);
+        sctx.fillRect(bx + BEAM_HALF - 2, 0, 3, cy - R + 6);
+        ctx.drawImage(shade, 0, 0);
+        // the lantern's warm light in the beam
+        ctx.fillStyle = "rgba(246,231,184,0.07)";
+        ctx.fillRect(bx - BEAM_HALF, 0, BEAM_HALF * 2 + 1, H);
+        drawMarks();
+        if (thr) {
+          const st = foxThrowStage(clock - thr.at, rules.current);
+          if (st.stage !== "gone") {
+            const fx = foxX(thr.side, st.out);
+            for (const e of foxThrowEyes(st.frame, thr.side < 0)) {
+              ctx.fillStyle = col("*");
+              ctx.globalAlpha = 0.35;
+              ctx.fillRect(fx + e.x - 1, FOX_Y + e.y - 1, e.w + 2, e.h + 2);
+              ctx.globalAlpha = 1;
+              ctx.fillRect(fx + e.x, FOX_Y + e.y, e.w, e.h);
+            }
+          }
+        }
       }
 
       raf = requestAnimationFrame(draw);
@@ -1269,6 +1340,7 @@ export function StarCatch({
       className="mx-auto mt-2 flex min-h-0 w-full flex-1 touch-none select-none flex-col font-pixel"
       aria-label="Star catch"
       data-item={item.id}
+      data-showdown={fox && foxShowdown ? "true" : undefined}
       data-mode={mode}
       onPointerDown={onPointerDown}
       onPointerMove={(e) => dragging.current && aim(e)}

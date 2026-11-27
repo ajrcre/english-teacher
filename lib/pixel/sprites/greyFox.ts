@@ -37,6 +37,19 @@ export const FOX_W = 34;
 export const FOX_H = 42;
 type Pose = { kind: "idle"; f: number } | { kind: "talk"; f: number } | { kind: "attack" } | { kind: "throw"; f: number; star?: boolean; facingRight?: boolean } | { kind: "hurt" } | { kind: "walk"; f: number } | { kind: "eat"; f: number };
 
+/** How far he leans in each throwing frame (as drawn by fox()). */
+const THROW_LEAN = [2, 1, -3, -2];
+
+/**
+ * His two red eyes in a throwing frame (each 3×2), so they can glow on their own, e.g. in the
+ * dark of his last life.
+ */
+export function foxThrowEyes(frame: number, facingRight = false): { x: number; y: number; w: number; h: number }[] {
+  const hx = 16 + (THROW_LEAN[frame] ?? 0);
+  const ey = 15;
+  return [hx - 7, hx - 1].map((x) => ({ x: facingRight ? FOX_W - 1 - (x + 2) : x, y: ey, w: 3, h: 2 }));
+}
+
 /** Where his paw holds what he throws, in the frame where he swings it up high (frame 1). */
 export const THROW_PAW = { x: 27, y: 4 };
 

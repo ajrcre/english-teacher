@@ -27,7 +27,9 @@ import { LaneRunner, type RunnerResult } from "./game/LaneRunner";
 import { StarCatch } from "./game/StarCatch";
 import { JourneyStrip, type JourneyBeat } from "./JourneyStrip";
 import { nextPace, runnerEligible } from "@/lib/game/runner";
-import { foxAngry, mcqGame, pickDecoy, starEligible } from "@/lib/game/starCatch";
+import { foxAngry, foxShowdown, mcqGame, pickDecoy, starEligible } from "@/lib/game/starCatch";
+import { foxMusicMood } from "@/lib/game/foxMusic";
+import { musicOn as readMusicOn, playFoxJingle, setFoxMusicMood, setMusicOn as saveMusicOn, startFoxMusic, stopFoxMusic } from "../foxMusic";
 import { parseGamePick, type GamePick } from "@/lib/game/pick";
 import { GamePicker } from "./GamePicker";
 import { QuestionInput, RichSentence, SpeakerIcon, questionTitle } from "./inputs";
@@ -167,6 +169,8 @@ export function Runner({
   const [foxReady, setFoxReady] = useState(false);
   /** Angry at half his lives, the Grey Fox ate the pause button: no pausing for the rest of the battle. */
   const [pauseEaten, setPauseEaten] = useState(false);
+  /** This hit leaves him one life: let his lights-out animation play before moving on. */
+  const lightsGoOut = useRef(false);
   const [claim, setClaim] = useState<BossClaim | null>(null);
   const [bossUnlocked, setBossUnlocked] = useState(bossReady);
   /** Height of the feedback sheet, so the page can make room for it below the question. */
@@ -189,6 +193,12 @@ export function Runner({
   const completed = useRef(false);
 
   useEffect(() => setSoundEnabled(soundOn), [soundOn]);
+  /** The Grey Fox's battle music (per device, under the sound setting). */
+  const [music, setMusic] = useState(true);
+  useEffect(() => {
+    const id = setTimeout(() => setMusic(readMusicOn()), 0);
+    return () => clearTimeout(id);
+  }, []);
 
   const current = queue[index];
 
@@ -306,6 +316,7 @@ export function Runner({
       if (battle) {
         const after = nextBeat(battle, verdict === "correct", isFox ? GREY_FOX.name : bossFor(unitId!).name, isFox);
         battleOver.current = !!after.outcome;
+        lightsGoOut.current = isFox && verdict === "correct" && foxShowdown(after.hits, after.hp);
         setBattle(after);
       }
       if (isFox) {
@@ -520,11 +531,34 @@ export function Runner({
     return () => clearTimeout(t);
   }, [toast]);
 
+  // The Grey Fox's battle music: it plays while his battle is on, follows the battle's mood
+  // (calm, angry at half his lives, the last-life showdown) and ends with a short tune.
+  const foxPlaying = isFox && !!battle && !battle.outcome && phase.kind !== "loading" && phase.kind !== "error" && phase.kind !== "empty";
+  const foxMood = isFox && battle ? foxMusicMood(battle.hits, battle.hp) : "calm";
+  const foxMoodRef = useRef(foxMood);
+  useEffect(() => {
+    foxMoodRef.current = foxMood;
+    setFoxMusicMood(foxMood);
+  }, [foxMood]);
+  useEffect(() => {
+    if (!foxPlaying || !music || !soundOn) return;
+    startFoxMusic(foxMoodRef.current);
+    return () => stopFoxMusic();
+  }, [foxPlaying, music, soundOn]);
+  const foxOutcome = isFox ? (battle?.outcome ?? null) : null;
+  const jingleOn = useRef(false);
+  useEffect(() => {
+    jingleOn.current = music && soundOn;
+  }, [music, soundOn]);
+  useEffect(() => {
+    if (foxOutcome && jingleOn.current) playFoxJingle(foxOutcome === "won" ? "win" : "lose");
+  }, [foxOutcome]);
+
   const locked = phase.kind !== "answering";
   const review = phase.kind === "feedback" ? { modelAnswer: phase.feedback.modelAnswer, details: phase.feedback.details, verdict: phase.feedback.verdict } : undefined;
 
   return (
-    <main className="night-sky min-h-dvh">
+    <main className="night-sky min-h-dvh" data-music={foxPlaying && music && soundOn ? foxMood : undefined}>
       {/* A mini-game takes the whole screen (no page scrolling); questions on cards scroll as a page. */}
       <div
         className={cx(
@@ -541,7 +575,24 @@ export function Runner({
             ×
           </Link>
           {inBattle ? (
+            <>
             <p className="flex-1 text-center font-pixel text-lg tracking-widest text-[#ead39b]">BOSS BATTLE</p>
+            {isFox && soundOn && (
+              <button
+                type="button"
+                onClick={() => {
+                  saveMusicOn(!music);
+                  setMusic(!music);
+                }}
+                className={cx("grid h-10 w-10 place-items-center rounded-full bg-white/5 font-pixel text-lg hover:bg-white/10", music ? "text-[#ead39b]" : "text-ink-400 line-through")}
+                aria-pressed={music}
+                aria-label={music ? "Music on" : "Music off"}
+                title={music ? "Turn the music off" : "Turn the music on"}
+              >
+                ♪
+              </button>
+            )}
+            </>
           ) : (
             <p className="flex-1 truncate text-center font-pixel text-base tracking-wider text-[#ead39b]">{MODE_LABEL[mode]}</p>
           )}
@@ -579,6 +630,7 @@ export function Runner({
             message={battle.message}
             hat={hat}
             angry={foxAngry(battle.hits, battle.hp)}
+            showdown={foxShowdown(battle.hits, battle.hp)}
             bubble={{ key: current.key, prompt: questionTitle(current), sentence: "sentence" in current ? current.sentence : undefined, state: foxAnswer?.key === current.key ? foxAnswer.state : "ask" }}
           />
         )}
@@ -651,6 +703,7 @@ export function Runner({
             variant={isFox ? "fox" : undefined}
             foxHearts={isFox && battle ? { left: battle.heartsLeft, of: TEST_BOSS_RULES.hearts } : undefined}
             foxAngry={isFox && !!battle && foxAngry(battle.hits, battle.hp)}
+            foxShowdown={isFox && !!battle && foxShowdown(battle.hits, battle.hp)}
             pauseEaten={pauseEaten}
             onEatPause={() => setPauseEaten(true)}
             onChoose={(response) => {
@@ -664,7 +717,7 @@ export function Runner({
                 // when to go on. (After the winning catch: long enough to watch him walk off.)
                 setFoxBreak("result");
                 setFoxReady(false);
-                setTimeout(() => setFoxReady(true), battleOver.current ? 3800 : verdict === "correct" ? 1300 : 1500);
+                setTimeout(() => setFoxReady(true), battleOver.current ? 3800 : lightsGoOut.current ? 2400 : verdict === "correct" ? 1300 : 1500);
                 return;
               }
               if (verdict === "correct") next();
@@ -929,7 +982,7 @@ function nextBeat(b: Battle, correct: boolean, bossName: string, fox = false): B
     const crit = run >= 3;
     const left = b.hp - hits;
     const angry = fox && hits === Math.ceil(b.hp / 2) && left > 0;
-    const message = left <= 0 ? (fox ? `${bossName} is beaten! His hat falls off…` : `${bossName} is beaten! The star is free!`) : angry ? `Half his lives gone: ${bossName} is ANGRY! He throws faster now… and keep away from the pause button!` : crit ? `Critical hit! ${run} in a row! ${left} to go.` : left === 1 ? "Nova strikes! One more hit to win!" : `Nova strikes! ${left} hits to go.`;
+    const message = left <= 0 ? (fox ? `${bossName} is beaten! His hat falls off…` : `${bossName} is beaten! The star is free!`) : fox && left === 1 ? `One life left! ${bossName} blows out the lights… only Nova's lantern shines!` : angry ? `Half his lives gone: ${bossName} is ANGRY! He throws faster now… and keep away from the pause button!` : crit ? `Critical hit! ${run} in a row! ${left} to go.` : left === 1 ? "Nova strikes! One more hit to win!" : `Nova strikes! ${left} hits to go.`;
     return { ...b, hits, run, beat: { id, kind: crit ? "crit" : "hit" }, message, outcome: left <= 0 ? "won" : null };
   }
   const heartsLeft = b.heartsLeft - 1;

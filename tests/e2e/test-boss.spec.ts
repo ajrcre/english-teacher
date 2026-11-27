@@ -115,6 +115,12 @@ test("the Grey Fox: unlock him, beat him, win his E hat", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Boss battle: The Grey Fox" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("region", { name: "Star catch" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByLabel("3 of 3 hearts left").first()).toBeVisible();
+  // His 8-bit battle music plays (calm at first); a button turns just the music off and on.
+  await expect(page.locator("main")).toHaveAttribute("data-music", "calm");
+  await page.getByRole("button", { name: "Music on" }).click();
+  await expect(page.locator("main")).not.toHaveAttribute("data-music", /.+/);
+  await page.getByRole("button", { name: "Music off" }).click();
+  await expect(page.locator("main")).toHaveAttribute("data-music", "calm");
 
   // The grey star lands in Nova's basket: like a wrong answer, the bubble is thrown and a heart breaks.
   await expect(page.locator('[data-bubble="wrong"]')).toBeVisible({ timeout: 15_000 });
@@ -131,7 +137,20 @@ test("the Grey Fox: unlock him, beat him, win his E hat", async ({ page }) => {
   // A wrong answer star costs another heart. Then twelve right catches.
   await play(page, false, "f2");
   await expect(page.getByLabel("1 of 3 hearts left").first()).toBeVisible();
+  // From here the test catches only right answers: his grey stars (tested above) are switched
+  // off, so a slow test machine can't be hit by one while it reads the stars.
+  await page.evaluate(() => {
+    (window as { __starlightNoGrey?: boolean }).__starlightNoGrey = true;
+  });
   for (let i = 0; i < 12; i++) {
+    if (i === 6) await expect(page.locator("main")).toHaveAttribute("data-music", "angry");
+    if (i === 11) {
+      // His last life: the lights go out, only Nova's lantern lights the field.
+      const game = page.getByRole("region", { name: "Star catch" });
+      await expect(game).toHaveAttribute("data-showdown", "true", { timeout: 30_000 });
+      await expect(page.locator("main")).toHaveAttribute("data-music", "showdown");
+      await shot(page, "f11-dark");
+    }
     if (i === 6) {
       // Half his lives gone, he is angry: reach for the pause button and he leaps in to eat it
       // (the game goes on meanwhile, so catch the star straight after).
@@ -147,8 +166,10 @@ test("the Grey Fox: unlock him, beat him, win his E hat", async ({ page }) => {
       await expect(game.getByRole("img", { name: "The Grey Fox ate the pause button" })).toBeVisible({ timeout: 30_000 });
       await expect(game.getByRole("button", { name: "Pause" })).toHaveCount(0);
     }
-    await play(page, true, i === 0 ? "f3" : i === 7 ? "f7" : undefined);
+    await play(page, true, i === 0 ? "f3" : i === 7 ? "f7" : i === 10 ? "f10" : undefined);
   }
+  // Beaten: the music stops (a short fanfare plays).
+  await expect(page.locator("main")).not.toHaveAttribute("data-music", /.+/);
 
   await expect(page.getByRole("heading", { name: "Victory!" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("The E hat is yours!")).toBeVisible({ timeout: 15_000 });

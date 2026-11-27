@@ -59,3 +59,26 @@ export const lightBurst: Sprite = sprite(
     return c;
   }),
 );
+
+export const BULB_W = 9;
+export const BULB_H = 14;
+
+/**
+ * The castle's hanging light bulb, which the Grey Fox switches off on his last life
+ * (2 frames: lit, off). Its cord is drawn separately, from the top of the scene.
+ */
+export const bulb: Sprite = sprite(
+  ...[true, false].map((lit) => {
+    const c = new PixelCanvas(BULB_W, BULB_H);
+    // metal cap
+    c.rect(3, 0, 3, 3, "g").hline(3, 5, 1, "G");
+    // glass
+    c.ellipse(4, 7.5, 3.5, 4, lit ? "y" : "G");
+    c.ellipse(4, 7, 2.5, 3, lit ? "f" : "<");
+    // filament
+    c.hline(3, 5, 8, lit ? "a" : "g").set(3, 7, lit ? "a" : "g").set(5, 7, lit ? "a" : "g");
+    if (lit) c.set(2, 5, "w").set(2, 6, "w");
+    c.outline("k");
+    return c;
+  }),
+);

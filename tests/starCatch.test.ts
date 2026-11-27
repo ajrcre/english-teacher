@@ -3,7 +3,8 @@ import { units } from "@/content/units";
 import { buildCatalog } from "@/lib/content/catalog";
 import { toClientItem } from "@/lib/content/client";
 import { parseGamePick } from "@/lib/game/pick";
-import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy, foxGreyX, FOX_STAR_RULES, GREY_STAR, FOX_WARNING_MS, foxThrowStage, arcPoint, foxSide, FOX_RAGE_RULES, FOX_RAGE_WARNING_MS, foxAngry } from "@/lib/game/starCatch";
+import { GREY_FOX, foxThrowEyes } from "@/lib/pixel/sprites/greyFox";
+import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy, foxGreyX, FOX_STAR_RULES, GREY_STAR, FOX_WARNING_MS, foxThrowStage, arcPoint, foxSide, FOX_RAGE_RULES, FOX_RAGE_WARNING_MS, foxAngry, foxShowdown, inBeam, BEAM_HALF } from "@/lib/game/starCatch";
 
 const q = (options: string[]) => ({ type: "mcq", prompt: "Choose the best word.", options });
 
@@ -208,5 +209,28 @@ describe("the angry Grey Fox", () => {
     const { enterMs, windMs } = FOX_RAGE_RULES;
     expect(foxThrowStage(enterMs + windMs, FOX_RAGE_RULES).released).toBe(true);
     expect(foxThrowStage(enterMs + windMs, FOX_STAR_RULES).released).toBe(false);
+  });
+});
+
+describe("the last-life showdown", () => {
+  it("comes on his last life only", () => {
+    expect(foxShowdown(10, 12)).toBe(false);
+    expect(foxShowdown(11, 12)).toBe(true);
+    expect(foxShowdown(12, 12)).toBe(false);
+  });
+
+  it("lights only what is near Nova", () => {
+    expect(inBeam(80, 80)).toBe(true);
+    expect(inBeam(80 + BEAM_HALF, 80)).toBe(true);
+    expect(inBeam(80 + BEAM_HALF + 1, 80)).toBe(false);
+  });
+
+  it("knows where his glowing eyes are in every throwing frame", () => {
+    for (const right of [false, true]) {
+      const spr = right ? GREY_FOX.throwStarRight : GREY_FOX.throwStar;
+      for (let f = 0; f < 4; f++)
+        for (const e of foxThrowEyes(f, right))
+          for (let dx = 0; dx < e.w; dx++) expect(spr.frames[f][e.y][e.x + dx], `frame ${f} right=${right}`).toBe("*");
+    }
   });
 });

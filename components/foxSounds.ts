@@ -25,7 +25,13 @@ function audio(): AudioContext | null {
   }
 }
 
-function noiseBuffer(a: AudioContext): AudioBuffer {
+/** The audio context the fox's sounds and music share (null when sound is off). */
+export function foxAudioContext(): AudioContext | null {
+  return audio();
+}
+
+/** White noise for drums and hisses. */
+export function noiseBuffer(a: AudioContext): AudioBuffer {
   if (!noise) {
     noise = a.createBuffer(1, a.sampleRate * 0.6, a.sampleRate);
     const d = noise.getChannelData(0);
@@ -143,4 +149,14 @@ export function foxGrowl(): void {
   if (!a) return;
   tone(a, a.currentTime, 0.5, 90, 70, "sawtooth", 0.05);
   hiss(a, a.currentTime, 0.45, 300, 200, 0.08, "lowpass");
+}
+
+/** He switches off the castle's light: a click, a fizzling flicker, and the hum dies. */
+export function lightsOut(): void {
+  const a = audio();
+  if (!a) return;
+  const t = a.currentTime;
+  tone(a, t, 0.03, 2400, 1800, "square", 0.05);
+  for (let i = 0; i < 3; i++) hiss(a, t + 0.08 + i * 0.1, 0.05, 5000, 3000, 0.05, "highpass");
+  tone(a, t + 0.05, 0.45, 120, 50, "sawtooth", 0.03);
 }

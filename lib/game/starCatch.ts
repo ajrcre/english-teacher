@@ -280,6 +280,22 @@ export type FoxThrowRules = Pick<typeof FOX_STAR_RULES, "enterMs" | "windMs" | "
 export const FOX_WARNING_MS = FOX_STAR_RULES.windMs + FOX_STAR_RULES.flightMs;
 export const FOX_RAGE_WARNING_MS = FOX_RAGE_RULES.windMs + FOX_RAGE_RULES.flightMs;
 
+/** His last life: the lights go out, and only Nova's lantern lights the field. */
+export function foxShowdown(hits: number, hp: number): boolean {
+  return hp > 0 && hp - hits === 1;
+}
+
+/** In the dark the answer stars wait longer, so there is time to find them with the lantern. */
+export const SHOWDOWN_HOLD = 1.4;
+
+/** Half the width of the lantern's beam of light, in field pixels. */
+export const BEAM_HALF = 20;
+
+/** Is a star at `x` in the lantern's light (Nova at `novaX`)? */
+export function inBeam(x: number, novaX: number, half = BEAM_HALF): boolean {
+  return Math.abs(x - novaX) <= half;
+}
+
 /** He gets angry once he has lost half his lives. */
 export function foxAngry(hits: number, hp: number): boolean {
   return hp > 0 && hits >= Math.ceil(hp / 2) && hits < hp;
