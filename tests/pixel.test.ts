@@ -13,6 +13,7 @@ import { STICKER_ART_IDS, stickerArt } from "@/lib/pixel/sprites/stickers";
 import * as runner from "@/lib/pixel/sprites/runner";
 import * as starCatch from "@/lib/pixel/sprites/starCatch";
 import * as ui from "@/lib/pixel/sprites/ui";
+import { lightBurst, lightOrb } from "@/lib/pixel/sprites/lantern";
 import { BUBBLE_BREAK, BUBBLE_FLY, BUBBLE_POP, FOX_H, FOX_W, GREY_FOX } from "@/lib/pixel/sprites/greyFox";
 import { hatSprite } from "@/lib/pixel/sprites/hats";
 
@@ -56,6 +57,10 @@ describe("pixel art", () => {
       ["grey fox talk", GREY_FOX.talk],
       ["grey fox attack", GREY_FOX.attack],
       ["grey fox throw", GREY_FOX.throw],
+      ["grey fox throw star", GREY_FOX.throwStar],
+      ["grey fox throw star (right)", GREY_FOX.throwStarRight],
+      ["lantern light", lightOrb],
+      ["lantern burst", lightBurst],
       ["grey fox hurt", GREY_FOX.hurt],
       ["grey fox walk", GREY_FOX.walk],
       ["grey star", starCatch.greyStar],

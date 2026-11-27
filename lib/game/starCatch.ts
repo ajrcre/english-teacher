@@ -236,21 +236,72 @@ export function starFallMs(approach: number): number {
 
 /**
  * The Grey Fox's Star Catch (only in his battle): the answer stars wait at the top for the
- * reading time, tremble for the last moment, then drop straight and fast; meanwhile grey stars
- * fall that must not be caught.
+ * reading time, tremble for the last moment, then drop straight and fast. Meanwhile the Grey Fox
+ * steps in from the side and throws grey stars that must not be caught: he winds up first (the
+ * spot where it will land blinks), so there is time to see it coming and step aside.
  */
 export const FOX_STAR_RULES = {
   /** Time for an answer star to drop from the top to Nova's basket, once it lets go (ms). */
   dropMs: 450,
-  /** Grey stars take a little longer, so they can be dodged. */
-  greyDropMs: 700,
-  /** A grey star every so often while the answers tremble (ms, random in this range). */
-  greyEveryMs: [1200, 1800] as const,
+  /** He steps in from the edge of the field (ms). */
+  enterMs: 250,
+  /** He winds up, grey star in paw, while its landing spot blinks (ms). */
+  windMs: 650,
+  /** The grey star's flight, in an arc, to where it lands (ms). */
+  flightMs: 950,
+  /** He follows through, then steps back out of the field (ms). */
+  leaveMs: 450,
+  /** How high the grey star flies above the straight line to its landing spot (px). */
+  arcPx: 34,
+  /** A pause between his throws (ms, random in this range). */
+  greyEveryMs: [700, 1300] as const,
   /** The stars hang still while the question is read, and tremble only this long before they drop (ms). */
   shakeMs: 1500,
   /** Shaking harder in the last moments before the drop (ms). */
   warnMs: 600,
 };
+
+/** Warning a student gets before a grey star lands: from his wind-up to the landing (ms). */
+export const FOX_WARNING_MS = FOX_STAR_RULES.windMs + FOX_STAR_RULES.flightMs;
+
+export interface FoxThrowStage {
+  stage: "enter" | "wind" | "throw" | "leave" | "gone";
+  /** Frame of his throwing sprite: 0 wound back, 1 swung up high (star in paw), 2 let go, 3 follow-through. */
+  frame: number;
+  /** How far he is out of the field: 0 in place, 1 just out of sight. */
+  out: number;
+  /** The star has left his paw. */
+  released: boolean;
+}
+
+/** Where the Grey Fox is in one throw, `e` ms after he starts stepping in. */
+export function foxThrowStage(e: number): FoxThrowStage {
+  const { enterMs, windMs, leaveMs } = FOX_STAR_RULES;
+  const t = Math.max(0, e);
+  if (t < enterMs) return { stage: "enter", frame: 0, out: 1 - t / enterMs, released: false };
+  if (t < enterMs + windMs) return { stage: "wind", frame: t - enterMs < windMs * 0.5 ? 0 : 1, out: 0, released: false };
+  const after = t - enterMs - windMs;
+  if (after < 160) return { stage: "throw", frame: 2, out: 0, released: true };
+  if (after < leaveMs) {
+    const step = Math.max(0, (after - 260) / (leaveMs - 260));
+    return { stage: "leave", frame: 3, out: step, released: true };
+  }
+  return { stage: "gone", frame: 3, out: 1, released: true };
+}
+
+/** A thrown grey star's position `p` (0–1) of the way along its arc from `from` to `to`. */
+export function arcPoint(from: { x: number; y: number }, to: { x: number; y: number }, p: number, height = FOX_STAR_RULES.arcPx) {
+  const q = Math.max(0, Math.min(1, p));
+  return {
+    x: from.x + (to.x - from.x) * q,
+    y: from.y + (to.y - from.y) * q - Math.sin(q * Math.PI) * height,
+  };
+}
+
+/** He throws across the field: from the side further from where the star will land (1 = right). */
+export function foxSide(toX: number, w: number): 1 | -1 {
+  return toX < w / 2 ? 1 : -1;
+}
 
 /** The answer a caught grey star sends: not an option, so it's graded as wrong. */
 export const GREY_STAR = "(grey star)";

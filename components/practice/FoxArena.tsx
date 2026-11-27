@@ -9,10 +9,11 @@ import { backdropFor, BACKDROP_H, BACKDROP_W } from "@/lib/pixel/sprites/backdro
 import { BREAK_SIZE, BUBBLE_BREAK, BUBBLE_FLY, BUBBLE_POP, BUBBLE_SIZE, FOX_H, FOX_W, GREY_FOX } from "@/lib/pixel/sprites/greyFox";
 import { hatOf, hatSprite } from "@/lib/pixel/sprites/hats";
 import { novaSprites } from "@/lib/pixel/sprites/nova";
-import { heartEmpty, heartFull, sword } from "@/lib/pixel/sprites/ui";
+import { heartEmpty, heartFull } from "@/lib/pixel/sprites/ui";
 import { cx } from "@/lib/ui";
 import { useField } from "./game/useField";
 import { RichSentence } from "./inputs";
+import { LANTERN_HIT_MS, LanternStrike } from "./LanternStrike";
 import { bubblePop, bubbleShatter, foxHurt, foxSteps, foxTalk, foxThrow, hatBoing } from "../foxSounds";
 
 /** The Grey Fox's question, said in a speech bubble; it reacts to the answer. */
@@ -30,6 +31,9 @@ const NOVA_X = 16;
 /** Where the bubble leaves his paw, and where it hits Nova. */
 const THROW_FROM = { x: FOX_X + 2, y: FOX_Y + 24 };
 const HIT_AT = { x: 30, y: 46 };
+/** Nova's raised lantern, and where its light strikes him. */
+const LANTERN_AT = { x: NOVA_X + 24, y: 45 };
+const STRIKE_AT = { x: FOX_X + 16, y: FOX_Y + 22 };
 const BACKDROP = "grey-fox";
 
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
@@ -88,7 +92,7 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
       const id = setTimeout(bubbleShatter, reduced ? 0 : 640);
       return () => clearTimeout(id);
     }
-    const id = setTimeout(foxHurt, 180);
+    const id = setTimeout(foxHurt, reduced ? 0 : LANTERN_HIT_MS);
     return () => clearTimeout(id);
   }, [beat, reduced]);
   useEffect(() => {
@@ -106,7 +110,7 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
   const shattering = hurtBeat && t >= (reduced ? 0 : 640) && t < (reduced ? 600 : 1150);
   const novaHurt = hurtBeat && t >= (reduced ? 0 : 640) && t < 1300;
   const novaStrike = hitBeat && t < 750;
-  const foxHit = hitBeat && t >= 180 && t < 750;
+  const foxHit = hitBeat && t >= (reduced ? 0 : LANTERN_HIT_MS) && t < LANTERN_HIT_MS + 450;
 
   let foxSprite = GREY_FOX.sprite;
   let foxFrame: number | undefined;
@@ -151,8 +155,8 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
         className="absolute"
         style={{ left: pct(NOVA_X, BACKDROP_W), top: pct(65 - nova.idle.h, BACKDROP_H), width: pct(nova.idle.w, BACKDROP_W) }}
         initial={false}
-        animate={hitBeat && !reduced ? { x: ["0%", "120%", "0%"] } : {}}
-        transition={{ duration: 0.45, ease: "easeOut" }}
+        animate={hitBeat && !reduced ? { y: ["0%", "-10%", "0%"] } : {}}
+        transition={{ duration: 0.35, ease: "easeOut" }}
       >
         <div className="px-anim" style={novaHurt ? { animation: "px-hurt 0.5s steps(2)" } : undefined}>
           <PixelSprite sprite={novaStrike ? nova.attack : novaHurt ? nova.hurt : nova.idle} fps={3} className="h-auto w-full" />
@@ -177,13 +181,11 @@ export function FoxArena({ hp, hits, hearts, heartsLeft, beat, message, hat, bub
         )}
       </AnimatePresence>
 
-      {/* Nova's strike */}
-      {hitBeat && t < 1100 && (
-        <div key={`fx-${beat!.id}`} className="pointer-events-none absolute" style={{ left: pct(FOX_X - 4, BACKDROP_W), top: pct(FOX_Y + 10, BACKDROP_H), width: pct(18, BACKDROP_W) }}>
-          <motion.div initial={{ opacity: 0, rotate: -40, scale: 0.6 }} animate={{ opacity: [0, 1, 0], rotate: [-40, 30], scale: [0.6, 1.2] }} transition={{ duration: 0.45, delay: 0.15 }}>
-            <PixelSprite sprite={sword} className="h-auto w-full" />
-          </motion.div>
-          <span className="px-anim absolute left-1/2 top-0 whitespace-nowrap text-lg text-[#f6e7b8] [text-shadow:2px_2px_0_#241c2b] sm:text-2xl" style={{ animation: "px-float-up 1s ease-out 0.2s both" }}>
+      {/* Nova's strike: a ball of light from her lantern bursts on him */}
+      {hitBeat && t < 1300 && (
+        <div key={`fx-${beat!.id}`} className="pointer-events-none absolute inset-0">
+          <LanternStrike from={LANTERN_AT} to={STRIKE_AT} w={BACKDROP_W} h={BACKDROP_H} reduced={reduced} />
+          <span className="px-anim absolute whitespace-nowrap text-lg text-[#f6e7b8] [text-shadow:2px_2px_0_#241c2b] sm:text-2xl" style={{ left: pct(FOX_X + 4, BACKDROP_W), top: pct(FOX_Y + 4, BACKDROP_H), animation: `px-float-up 1s ease-out ${reduced ? 0 : LANTERN_HIT_MS / 1000}s both` }}>
             {beat!.kind === "crit" ? "CRIT! −1" : "−1"}
           </span>
         </div>

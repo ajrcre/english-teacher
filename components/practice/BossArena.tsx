@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { PixelScene } from "@/components/pixel/PixelScene";
 import { PixelSprite } from "@/components/pixel/PixelSprite";
@@ -8,13 +8,17 @@ import { backdropFor, BACKDROP_H, BACKDROP_W } from "@/lib/pixel/sprites/backdro
 import { BOSS_SIZE, bossFor } from "@/lib/pixel/sprites/bosses";
 import { hatOf } from "@/lib/pixel/sprites/hats";
 import { novaSprites } from "@/lib/pixel/sprites/nova";
-import { heartEmpty, heartFull, sword } from "@/lib/pixel/sprites/ui";
+import { heartEmpty, heartFull } from "@/lib/pixel/sprites/ui";
 import { cx } from "@/lib/ui";
+import { LANTERN_HIT_MS, LanternStrike } from "./LanternStrike";
 
 export type BattleBeat = { id: number; kind: "hit" | "crit" | "hurt" };
 
 /** Positions in backdrop pixels, turned into percentages so sprites share the scene's pixel grid. */
 const pct = (v: number, of: number) => `${(v / of) * 100}%`;
+/** Nova's raised lantern, and where its light strikes the boss. */
+const LANTERN_AT = { x: 16 + 24, y: 45 };
+const STRIKE_AT = { x: 70 + BOSS_SIZE / 2, y: 68 - BOSS_SIZE / 2 };
 
 /**
  * The battle scene above each question: the unit's backdrop, Nova on the left, the boss on the
@@ -27,20 +31,29 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message,
   const defeated = hits >= hp;
   const hpLeft = Math.max(0, hp - hits);
   // Which pose each fighter shows right now: a beat swaps in attack/hurt sprites briefly.
+  const reduced = useReducedMotion() ?? false;
   const [pose, setPose] = useState<{ id: number; kind: BattleBeat["kind"] } | null>(null);
+  /** Nova's light has reached the boss (he flinches only then). */
+  const [landed, setLanded] = useState(false);
   useEffect(() => {
     if (!beat) return;
-    const start = setTimeout(() => setPose(beat), 0);
-    const end = setTimeout(() => setPose(null), 750);
+    const hitAt = reduced ? 0 : LANTERN_HIT_MS;
+    const start = setTimeout(() => {
+      setPose(beat);
+      setLanded(false);
+    }, 0);
+    const hit = setTimeout(() => setLanded(true), hitAt);
+    const end = setTimeout(() => setPose(null), Math.max(750, hitAt + 450));
     return () => {
       clearTimeout(start);
+      clearTimeout(hit);
       clearTimeout(end);
     };
-  }, [beat]);
+  }, [beat, reduced]);
   const striking = pose && pose.kind !== "hurt";
   const struck = pose?.kind === "hurt";
   const novaPose = striking ? nova.attack : struck ? nova.hurt : nova.idle;
-  const bossPose = striking ? boss.hurt : struck ? boss.attack : boss.sprite;
+  const bossPose = striking && landed ? boss.hurt : struck ? boss.attack : boss.sprite;
 
   return (
     <section className="pixel-panel relative mx-auto mt-4 w-[calc(100%-8px)] max-w-[30rem] overflow-hidden font-pixel" aria-label={label ?? `Boss battle: ${boss.name}`}>
@@ -77,8 +90,8 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message,
           className="absolute"
           style={{ left: pct(16, BACKDROP_W), top: pct(65 - nova.idle.h, BACKDROP_H), width: pct(nova.idle.w, BACKDROP_W) }}
           initial={false}
-          animate={beat && beat.kind !== "hurt" ? { x: ["0%", "95%", "0%"] } : beat?.kind === "hurt" ? { x: ["0%", "-12%", "8%", "0%"] } : {}}
-          transition={{ duration: beat?.kind === "hurt" ? 0.4 : 0.45, ease: "easeOut" }}
+          animate={beat && beat.kind !== "hurt" ? { y: ["0%", "-10%", "0%"] } : beat?.kind === "hurt" ? { x: ["0%", "-12%", "8%", "0%"] } : {}}
+          transition={{ duration: beat?.kind === "hurt" ? 0.4 : 0.35, ease: "easeOut" }}
         >
           <div className="px-anim" style={beat?.kind === "hurt" ? { animation: "px-hurt 0.5s steps(2)" } : undefined}>
             <PixelSprite sprite={novaPose} fps={3} className="h-auto w-full" />
@@ -103,7 +116,7 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message,
               >
                 <div
                   className="px-anim"
-                  style={beat && beat.kind !== "hurt" ? { animation: `px-shake 0.35s linear 0.18s, px-flash 0.45s steps(2) 0.18s` } : undefined}
+                  style={beat && beat.kind !== "hurt" ? { animation: `px-shake 0.35s linear ${reduced ? 0 : LANTERN_HIT_MS / 1000}s, px-flash 0.45s steps(2) ${reduced ? 0 : LANTERN_HIT_MS / 1000}s` } : undefined}
                 >
                   <PixelSprite sprite={bossPose} fps={4} className="h-auto w-full" />
                 </div>
@@ -112,13 +125,11 @@ export function BossArena({ unitId, hp, hits, hearts, heartsLeft, beat, message,
           )}
         </AnimatePresence>
 
-        {/* Hit effects */}
+        {/* Nova's strike: a ball of light from her lantern bursts on the boss */}
         {beat && beat.kind !== "hurt" && (
-          <div key={`fx-${beat.id}`} className="pointer-events-none absolute" style={{ left: pct(80, BACKDROP_W), top: pct(34, BACKDROP_H), width: pct(18, BACKDROP_W) }}>
-            <motion.div initial={{ opacity: 0, rotate: -40, scale: 0.6 }} animate={{ opacity: [0, 1, 0], rotate: [-40, 30], scale: [0.6, 1.2] }} transition={{ duration: 0.45, delay: 0.15 }}>
-              <PixelSprite sprite={sword} className="h-auto w-full" />
-            </motion.div>
-            <span className="px-anim absolute left-1/2 top-0 whitespace-nowrap text-lg text-[#f6e7b8] [text-shadow:2px_2px_0_#241c2b] sm:text-2xl" style={{ animation: "px-float-up 1s ease-out 0.2s both" }}>
+          <div key={`fx-${beat.id}`} className="pointer-events-none absolute inset-0">
+            <LanternStrike from={LANTERN_AT} to={STRIKE_AT} w={BACKDROP_W} h={BACKDROP_H} reduced={reduced} />
+            <span className="px-anim absolute whitespace-nowrap text-lg text-[#f6e7b8] [text-shadow:2px_2px_0_#241c2b] sm:text-2xl" style={{ left: pct(84, BACKDROP_W), top: pct(34, BACKDROP_H), animation: `px-float-up 1s ease-out ${reduced ? 0 : LANTERN_HIT_MS / 1000}s both` }}>
               {beat.kind === "crit" ? "CRIT! −1" : "−1"}
             </span>
           </div>

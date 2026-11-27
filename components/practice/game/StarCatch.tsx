@@ -7,12 +7,15 @@ import { playDictation, playSfx } from "@/components/sound";
 import type { ClientItem, ItemResponse } from "@/lib/content/client";
 import { approachMs, laneGround } from "@/lib/game/runner";
 import { fieldHeight, isControl, toField } from "@/lib/game/stage";
-import { bubbleShatter } from "@/components/foxSounds";
+import { bubbleShatter, foxThrow } from "@/components/foxSounds";
 import {
   catcherX,
   decoyLetter,
+  arcPoint,
   FOX_STAR_RULES,
   foxGreyX,
+  foxSide,
+  foxThrowStage,
   GREY_STAR,
   fillMask,
   isNextLetter,
@@ -27,6 +30,12 @@ import {
 } from "@/lib/game/starCatch";
 import { PALETTE } from "@/lib/pixel/palette";
 import { backdropFor } from "@/lib/pixel/sprites/backdrops";
+import {
+  FOX_H,
+  FOX_W,
+  GREY_FOX,
+  THROW_PAW,
+} from "@/lib/pixel/sprites/greyFox";
 import { hatOf } from "@/lib/pixel/sprites/hats";
 import { novaSprites } from "@/lib/pixel/sprites/nova";
 import { dust, sparkle } from "@/lib/pixel/sprites/runner";
@@ -95,6 +104,16 @@ interface Star {
   holdUntil?: number;
   /** The Grey Fox's game: a grey star, which must not be caught. */
   grey?: boolean;
+  /** A grey star he threw: it flies in an arc from his paw to its landing spot (game clock ms). */
+  arc?: { from: { x: number; y: number }; to: { x: number; y: number }; at: number };
+}
+
+/** The Grey Fox's throw in progress: when he started (game clock ms), where it lands, which side. */
+interface FoxThrow {
+  at: number;
+  toX: number;
+  side: 1 | -1;
+  launched: boolean;
 }
 
 interface Particle {
@@ -249,6 +268,20 @@ export function StarCatch({
     const FEET = H - 9;
     const GROUND = H - 6;
     const RIM = FEET - BASKET_H + 3;
+    /** The Grey Fox stands on the ground at the side of the field, mostly in view. */
+    const FOX_Y = GROUND - FOX_H + 1;
+    const foxX = (side: 1 | -1, out = 0) =>
+      side > 0
+        ? Math.round(W - FOX_W + 4 + out * (FOX_W - 2))
+        : Math.round(-4 - out * (FOX_W - 2));
+    /** Where a grey star leaves his paw (the top-left of the star). */
+    const foxPaw = (side: 1 | -1) => {
+      const px = side > 0 ? THROW_PAW.x : FOX_W - 1 - THROW_PAW.x;
+      return {
+        x: foxX(side) + px,
+        y: FOX_Y + THROW_PAW.y - STAR_H / 2,
+      };
+    };
     const section = sectionRef.current;
     ctx.imageSmoothingEnabled = false;
     const reduced =
@@ -274,7 +307,13 @@ export function StarCatch({
       fox &&
       !foxGreyAsked &&
       new URLSearchParams(window.location.search).has("foxGrey");
-    let greyAt = performance.now() + (greyHere ? 900 : 1500);
+    /**
+     * A clock that stops while the game is paused: the Grey Fox's throws run on it, so a pause
+     * holds him (and his star) in place.
+     */
+    let clock = 0;
+    let greyAt = greyHere ? 900 : 1500;
+    let thr: FoxThrow | null = null;
     s.phase = "play";
     s.boost = false;
     s.stars = [];
@@ -656,6 +695,7 @@ export function StarCatch({
       const dt = Math.min(50, now - last);
       last = now;
       const live = !s.paused && s.phase !== "done";
+      if (!s.paused) clock += dt;
       carry.x = s.x;
       if (cheer) {
         setBanner({ text: cheer, good: true });
@@ -704,27 +744,48 @@ export function StarCatch({
             const waiting = s.stars.some(
               (t) => !t.grey && t.state === "fall" && (t.holdUntil ?? 0) > now,
             );
-            if (waiting && now >= greyAt) {
-              s.stars.push({
-                id: nextId++,
-                text: "",
-                idx: -2,
-                x: greyHere ? Math.round(s.x) : foxGreyX(Math.random, s.x, W),
-                y: -STAR_H,
-                startY: -STAR_H,
-                vy: fallPx / FOX_STAR_RULES.greyDropMs,
-                state: "fall",
-                at: now,
-                grey: true,
-              });
+            // He steps in from the far side, winds up (its landing spot blinks), and throws.
+            if (!thr && waiting && clock >= greyAt) {
+              const toX = greyHere
+                ? Math.round(s.x)
+                : foxGreyX(Math.random, s.x, W);
+              thr = { at: clock, toX, side: foxSide(toX, W), launched: false };
               if (greyHere) foxGreyAsked = true;
               greyHere = false;
-              const [lo, hi] = FOX_STAR_RULES.greyEveryMs;
-              greyAt = now + lo + Math.random() * (hi - lo);
-              if (section)
-                section.dataset.grey = String(
-                  Number(section.dataset.grey ?? 0) + 1,
-                );
+            }
+            if (thr) {
+              const st = foxThrowStage(clock - thr.at);
+              if (st.released && !thr.launched) {
+                thr.launched = true;
+                const from = foxPaw(thr.side);
+                foxThrow();
+                s.stars.push({
+                  id: nextId++,
+                  text: "",
+                  idx: -2,
+                  x: from.x,
+                  y: from.y,
+                  startY: from.y,
+                  vy: 0,
+                  state: "fall",
+                  at: now,
+                  grey: true,
+                  arc: {
+                    from,
+                    to: { x: thr.toX, y: GROUND - STAR_H },
+                    at: clock,
+                  },
+                });
+                if (section)
+                  section.dataset.grey = String(
+                    Number(section.dataset.grey ?? 0) + 1,
+                  );
+              }
+              if (st.stage === "gone") {
+                thr = null;
+                const [lo, hi] = FOX_STAR_RULES.greyEveryMs;
+                greyAt = clock + lo + Math.random() * (hi - lo);
+              }
             }
           }
           for (const t of s.stars) {
@@ -736,7 +797,16 @@ export function StarCatch({
               v = 0; // trembling at the top
             if (!key && !t.grey && t.y < t.startY) v = Math.max(v, 0.12); // slide into view first
             const was = t.y + STAR_H;
-            t.y += v * dt;
+            if (t.arc) {
+              // a thrown grey star flies along its arc
+              const pt = arcPoint(
+                t.arc.from,
+                t.arc.to,
+                (clock - t.arc.at) / FOX_STAR_RULES.flightMs,
+              );
+              t.x = pt.x;
+              t.y = pt.y;
+            } else t.y += v * dt;
             const bottom = t.y + STAR_H;
             if (was < RIM && bottom >= RIM && Math.abs(t.x - s.x) <= CATCH_R) {
               t.y = RIM - STAR_H;
@@ -800,15 +870,19 @@ export function StarCatch({
       ctx.fillStyle = col("k");
       for (const t of s.stars) {
         if (t.state !== "fall" || t.y < -STAR_H) continue;
-        const p = Math.max(
-          0,
-          Math.min(1, (t.y + STAR_H - SKY) / (GROUND - SKY)),
-        );
+        // a thrown star's shadow waits on its landing spot, darkening as it comes
+        const p = t.arc
+          ? Math.max(
+              0,
+              Math.min(1, (clock - t.arc.at) / FOX_STAR_RULES.flightMs),
+            )
+          : Math.max(0, Math.min(1, (t.y + STAR_H - SKY) / (GROUND - SKY)));
+        const sx = t.arc ? t.arc.to.x : t.x;
         const w = Math.round(5 + p * 11);
         ctx.globalAlpha = 0.1 + p * 0.22;
-        ctx.fillRect(Math.round(t.x - w / 2), GROUND - 2, w, 2);
+        ctx.fillRect(Math.round(sx - w / 2), GROUND - 2, w, 2);
         ctx.fillRect(
-          Math.round(t.x - w / 2) + 2,
+          Math.round(sx - w / 2) + 2,
           GROUND - 3,
           Math.max(1, w - 4),
           1,
@@ -818,6 +892,47 @@ export function StarCatch({
       ctx.globalAlpha = 0.22;
       ctx.fillRect(Math.round(s.x - 13), FEET - 1, 26, 2);
       ctx.globalAlpha = 1;
+
+      // where a grey star will land blinks red: from his wind-up until it lands
+      const marks: number[] = [];
+      if (thr && !foxThrowStage(clock - thr.at).released) marks.push(thr.toX);
+      for (const t of s.stars)
+        if (t.arc && t.state === "fall") marks.push(t.arc.to.x);
+      if (marks.length && Math.floor(clock / 130) % 2 === 0) {
+        ctx.fillStyle = col("*");
+        for (const mx of marks) {
+          const cx0 = Math.round(mx);
+          const cy0 = GROUND - 4;
+          for (const [dx, dy] of [
+            [-2, -2],
+            [2, -2],
+            [-1, -1],
+            [1, -1],
+            [0, 0],
+            [-1, 1],
+            [1, 1],
+            [-2, 2],
+            [2, 2],
+          ])
+            ctx.fillRect(cx0 + dx, cy0 + dy, 1, 1);
+        }
+      }
+
+      // the Grey Fox at the side of the field, throwing a grey star
+      if (thr) {
+        const st = foxThrowStage(clock - thr.at);
+        if (st.stage !== "gone") {
+          const fx = foxX(thr.side, st.out);
+          ctx.fillStyle = col("k");
+          ctx.globalAlpha = 0.25;
+          ctx.fillRect(fx + 8, GROUND - 1, FOX_W - 14, 2);
+          ctx.globalAlpha = 1;
+          // on the left he faces right, towards the field
+          const spr =
+            thr.side < 0 ? GREY_FOX.throwStarRight : GREY_FOX.throwStar;
+          ctx.drawImage(img(spr, st.frame), fx, FOX_Y);
+        }
+      }
 
       // stars, each with a comet tail while it falls
       const elapsed = Math.max(0, now - s.at);

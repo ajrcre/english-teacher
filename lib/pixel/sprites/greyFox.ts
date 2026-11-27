@@ -20,6 +20,10 @@ export interface FoeDef {
   attack: Sprite;
   /** Throwing a speech bubble: wind up, swing over, let go, follow through (4 frames). */
   throw: Sprite;
+  /** Throwing a grey star in his Star Catch: the same swing, a grey star in his paw (4 frames). */
+  throwStar: Sprite;
+  /** The same, facing right (he throws from the left of the field); his hat still reads E. */
+  throwStarRight: Sprite;
   /** Hit: he doesn't even flinch (eyes shut for a moment, arms still crossed). */
   hurt: Sprite;
   /** Beaten: he walks off, facing away from Nova and without his hat (4 frames). */
@@ -29,7 +33,10 @@ export interface FoeDef {
 /** He stands on his hind legs, short and round (a big head on a small body). */
 export const FOX_W = 34;
 export const FOX_H = 42;
-type Pose = { kind: "idle"; f: number } | { kind: "talk"; f: number } | { kind: "attack" } | { kind: "throw"; f: number } | { kind: "hurt" } | { kind: "walk"; f: number };
+type Pose = { kind: "idle"; f: number } | { kind: "talk"; f: number } | { kind: "attack" } | { kind: "throw"; f: number; star?: boolean; facingRight?: boolean } | { kind: "hurt" } | { kind: "walk"; f: number };
+
+/** Where his paw holds what he throws, in the frame where he swings it up high (frame 1). */
+export const THROW_PAW = { x: 27, y: 4 };
 
 const LIGHT: Record<string, string> = { G: "g", g: "e", e: "W", R: "r", r: "p" };
 const DARK: Record<string, string> = { g: "G", e: "g", W: "e" };
@@ -101,7 +108,16 @@ function fox(p: Pose): PixelCanvas {
     c.line(sx, sy + 2, x, y + 2, "k");
     c.line(sx, sy, x, y, "g").line(sx, sy + 1, x, y + 1, "g").line(sx + 1, sy + 1, x + 1, y + 1, "g");
     c.ellipse(x, y, 2, 2, "W");
-    if (holding) {
+    if (holding && p.kind === "throw" && p.star) {
+      // a small grey star, held up to throw
+      const gx = x + 1;
+      const gy = y - 4;
+      c.ellipse(gx, gy, 1.6, 1.6, "g");
+      c.vline(gx, gy - 3, gy - 2, "g");
+      c.hline(gx - 3, gx - 2, gy - 1, "g").hline(gx + 2, gx + 3, gy - 1, "g");
+      c.set(gx - 2, gy + 2, "g").set(gx + 2, gy + 2, "g");
+      c.set(gx, gy, "e");
+    } else if (holding) {
       c.ellipse(x + 1, y - 4, 3.5, 3, "w");
       c.set(x + 1, y - 5, "V").set(x + 1, y - 3, "V");
     }
@@ -124,6 +140,12 @@ function fox(p: Pose): PixelCanvas {
   // his hat, worn at the back of his head (left behind when he walks off)
   if (walk) return flipped(c);
   const hat = hatCanvas("e", "front");
+  if (p.kind === "throw" && p.facingRight) {
+    // mirror him, not his hat (so the E still reads the right way round)
+    const m = flipped(c);
+    m.stamp(hat, FOX_W - 1 - Math.round(hx + 1) - ANCHOR_X, Math.round(hy - 6) - ANCHOR_Y);
+    return m;
+  }
   c.stamp(hat, Math.round(hx + 1) - ANCHOR_X, Math.round(hy - 6) - ANCHOR_Y);
   return c;
 }
@@ -142,6 +164,8 @@ export const GREY_FOX: FoeDef = {
   talk: sprite(fox({ kind: "talk", f: 0 }), fox({ kind: "talk", f: 1 })),
   attack: sprite(fox({ kind: "attack" })),
   throw: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "throw", f }))),
+  throwStar: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "throw", f, star: true }))),
+  throwStarRight: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "throw", f, star: true, facingRight: true }))),
   hurt: sprite(fox({ kind: "hurt" })),
   walk: sprite(...[0, 1, 2, 3].map((f) => fox({ kind: "walk", f }))),
 };

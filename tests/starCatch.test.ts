@@ -3,7 +3,7 @@ import { units } from "@/content/units";
 import { buildCatalog } from "@/lib/content/catalog";
 import { toClientItem } from "@/lib/content/client";
 import { parseGamePick } from "@/lib/game/pick";
-import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy, foxGreyX, FOX_STAR_RULES, GREY_STAR } from "@/lib/game/starCatch";
+import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy, foxGreyX, FOX_STAR_RULES, GREY_STAR, FOX_WARNING_MS, foxThrowStage, arcPoint, foxSide } from "@/lib/game/starCatch";
 
 const q = (options: string[]) => ({ type: "mcq", prompt: "Choose the best word.", options });
 
@@ -142,7 +142,8 @@ describe("the Grey Fox's Star Catch", () => {
   });
 
   it("drops the answer stars fast once they let go, and grey ones a little slower", () => {
-    expect(FOX_STAR_RULES.dropMs).toBeLessThan(FOX_STAR_RULES.greyDropMs);
+    // a thrown grey star gives well over a second and a half to step aside
+    expect(FOX_WARNING_MS).toBeGreaterThanOrEqual(1500);
     expect(FOX_STAR_RULES.greyEveryMs[0]).toBeLessThan(FOX_STAR_RULES.greyEveryMs[1]);
     expect(FOX_STAR_RULES.shakeMs).toBe(1500);
     expect(FOX_STAR_RULES.warnMs).toBeLessThan(FOX_STAR_RULES.shakeMs);
@@ -160,5 +161,33 @@ describe("game pick", () => {
     expect(parseGamePick("off")).toBe("cards");
     expect(parseGamePick(null)).toBe("mix");
     expect(parseGamePick("nonsense")).toBe("mix");
+  });
+});
+
+describe("the Grey Fox's throw", () => {
+  const { enterMs, windMs, leaveMs } = FOX_STAR_RULES;
+  it("steps in, winds up, throws, then steps out", () => {
+    expect(foxThrowStage(0)).toMatchObject({ stage: "enter", out: 1, released: false });
+    expect(foxThrowStage(enterMs / 2).out).toBeCloseTo(0.5);
+    expect(foxThrowStage(enterMs + 10)).toMatchObject({ stage: "wind", frame: 0, out: 0, released: false });
+    expect(foxThrowStage(enterMs + windMs - 10)).toMatchObject({ stage: "wind", frame: 1, released: false });
+    expect(foxThrowStage(enterMs + windMs)).toMatchObject({ stage: "throw", frame: 2, released: true });
+    expect(foxThrowStage(enterMs + windMs + leaveMs - 1).stage).toBe("leave");
+    expect(foxThrowStage(enterMs + windMs + leaveMs)).toMatchObject({ stage: "gone", out: 1 });
+  });
+
+  it("throws the star in an arc that lands on its spot", () => {
+    const from = { x: 140, y: 120 };
+    const to = { x: 40, y: 150 };
+    expect(arcPoint(from, to, 0)).toEqual(from);
+    expect(arcPoint(from, to, 1)).toEqual(to);
+    // halfway it flies high above the straight line
+    expect(arcPoint(from, to, 0.5).y).toBeLessThan((from.y + to.y) / 2 - 20);
+    expect(arcPoint(from, to, 2)).toEqual(to);
+  });
+
+  it("throws from the side further from the landing spot", () => {
+    expect(foxSide(30, 160)).toBe(1);
+    expect(foxSide(130, 160)).toBe(-1);
   });
 });
