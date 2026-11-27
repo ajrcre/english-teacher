@@ -28,6 +28,8 @@ import { StarCatch } from "./game/StarCatch";
 import { JourneyStrip, type JourneyBeat } from "./JourneyStrip";
 import { nextPace, runnerEligible } from "@/lib/game/runner";
 import { mcqGame, pickDecoy, starEligible } from "@/lib/game/starCatch";
+import { parseGamePick, type GamePick } from "@/lib/game/pick";
+import { GamePicker } from "./GamePicker";
 import { QuestionInput, RichSentence, SpeakerIcon, questionTitle } from "./inputs";
 
 type QueueItem = ClientItem & { lessonId: string; unitId: string; isNew: boolean; retry?: number; key: string };
@@ -95,17 +97,17 @@ const STORY_TYPES = new Set<ClientItem["type"]>(["open", "rewrite", "proofread"]
 const GAME_MODE_KEY = "starlight.gameMode";
 
 /**
- * Game mode is on unless switched off on this device. With reduced motion the runner still
- * plays, but its gates wait in place until the student presses GO.
+ * How questions are played, saved on this device: both mini-games unless chosen otherwise.
+ * With reduced motion the runner still plays, but its gates wait in place until the student
+ * presses GO.
  */
-function readGameMode(): boolean {
+function readGamePick(): GamePick {
   try {
-    const saved = localStorage.getItem(GAME_MODE_KEY);
-    if (saved) return saved === "on";
+    return parseGamePick(localStorage.getItem(GAME_MODE_KEY));
   } catch {
     /* private mode */
+    return "mix";
   }
-  return true;
 }
 
 export function Runner({
@@ -167,8 +169,9 @@ export function Runner({
   const [bossUnlocked, setBossUnlocked] = useState(bossReady);
   /** Height of the feedback sheet, so the page can make room for it below the question. */
   const [sheetHeight, setSheetHeight] = useState(0);
-  /** Game mode: multiple-choice questions are played as mini-games, spelling as Star Catch (saved per device). */
-  const [gameMode, setGameMode] = useState(true);
+  /** Which mini-games to play (or cards), saved per device. Spelling is always Star Catch letters in a game. */
+  const [gamePick, setGamePick] = useState<GamePick>("mix");
+  const gameMode = gamePick !== "cards";
   /** The runner's outcome animation is playing: hold the feedback sheet until it ends. */
   const [runnerHold, setRunnerHold] = useState(false);
   /** The story monster for written answers: hits so far, the latest beat and its line. */
@@ -213,7 +216,7 @@ export function Runner({
       setTally(EMPTY_TALLY);
       setClaim(null);
       setRunnerHold(false);
-      setGameMode(readGameMode());
+      setGamePick(readGamePick());
       setJourney({ progress: 0, beat: null });
       if (unitId || items[0]) {
         const monster = bossFor(items[0]?.unitId ?? unitId!);
@@ -486,8 +489,8 @@ export function Runner({
     if (current.type === "match" && current.pairKey) return "match";
     if (current.type !== "mcq" || !runnerEligible(current)) return null;
     const before = queue.slice(0, index).filter((q) => q.type === "mcq" && runnerEligible(q)).length;
-    return mcqGame(before, starEligible(current));
-  }, [isFox, inBattle, gameMode, current, playing, queue, index]);
+    return mcqGame(before, starEligible(current), gamePick);
+  }, [isFox, inBattle, gameMode, gamePick, current, playing, queue, index]);
   const asGame = game !== null;
   /** The game is on screen (not during one of the Grey Fox's breaks). */
   const showGame = asGame && !(isFox && foxBreak);
@@ -499,11 +502,10 @@ export function Runner({
     const pool = queue.flatMap((q) => (q.type === "mcq" && q.id !== current.id ? q.options : []));
     return pickDecoy(current.id, current.options, pool);
   }, [game, current, queue]);
-  const toggleGameMode = () => {
-    const next = !gameMode;
-    setGameMode(next);
+  const chooseGame = (next: GamePick) => {
+    setGamePick(next);
     try {
-      localStorage.setItem(GAME_MODE_KEY, next ? "on" : "off");
+      localStorage.setItem(GAME_MODE_KEY, next);
     } catch {
       /* private mode */
     }
@@ -540,11 +542,7 @@ export function Runner({
           ) : (
             <p className="flex-1 truncate text-center font-pixel text-base tracking-wider text-[#ead39b]">{MODE_LABEL[mode]}</p>
           )}
-          {!inBattle && (
-            <button type="button" onClick={toggleGameMode} className="rounded-full bg-white/5 px-3 py-1.5 font-pixel text-sm text-[#ead39b] hover:bg-white/10" aria-pressed={gameMode} title="Play questions as mini-games (Star Catch and the runner), or answer them on cards">
-              {gameMode ? "🎮 Game" : "📝 Cards"}
-            </button>
-          )}
+          {!inBattle && <GamePicker value={gamePick} onChange={chooseGame} />}
           <div className="flex items-center gap-1 rounded-full bg-white/5 px-3 py-1.5 text-sm font-bold" aria-label="XP this round">
             <StarGlyph className="h-4 w-4 text-amber-300" />
             {tally.xp}

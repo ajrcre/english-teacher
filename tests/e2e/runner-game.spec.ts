@@ -85,7 +85,7 @@ test("multiple-choice questions are played as a lane runner", async ({ page }) =
   test.setTimeout(180_000);
   await signIn(page);
   await page.goto(`/practice?mode=lesson&lesson=${LESSON}`);
-  await expect(page.getByRole("button", { name: "🎮 Game" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: /^Game: / })).toBeVisible({ timeout: 30_000 });
   // In development React starts the round twice; let both loads settle before playing.
   await page.waitForLoadState("networkidle");
   // The first three multiple-choice questions are Star Catch (its own spec): catch the right stars.
@@ -138,8 +138,43 @@ test("multiple-choice questions are played as a lane runner", async ({ page }) =
   await page.getByRole("button", { name: "Continue" }).click();
   await dismissCelebrations(page);
 
-  // The runner can be switched off: the question shows as a card again.
-  await page.getByRole("button", { name: "🎮 Game" }).click();
-  await expect(page.getByRole("button", { name: "📝 Cards" })).toBeVisible();
+  // The games can be switched off: the question shows as a card again.
+  await page.getByRole("button", { name: /^Game: / }).click();
+  await page.getByRole("menuitemradio", { name: /^Cards/ }).click();
+  await expect(page.getByRole("button", { name: "Game: Cards. Choose a game" })).toBeVisible();
   await expect(page.locator("button.choice").first()).toBeVisible();
+});
+
+test("the student chooses which mini-game to play", async ({ page }) => {
+  test.setTimeout(120_000);
+  await signIn(page);
+  await page.goto(`/practice?mode=lesson&lesson=${LESSON}`);
+  const picker = page.getByRole("button", { name: /^Game: / });
+  await expect(picker).toHaveAccessibleName("Game: Both. Choose a game", { timeout: 30_000 });
+  await page.waitForLoadState("networkidle");
+  // Both games: the round opens with Star Catch.
+  await expect(page.getByRole("region", { name: "Star catch" })).toBeVisible({ timeout: 30_000 });
+
+  // Only the runner: the same question is played as gates instead.
+  await picker.click();
+  await expect(page.getByRole("menuitemradio", { name: /^Both/ })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("menuitemradio", { name: /^Runner/ }).click();
+  await expect(page.getByRole("menu")).toBeHidden();
+  await expect(page.getByRole("region", { name: "Answer runner" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Star catch" })).toBeHidden();
+
+  // The choice is remembered on this device.
+  await page.reload();
+  await expect(picker).toHaveAccessibleName("Game: Runner. Choose a game", { timeout: 30_000 });
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByRole("region", { name: "Answer runner" })).toBeVisible({ timeout: 30_000 });
+
+  // Only Star Catch; Escape closes the menu without a change.
+  await picker.click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toBeHidden();
+  await picker.click();
+  await page.getByRole("menuitemradio", { name: /^Star Catch/ }).click();
+  await expect(page.getByRole("region", { name: "Star catch" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Answer runner" })).toBeHidden();
 });

@@ -122,7 +122,7 @@ test("multiple-choice answers fall as stars and Nova catches the right one", asy
   test.setTimeout(180_000);
   await signIn(page);
   await page.goto(`/practice?mode=lesson&lesson=${LESSON}`);
-  await expect(page.getByRole("button", { name: "🎮 Game" })).toBeVisible({
+  await expect(page.getByRole("button", { name: /^Game: / })).toBeVisible({
     timeout: 30_000,
   });
   await page.waitForLoadState("networkidle");

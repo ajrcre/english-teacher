@@ -13,6 +13,7 @@
  * letter by hashing the letters so far, without the word ever being in the page.
  */
 
+import type { GamePick } from "./pick";
 import type { RunnerQuestion } from "./runner";
 
 export const STAR_RULES = {
@@ -46,12 +47,14 @@ export function starEligible(q: RunnerQuestion): boolean {
 }
 
 /**
- * Which game plays the n-th game-eligible multiple-choice question of a round (0-based):
- * blocks of 3 in Star Catch, then 3 in the runner, and so on. A question whose answers are
- * too long for stars goes to the runner.
+ * Which game plays the n-th game-eligible multiple-choice question of a round (0-based).
+ * Both games ("mix"): blocks of 3 in Star Catch, then 3 in the runner, and so on. A chosen
+ * single game plays every question. A question whose answers are too long for stars always
+ * goes to the runner.
  */
-export function mcqGame(n: number, fitsStars: boolean): "stars" | "runner" {
-  if (!fitsStars) return "runner";
+export function mcqGame(n: number, fitsStars: boolean, pick: GamePick = "mix"): "stars" | "runner" {
+  if (!fitsStars || pick === "runner") return "runner";
+  if (pick === "stars") return "stars";
   return Math.floor(n / STAR_RULES.block) % 2 === 0 ? "stars" : "runner";
 }
 

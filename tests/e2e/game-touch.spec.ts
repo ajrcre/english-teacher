@@ -71,7 +71,7 @@ test("mini-games fill a phone screen and move Nova to a tap anywhere", async ({ 
   test.setTimeout(180_000);
   await signIn(page);
   await page.goto(`/practice?mode=lesson&lesson=${LESSON}`);
-  await expect(page.getByRole("button", { name: "🎮 Game" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: /^Game: / })).toBeVisible({ timeout: 30_000 });
   await page.waitForLoadState("networkidle");
 
   // Star Catch

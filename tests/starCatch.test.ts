@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { units } from "@/content/units";
 import { buildCatalog } from "@/lib/content/catalog";
 import { toClientItem } from "@/lib/content/client";
+import { parseGamePick } from "@/lib/game/pick";
 import { decoyLetter, fillMask, isNextLetter, isPair, matchKey, mcqGame, nextLetter, pickDecoy, spellKey, STAR_RULES, starColumns, starEligible, withDecoy, foxGreyX, FOX_STAR_RULES, GREY_STAR } from "@/lib/game/starCatch";
 
 const q = (options: string[]) => ({ type: "mcq", prompt: "Choose the best word.", options });
@@ -18,6 +19,11 @@ describe("star catch rules", () => {
   it("alternates blocks of three between Star Catch and the runner", () => {
     expect([0, 1, 2, 3, 4, 5, 6].map((n) => mcqGame(n, true))).toEqual(["stars", "stars", "stars", "runner", "runner", "runner", "stars"]);
     expect(mcqGame(0, false)).toBe("runner");
+    // A chosen single game plays every question (long answers still need the runner).
+    expect([0, 1, 2, 3, 4, 5].map((n) => mcqGame(n, true, "runner"))).toEqual(Array(6).fill("runner"));
+    expect([0, 1, 2, 3, 4, 5].map((n) => mcqGame(n, true, "stars"))).toEqual(Array(6).fill("stars"));
+    expect(mcqGame(4, false, "stars")).toBe("runner");
+    expect(mcqGame(3, true, "mix")).toBe("runner");
   });
 
   it("checks letters with prefix hashes, without the word", () => {
@@ -141,5 +147,18 @@ describe("the Grey Fox's Star Catch", () => {
     expect(FOX_STAR_RULES.shakeMs).toBe(1500);
     expect(FOX_STAR_RULES.warnMs).toBeLessThan(FOX_STAR_RULES.shakeMs);
     expect(GREY_STAR.length).toBeGreaterThan(0);
+  });
+});
+
+describe("game pick", () => {
+  it("reads back a saved choice, including the old on/off toggle", () => {
+    expect(parseGamePick("runner")).toBe("runner");
+    expect(parseGamePick("stars")).toBe("stars");
+    expect(parseGamePick("cards")).toBe("cards");
+    expect(parseGamePick("mix")).toBe("mix");
+    expect(parseGamePick("on")).toBe("mix");
+    expect(parseGamePick("off")).toBe("cards");
+    expect(parseGamePick(null)).toBe("mix");
+    expect(parseGamePick("nonsense")).toBe("mix");
   });
 });

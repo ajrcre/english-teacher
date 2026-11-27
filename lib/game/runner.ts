@@ -47,6 +47,19 @@ export function nextPace(pace: number, correct: boolean, combo: number): number 
   return Math.min(RUNNER_RULES.maxPace, Math.max(RUNNER_RULES.minPace, Math.round(p * 1000) / 1000));
 }
 
+/**
+ * Parallax: how fast each scenery layer moves compared with the ground (which moves with the
+ * gates). Further away is slower, the front tufts are faster. On a streak of 3+ the scenery
+ * (not the gates) speeds up by `streak`, and the sky glows warm.
+ */
+export const SCENERY = { sky: 0.3, mid: 0.55, fore: 1.8, streak: 1.6, streakAt: 3, glow: 0.3 };
+
+/** Eases the scenery's speed towards its target (1, or SCENERY.streak on a streak) over ~0.4 s. */
+export function easeScenery(current: number, streak: boolean, dt: number): number {
+  const target = streak ? SCENERY.streak : 1;
+  return current + (target - current) * Math.min(1, Math.max(0, dt) / 400);
+}
+
 /** Which lane a key press selects, or null. Lanes are numbered top to bottom from 0. */
 export function laneFromKey(key: string, current: number, lanes: number): number | null {
   if (key === "ArrowUp" || key === "w" || key === "W") return Math.max(0, current - 1);

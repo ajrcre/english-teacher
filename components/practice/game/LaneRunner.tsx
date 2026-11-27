@@ -6,17 +6,24 @@ import { playSfx } from "@/components/sound";
 import type { ClientItem } from "@/lib/content/client";
 import {
   approachMs,
+  easeScenery,
   laneAt,
   laneFromKey,
   laneGround,
   runnerLayout,
   RUNNER_FIELD,
+  SCENERY,
 } from "@/lib/game/runner";
 import { fieldHeight, isControl, toField } from "@/lib/game/stage";
 import { PALETTE } from "@/lib/pixel/palette";
 import { backdropFor } from "@/lib/pixel/sprites/backdrops";
 import { hatOf } from "@/lib/pixel/sprites/hats";
 import { novaSprites } from "@/lib/pixel/sprites/nova";
+import {
+  foreScenery,
+  groundDetails,
+  midScenery,
+} from "@/lib/pixel/sprites/scenery";
 import {
   dust,
   gateBurst,
@@ -59,9 +66,9 @@ interface Particle {
 
 /**
  * Carried from one question to the next, so Nova keeps running instead of starting over:
- * how far the world has scrolled, and her lane.
+ * how far the ground and the scenery have scrolled, how fast the scenery moves, and her lane.
  */
-const carry = { scroll: 0, lane: -1, at: -1e9 };
+const carry = { scroll: 0, world: 0, fast: 1, lane: -1, at: -1e9 };
 const carried = (lanes: number) =>
   performance.now() - carry.at < 4000 && carry.lane >= 0 && carry.lane < lanes;
 
@@ -166,6 +173,9 @@ export function LaneRunner({
     const reduced =
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const strip = loopStrip(backdropFor(unitId));
+    const mid = spriteFrames(midScenery(unitId))[0];
+    const fore = spriteFrames(foreScenery(unitId))[0];
+    const details = spriteFrames(groundDetails(unitId, LANE_H))[0];
     const ground = laneGround(unitId);
     const col = (ch: string) => PALETTE[ch] ?? "#000";
     const startX = W + 4;
@@ -173,7 +183,11 @@ export function LaneRunner({
     const speed = (startX - CONTACT_X) / total; // px per ms
     let gx = reduced ? W * 0.62 : startX;
     // keep the world where the last question left it, so the run flows on
-    let scroll = performance.now() - carry.at < 4000 ? carry.scroll : 0;
+    const flowing = performance.now() - carry.at < 4000;
+    let scroll = flowing ? carry.scroll : 0;
+    // the scenery's own distance, and its speed-up on a streak (ground and gates keep their pace)
+    let world = flowing ? carry.world : 0;
+    let fast = flowing ? carry.fast : 1;
     let last = performance.now();
     let dustAt = 0;
     const parts: Particle[] = [];
@@ -237,10 +251,19 @@ export function LaneRunner({
       ];
     };
 
+    /** Repeats a seamless tile across the field, scrolled left by `offset`. */
+    const tile = (img: HTMLCanvasElement, offset: number, y: number) => {
+      const w = img.width;
+      for (let x = -(((offset % w) + w) % w); x < W; x += w)
+        ctx.drawImage(img, Math.round(x), y);
+    };
+
     const draw = (now: number) => {
       const dt = Math.min(50, now - last);
       last = now;
       carry.scroll = scroll;
+      carry.world = world;
+      carry.fast = fast;
       carry.lane = s.lane;
       carry.at = now;
       if (!s.paused) {
@@ -251,13 +274,20 @@ export function LaneRunner({
           v = s.phase === "done" ? speed * 2 : 0;
         if (s.phase === "won") v = speed * 3;
         gx -= v * dt;
-        scroll += Math.max(v, s.phase === "lost" ? 0 : speed * 0.6) * dt;
+        const step = Math.max(v, s.phase === "lost" ? 0 : speed * 0.6) * dt;
+        fast = easeScenery(
+          fast,
+          combo >= SCENERY.streakAt && s.phase !== "lost",
+          dt,
+        );
+        scroll += step;
+        world += step * fast;
         s.laneY += (s.lane - s.laneY) * Math.min(1, dt / 70);
         if (s.phase === "run" && gx <= CONTACT_X) void judge();
       }
 
       // sky band: the unit's world, scrolling slowly (parallax)
-      const sx = (scroll * 0.25) % strip.width;
+      const sx = (world * SCENERY.sky) % strip.width;
       ctx.drawImage(
         strip,
         sx,
@@ -282,11 +312,23 @@ export function LaneRunner({
           SKY,
         );
 
-      // lanes
+      // on a streak the sky glows warm, like a sprint into the sunset
+      if (fast > 1.01) {
+        ctx.globalAlpha =
+          SCENERY.glow * Math.min(1, (fast - 1) / (SCENERY.streak - 1));
+        ctx.fillStyle = col("7");
+        ctx.fillRect(0, 0, W, SKY);
+        ctx.globalAlpha = 1;
+      }
+      // things standing behind the lanes, passing by faster than the sky
+      tile(mid, world * SCENERY.mid, SKY - mid.height);
+
+      // lanes, with pebbles and flowers moving with the gates
       for (let i = 0; i < lanes; i++) {
         const y = laneTop(i);
         ctx.fillStyle = col(i % 2 ? ground.b : ground.a);
         ctx.fillRect(0, y, W, LANE_H);
+        tile(details, scroll + i * 37, y);
         ctx.fillStyle = col(ground.edge);
         ctx.fillRect(0, y, W, 1);
         ctx.fillStyle = col(ground.mark);
@@ -415,6 +457,9 @@ export function LaneRunner({
           Math.round(p.y + p.vy * age),
         );
       }
+
+      // tufts at the very front rush past fastest
+      tile(fore, world * SCENERY.fore, H - fore.height);
 
       raf = requestAnimationFrame(draw);
     };
