@@ -6,8 +6,14 @@ import { loopStrip, spriteFrames } from "@/components/pixel/spriteCanvas";
 import { playDictation, playSfx } from "@/components/sound";
 import type { ClientItem, ItemResponse } from "@/lib/content/client";
 import { approachMs, laneGround } from "@/lib/game/runner";
+import { fieldHeight, isControl, toField } from "@/lib/game/stage";
+import { bubbleShatter } from "@/components/foxSounds";
 import {
+  catcherX,
   decoyLetter,
+  FOX_STAR_RULES,
+  foxGreyX,
+  GREY_STAR,
   fillMask,
   isNextLetter,
   isPair,
@@ -31,6 +37,7 @@ import {
   crackedStar,
   fallingStar,
   glowingStar,
+  greyStar,
   shard,
   STAR_H,
   STAR_W,
@@ -39,6 +46,7 @@ import { heartEmpty, heartFull, pixelStar } from "@/lib/pixel/sprites/ui";
 import { cx } from "@/lib/ui";
 import { RichSentence, SpeakerIcon, questionTitle } from "../inputs";
 import type { RunnerResult } from "./LaneRunner";
+import { useField } from "./useField";
 
 type McqItem = Extract<ClientItem, { type: "mcq" }>;
 type SpellItem = Extract<ClientItem, { type: "dictation" | "typed" }> & {
@@ -57,14 +65,14 @@ function shuffled<T>(list: T[]): T[] {
   return out;
 }
 
-/** Logical pixel size of the game (scaled up crisply). */
+/**
+ * Logical width of the game (scaled up crisply). Its height is fitted to the screen when a
+ * question starts: square at the least, and taller on a phone held upright.
+ */
 const W = 160;
-const H = 164;
+const MIN_H = 164;
+const MAX_H = 260;
 const SKY = 30;
-/** Where Nova stands, where stars land in the snow, and the basket's rim (the catch line). */
-const FEET = H - 9;
-const GROUND = H - 6;
-const RIM = FEET - BASKET_H + 3;
 const CATCH_R = 13;
 const MOVE = 0.12; // px per ms with the arrows
 const DRAG = 0.24; // px per ms towards a dragged/tapped point
@@ -83,6 +91,10 @@ interface Star {
   vy: number;
   state: StarState;
   at: number;
+  /** The Grey Fox's game: the star trembles at the top until then, then drops. */
+  holdUntil?: number;
+  /** The Grey Fox's game: a grey star, which must not be caught. */
+  grey?: boolean;
 }
 
 interface Particle {
@@ -101,6 +113,8 @@ interface Particle {
  * right catch's sparkle and cheer, which play on as the next question's stars appear.
  */
 const carry = { x: W / 2, winAt: -1e9, winText: "" };
+/** Tests: ?foxGrey drops one grey star right above Nova, once per page load. */
+let foxGreyAsked = false;
 
 /**
  * Star Catch.
@@ -120,10 +134,16 @@ export function StarCatch({
   xp,
   pace,
   decoy = null,
+  variant,
+  foxHearts,
   onChoose,
   onFinished,
 }: {
   item: StarCatchItem;
+  /** "fox": the Grey Fox's version (trembling stars, grey stars); its question is in his bubble. */
+  variant?: "fox";
+  /** The Grey Fox's game: Nova's hearts in his battle, shown in the bar above the field. */
+  foxHearts?: { left: number; of: number };
   /** A wrong answer from another question, added as a third star when there are only two. */
   decoy?: string | null;
   unitId: string;
@@ -139,7 +159,12 @@ export function StarCatch({
   const mode: "choice" | "spell" | "match" =
     item.type === "mcq" ? "choice" : item.type === "match" ? "match" : "spell";
   const spell = mode === "spell";
+  const fox = variant === "fox" && mode === "choice";
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const { areaRef, field, box } = useField(W, (area) => ({
+    h: fieldHeight(area, W, MIN_H, MAX_H),
+  }));
   const labelRefs = useRef(new Map<number, HTMLDivElement>());
   const [tokens, setTokens] = useState<
     { id: number; text: string; falling: boolean }[]
@@ -218,7 +243,13 @@ export function StarCatch({
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    if (!canvas || !ctx || !field) return;
+    const H = field.h;
+    /** Where Nova stands, where stars land in the snow, and the basket's rim (the catch line). */
+    const FEET = H - 9;
+    const GROUND = H - 6;
+    const RIM = FEET - BASKET_H + 3;
+    const section = sectionRef.current;
     ctx.imageSmoothingEnabled = false;
     const reduced =
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -237,6 +268,13 @@ export function StarCatch({
     let lastXs: number[] = [];
     let missed = 0;
     let respawnAt = 0;
+    // The Grey Fox's grey stars: the first comes after a moment. (Tests can ask for one right
+    // above Nova with ?foxGrey.)
+    let greyHere =
+      fox &&
+      !foxGreyAsked &&
+      new URLSearchParams(window.location.search).has("foxGrey");
+    let greyAt = performance.now() + (greyHere ? 900 : 1500);
     s.phase = "play";
     s.boost = false;
     s.stars = [];
@@ -259,7 +297,7 @@ export function StarCatch({
     const syncTokens = () =>
       setTokens(
         s.stars
-          .filter((t) => t.state !== "gone")
+          .filter((t) => t.state !== "gone" && !t.grey)
           .map((t) => ({
             id: t.id,
             text: t.text,
@@ -271,7 +309,12 @@ export function StarCatch({
     let choiceVy = 0;
     const dropStars = (labels: string[], reading: number, slower = 1) => {
       const cols = starColumns(labels.length, W);
-      choiceVy = fallPx / starFallMs(reading) / slower;
+      choiceVy = fox
+        ? fallPx / FOX_STAR_RULES.dropMs
+        : fallPx / starFallMs(reading) / slower;
+      const holdUntil = fox
+        ? performance.now() + 500 + starFallMs(reading) * slower
+        : undefined;
       s.stars = labels.map((o, i) => ({
         id: nextId++,
         text: o,
@@ -282,6 +325,7 @@ export function StarCatch({
         vy: choiceVy,
         state: "fall",
         at: 0,
+        holdUntil,
       }));
       syncTokens();
     };
@@ -500,6 +544,13 @@ export function StarCatch({
         }
         return;
       }
+      if (t.grey) {
+        // the Grey Fox's grey star: caught, it counts as a wrong answer
+        bubbleShatter();
+        for (const o of s.stars) if (o.grey && o !== t) o.state = "gone";
+        void judge({ type: "mcq", choice: GREY_STAR }, t);
+        return;
+      }
       if (!key) {
         t.state = "caught";
         t.at = now;
@@ -626,6 +677,9 @@ export function StarCatch({
             if (Math.abs(d) < 0.5) s.target = null;
           }
           s.x = Math.max(12, Math.min(W - 12, s.x));
+          // where Nova stands, for tests and tools (only written when it changes)
+          const sx = String(Math.round(s.x));
+          if (section && section.dataset.x !== sx) section.dataset.x = sx;
         }
         s.moving = Math.abs(s.x - before) > 0.01;
         if (s.moving) s.facing = s.x > before ? 1 : -1;
@@ -642,11 +696,45 @@ export function StarCatch({
 
         // stars fall
         if (s.phase === "play") {
+          // The Grey Fox's game: DROP lets the trembling stars go at once, and grey stars fall
+          // every so often while the answers wait at the top.
+          if (fox) {
+            if (s.boost)
+              for (const t of s.stars) if (t.holdUntil) t.holdUntil = 0;
+            const waiting = s.stars.some(
+              (t) => !t.grey && t.state === "fall" && (t.holdUntil ?? 0) > now,
+            );
+            if (waiting && now >= greyAt) {
+              s.stars.push({
+                id: nextId++,
+                text: "",
+                idx: -2,
+                x: greyHere ? Math.round(s.x) : foxGreyX(Math.random, s.x, W),
+                y: -STAR_H,
+                startY: -STAR_H,
+                vy: fallPx / FOX_STAR_RULES.greyDropMs,
+                state: "fall",
+                at: now,
+                grey: true,
+              });
+              if (greyHere) foxGreyAsked = true;
+              greyHere = false;
+              const [lo, hi] = FOX_STAR_RULES.greyEveryMs;
+              greyAt = now + lo + Math.random() * (hi - lo);
+              if (section)
+                section.dataset.grey = String(
+                  Number(section.dataset.grey ?? 0) + 1,
+                );
+            }
+          }
           for (const t of s.stars) {
             if (t.state !== "fall") continue;
-            let v = t.vy * (s.boost ? (key ? 3 : 6) : 1);
-            if (!key && reduced && !s.boost) v = t.y < t.startY ? t.vy * 8 : 0;
-            if (!key && t.y < t.startY) v = Math.max(v, 0.12); // slide into view first
+            let v = t.vy * (s.boost && !fox ? (key ? 3 : 6) : 1);
+            if (!key && reduced && !s.boost && !fox)
+              v = t.y < t.startY ? t.vy * 8 : 0;
+            if (fox && !t.grey && t.y >= t.startY && (t.holdUntil ?? 0) > now)
+              v = 0; // trembling at the top
+            if (!key && !t.grey && t.y < t.startY) v = Math.max(v, 0.12); // slide into view first
             const was = t.y + STAR_H;
             t.y += v * dt;
             const bottom = t.y + STAR_H;
@@ -680,7 +768,7 @@ export function StarCatch({
               spawnAt =
                 now + STAR_RULES.letterGapMs * pace * (reduced ? 1.6 : 1);
             }
-          } else if (!s.stars.some((t) => t.state === "fall")) {
+          } else if (!s.stars.some((t) => t.state === "fall" && !t.grey)) {
             // every answer landed in the snow: drop them again, a little slower
             if (!respawnAt) {
               respawnAt = now + 700;
@@ -735,10 +823,24 @@ export function StarCatch({
       const elapsed = Math.max(0, now - s.at);
       for (const t of s.stars) {
         if (t.state === "gone") continue;
-        let spr = fallingStar;
+        let spr = t.grey ? greyStar : fallingStar;
         let f = frameOf(fallingStar, 5, now + t.id * 170);
         let y = t.y;
         let x = t.x;
+        // the Grey Fox's stars hang still, then tremble just before they drop (harder at the end)
+        if (
+          fox &&
+          !reduced &&
+          !t.grey &&
+          t.state === "fall" &&
+          t.y >= t.startY &&
+          (t.holdUntil ?? 0) > now &&
+          (t.holdUntil ?? 0) - now <= FOX_STAR_RULES.shakeMs
+        ) {
+          const amp = (t.holdUntil ?? 0) - now < FOX_STAR_RULES.warnMs ? 2 : 1;
+          x += (Math.floor(now / 45) + t.id) % 2 ? amp : -amp;
+          if (amp > 1) y += Math.floor(now / 60) % 2;
+        }
         if (t.state === "caught") {
           y = RIM - STAR_H + 7;
           x = s.x;
@@ -763,7 +865,12 @@ export function StarCatch({
           ctx.globalAlpha = Math.max(0, 1 - (now - t.at) / 400);
           y = GROUND - STAR_H + 4;
         }
-        if (t.state === "fall" && t.y > -STAR_H + 2) {
+        if (
+          t.state === "fall" &&
+          t.y > -STAR_H + 2 &&
+          !t.grey &&
+          !(fox && (t.holdUntil ?? 0) > now)
+        ) {
           const len = combo >= 3 ? 9 : 6;
           for (let k = 1; k <= len; k++) {
             ctx.globalAlpha = Math.max(0, 0.75 - k / (len + 1));
@@ -955,7 +1062,7 @@ export function StarCatch({
     };
     // The game restarts only for a new question, new option order, or a new hat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id, optionsKey, decoy, unitId, sprites]);
+  }, [item.id, optionsKey, decoy, unitId, sprites, field]);
 
   const n =
     item.type === "dictation" || item.type === "typed" ? item.spell.n : 0;
@@ -964,11 +1071,34 @@ export function StarCatch({
       ? (item.spell.mask ?? "_".repeat(n))
       : "";
 
-  // Drag (or tap) on the field: Nova runs to that spot.
+  // Tap or drag anywhere on the game (not on its buttons): Nova runs to that spot, and follows
+  // a dragging finger. A tap while paused carries on.
   const dragging = useRef(false);
-  const aim = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    g.current.target = ((e.clientX - r.left) / r.width) * W;
+  const aim = (e: React.PointerEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !field) return;
+    const p = toField(
+      e.clientX,
+      e.clientY,
+      canvas.getBoundingClientRect(),
+      W,
+      field.h,
+    );
+    g.current.target = catcherX(p.x, W);
+    g.current.dir = 0;
+  };
+  const onPointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (isControl(e.target)) return;
+    if (g.current.paused) {
+      togglePause();
+      return;
+    }
+    dragging.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    aim(e);
+  };
+  const stopDragging = () => {
+    dragging.current = false;
   };
   const setDir = (dir: number) => {
     g.current.dir = dir;
@@ -979,14 +1109,24 @@ export function StarCatch({
 
   return (
     <section
-      className="mx-auto mt-4 w-full max-w-md font-pixel"
+      ref={sectionRef}
+      className="mx-auto mt-2 flex min-h-0 w-full flex-1 touch-none select-none flex-col font-pixel"
       aria-label="Star catch"
       data-item={item.id}
       data-mode={mode}
+      onPointerDown={onPointerDown}
+      onPointerMove={(e) => dragging.current && aim(e)}
+      onPointerUp={stopDragging}
+      onPointerCancel={stopDragging}
     >
-      <div className="pixel-panel px-4 py-3 text-[#ece4d6]">
+      <div className="pixel-panel px-4 py-3 text-[#ece4d6]" data-no-steer>
         {item.type === "mcq" || item.type === "typed" ? (
           <>
+            {fox && (
+              <p className="text-[11px] uppercase tracking-widest text-[#cf9c55]">
+                The Grey Fox asks:
+              </p>
+            )}
             <p className="text-xs uppercase tracking-widest text-[#a99cc4]">
               {questionTitle(item)}
             </p>
@@ -1073,21 +1213,28 @@ export function StarCatch({
         )}
       </div>
 
-      {/* The field is square; on short screens it gets narrower so the question stays in view. */}
-      <div
-        className="mx-auto w-full"
-        style={{ maxWidth: "max(15rem, calc(100dvh - 21rem))" }}
-      >
-        <div className="pixel-panel relative mt-3 overflow-hidden">
+      {/* The field fills the space left between the question and the buttons. */}
+      <div className="flex min-h-0 w-full flex-1 flex-col">
+        <div className="pixel-panel relative mt-2 flex min-h-[11rem] flex-1 flex-col overflow-hidden">
           <div className="flex items-center justify-between bg-[#1d1730] px-3 py-1.5 text-[#ead39b]">
             <div
               className="flex min-w-[4.5rem] gap-1"
               aria-label={
-                mode !== "choice"
-                  ? `${hearts} ${hearts === 1 ? "heart" : "hearts"} left`
-                  : undefined
+                foxHearts
+                  ? `${foxHearts.left} of ${foxHearts.of} hearts left`
+                  : mode !== "choice"
+                    ? `${hearts} ${hearts === 1 ? "heart" : "hearts"} left`
+                    : undefined
               }
             >
+              {foxHearts &&
+                Array.from({ length: foxHearts.of }, (_, i) => (
+                  <PixelSprite
+                    key={i}
+                    sprite={i < foxHearts.left ? heartFull : heartEmpty}
+                    scale={2}
+                  />
+                ))}
               {mode !== "choice" &&
                 Array.from({ length: STAR_RULES.hearts }, (_, i) => (
                   <PixelSprite
@@ -1097,63 +1244,70 @@ export function StarCatch({
                   />
                 ))}
             </div>
-            <span className="text-sm tracking-[0.2em]">STAR CATCH</span>
+            <span className="text-sm tracking-[0.2em]">
+              {fox ? "THE GREY FOX" : "STAR CATCH"}
+            </span>
             <span className="flex min-w-[4.5rem] items-center justify-end gap-1 text-sm">
               <PixelSprite sprite={pixelStar} scale={2} />
               {xp}
               {combo >= 2 && <span className="text-[#a99cc4]">×{combo}</span>}
             </span>
           </div>
-          <div className="relative" style={{ aspectRatio: `${W} / ${H}` }}>
-            <canvas
-              ref={canvasRef}
-              width={W}
-              height={H}
-              className="pixelated block h-full w-full touch-none select-none"
-              onPointerDown={(e) => {
-                dragging.current = true;
-                e.currentTarget.setPointerCapture?.(e.pointerId);
-                aim(e);
-              }}
-              onPointerMove={(e) => dragging.current && aim(e)}
-              onPointerUp={() => (dragging.current = false)}
-              onPointerCancel={() => (dragging.current = false)}
-              aria-hidden="true"
-            />
-            {tokens.map((t) => (
-              <div
-                key={t.id}
-                ref={(el) => {
-                  if (el) labelRefs.current.set(t.id, el);
-                  else labelRefs.current.delete(t.id);
-                }}
-                className={cx(
-                  "pointer-events-none absolute -translate-x-1/2 whitespace-nowrap leading-none",
-                  spell
-                    ? "-translate-y-1/2 text-[22px] text-[#3a2614] [text-shadow:0_1px_0_#f6e7b8] sm:text-[26px]"
-                    : "border-2 border-[#241c2b] bg-[#f3e3b8] px-1.5 pb-[3px] pt-[4px] text-[13px] text-[#2b1f17] shadow-[2px_2px_0_#241c2b66] sm:text-[15px] before:absolute before:-top-[7px] before:left-[var(--notch,50%)] before:-translate-x-1/2 before:border-x-[5px] before:border-b-[5px] before:border-x-transparent before:border-b-[#241c2b] before:content-['']",
-                )}
-                style={{ left: "50%", top: "-20%", opacity: 0 }}
-              >
-                {t.text}
-              </div>
-            ))}
-            <p className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[11px] text-[#cf9c55]/70">
-              ◀ drag Nova or use the arrows ▶
-            </p>
-            {banner && (
-              <div
-                className={cx(
-                  "pointer-events-none absolute inset-x-0 top-[24%] text-center text-2xl [text-shadow:2px_2px_0_#241c2b] sm:text-3xl",
-                  banner.good ? "text-[#f6e7b8]" : "text-[#cf9f9b]",
-                )}
-                role="status"
-              >
-                <span className="inline-block border-2 border-[#241c2b] bg-[#241c2bd9] px-3 pb-0.5 pt-1">
-                  {banner.text}
-                </span>
-              </div>
-            )}
+          <div
+            className="relative min-h-0 flex-1"
+            style={{ background: PALETTE[laneGround(unitId).b] }}
+          >
+            <div ref={areaRef} className="absolute inset-0">
+              {field && box && (
+                <div
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                  style={{ width: box.w, height: box.h }}
+                  data-field
+                >
+                  <canvas
+                    ref={canvasRef}
+                    width={W}
+                    height={field.h}
+                    className="pixelated block h-full w-full"
+                    aria-hidden="true"
+                  />
+                  {tokens.map((t) => (
+                    <div
+                      key={t.id}
+                      ref={(el) => {
+                        if (el) labelRefs.current.set(t.id, el);
+                        else labelRefs.current.delete(t.id);
+                      }}
+                      className={cx(
+                        "pointer-events-none absolute -translate-x-1/2 whitespace-nowrap leading-none",
+                        spell
+                          ? "-translate-y-1/2 text-[22px] text-[#3a2614] [text-shadow:0_1px_0_#f6e7b8] sm:text-[26px]"
+                          : "border-2 border-[#241c2b] bg-[#f3e3b8] px-1.5 pb-[3px] pt-[4px] text-[13px] text-[#2b1f17] shadow-[2px_2px_0_#241c2b66] sm:text-[15px] before:absolute before:-top-[7px] before:left-[var(--notch,50%)] before:-translate-x-1/2 before:border-x-[5px] before:border-b-[5px] before:border-x-transparent before:border-b-[#241c2b] before:content-['']",
+                      )}
+                      style={{ left: "50%", top: "-20%", opacity: 0 }}
+                    >
+                      {t.text}
+                    </div>
+                  ))}
+                  <p className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[11px] text-[#cf9c55]/70">
+                    ◀ tap or drag to move Nova ▶
+                  </p>
+                  {banner && (
+                    <div
+                      className={cx(
+                        "pointer-events-none absolute inset-x-0 top-[24%] text-center text-2xl [text-shadow:2px_2px_0_#241c2b] sm:text-3xl",
+                        banner.good ? "text-[#f6e7b8]" : "text-[#cf9f9b]",
+                      )}
+                      role="status"
+                    >
+                      <span className="inline-block border-2 border-[#241c2b] bg-[#241c2bd9] px-3 pb-0.5 pt-1">
+                        {banner.text}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             {paused && (
               <div
                 className="absolute inset-0 grid place-items-center bg-[#0d1a2bcc] text-2xl text-[#ead39b]"
@@ -1165,7 +1319,7 @@ export function StarCatch({
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-center gap-2">
+        <div className="mt-2 flex items-center justify-center gap-2">
           <MoveButton
             dir={-1}
             label="Move left"
@@ -1209,7 +1363,10 @@ export function StarCatch({
         </div>
       </div>
 
-      <div className="pixel-panel mt-3 flex items-start gap-3 px-4 py-3 text-[#ece4d6]">
+      <div
+        className="pixel-panel mt-3 hidden items-start gap-3 px-4 py-3 text-[#ece4d6] [@media(min-height:900px)]:flex"
+        data-no-steer
+      >
         <span className="grid h-9 w-9 shrink-0 place-items-center bg-[#cf9c55]">
           <PixelSprite sprite={pixelStar} scale={3} />
         </span>

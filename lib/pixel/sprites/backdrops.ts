@@ -770,6 +770,152 @@ function library(frame: number): PixelCanvas {
   return c;
 }
 
+// ---------------------------------------------------------------------------
+// The Grey Fox's castle (test-prep boss): a gothic castle at night in purple, black and grey,
+// with wavy plum clouds, pointed spires, glowing arched windows, a rose window, an iron fence
+// and magic torches burning with violet flames.
+
+/** A pointed (gothic) arch window with a mullion; `lit` windows glow. */
+function archWindow(c: PixelCanvas, x: number, y: number, w: number, h: number, lit: string, frame: number, flicker = 0): void {
+  const top = y + Math.ceil(w / 2);
+  c.rect(x - 1, top, w + 2, h - (top - y) + 1, "(");
+  c.tri(x - 1, top + 0.5, x + w + 1, top + 0.5, x + w / 2, y - 1.5, "(");
+  const glow = (frame + flicker) % 3 === 2 ? "{" : lit;
+  c.rect(x, top, w, h - (top - y), glow);
+  c.tri(x, top + 0.5, x + w, top + 0.5, x + w / 2, y + 0.5, glow);
+  if (w >= 4) c.vline(x + Math.floor(w / 2), y + 2, y + h - 1, "(");
+  c.hline(x, x + w - 1, top + Math.floor((h - (top - y)) / 2), "(");
+}
+
+/** A tower with a pointed roof and a little finial. */
+function spireTower(c: PixelCanvas, x: number, w: number, roofY: number, baseY: number, wall: string, roof: string, edge: string): void {
+  c.rect(x, roofY, w, baseY - roofY, wall);
+  const tip = roofY - Math.round(w * 1.4);
+  c.tri(x - 1.5, roofY + 0.5, x + w + 1.5, roofY + 0.5, x + w / 2, tip, roof);
+  c.vline(Math.round(x + w / 2), tip - 3, tip, edge);
+  c.set(Math.round(x + w / 2) - 1, tip - 2, edge).set(Math.round(x + w / 2) + 1, tip - 2, edge);
+  c.vline(x + w - 1, roofY, baseY, edge === "}" ? "{" : edge);
+}
+
+/** A torch on a wall bracket, burning with a magic violet flame. */
+function torch(c: PixelCanvas, x: number, y: number, frame: number): void {
+  c.vline(x, y, y + 5, "<").set(x - 1, y + 5, "<").set(x + 1, y + 5, "<");
+  c.hline(x - 1, x + 1, y, ">");
+  const lick = [0, 1, -1][frame % 3];
+  // glow on the wall around it
+  for (let yy = y - 8; yy <= y + 4; yy++)
+    for (let xx = x - 6; xx <= x + 6; xx++) {
+      const d = Math.hypot(xx - x, (yy - y + 2) * 1.2);
+      if (d < 6 && d > 2 && (xx + yy + frame) % 3 === 0 && c.get(xx, yy) !== "(") c.set(xx, yy, "{");
+    }
+  c.ellipse(x, y - 2, 1.6, 2.2, "@");
+  c.set(x + lick, y - 5, "@").set(x, y - 4, "v");
+  c.set(x, y - 2, "f").set(x, y - 1, "v");
+  c.set(x - lick, y - 7, frame === 1 ? "v" : ".");
+}
+
+function castle(frame: number): PixelCanvas {
+  const c = new PixelCanvas(W, H);
+  // sky: black at the top into plum, with wavy cloud bands drifting
+  gradient(c, [
+    ["(", 10],
+    [")", 20],
+    ["~", 36],
+    ["^", 48],
+  ]);
+  drawStars(c, makeStars(91, 12, 9), frame);
+  for (const [y0, col, amp, step] of [
+    [11, "~", 1.2, 0.2],
+    [17, "^", 1.3, 0.17],
+    [24, "=", 1.1, 0.22],
+    [30, "^", 1.4, 0.19],
+  ] as [number, string, number, number][]) {
+    for (let x = 0; x < W; x++) {
+      if ((x + y0 * 3) % 23 > 17) continue; // gaps between the cloud streaks
+      const y = Math.round(y0 + amp * Math.sin((x + frame * 2) * step));
+      c.set(x, y, col);
+      if ((x + frame) % 2 === 0) c.set(x, y + 1, col);
+    }
+  }
+  // a pale moon behind thin cloud
+  c.ellipse(18, 12, 4, 4, "}");
+  c.ellipse(19, 13, 1.5, 1.2, "{");
+  c.hline(12, 25, 13, "^").hline(14, 22, 15, "^");
+
+  // far castle skyline: towers, spires and a dome in dark purple, lit windows here and there
+  c.rect(0, 38, W, 30, "[");
+  for (let x = 0; x < W; x += 5) c.rect(x, 36, 3, 2, "["); // battlements
+  spireTower(c, 4, 6, 26, 40, "[", ")", "]");
+  spireTower(c, 22, 5, 30, 40, "[", ")", "]");
+  c.ellipse(36, 30, 5, 5, "[");
+  c.rect(31, 30, 11, 8, "[");
+  c.vline(36, 21, 25, "]");
+  spireTower(c, 98, 6, 24, 40, "[", ")", "]");
+  for (const [x, y] of [
+    [6, 31],
+    [24, 34],
+    [35, 33],
+    [100, 30],
+    [14, 40],
+  ])
+    c.set(x, y, frame === 2 && x % 2 ? "]" : "@").set(x, y + 1, "@");
+
+  // the chapel in the middle: a gable roof, a rose window and tall arched windows
+  c.rect(46, 16, 40, 50, "]");
+  c.tri(43, 16.5, 89, 16.5, 66, -3, ")");
+  c.tri(46, 16.5, 86, 16.5, 66, 0, "[");
+  for (let y = 20; y < 64; y += 4) for (let x = 46 + ((y / 4) % 2) * 3; x < 86; x += 6) c.hline(x, x + 4, y, "[");
+  c.vline(46, 16, 64, "{");
+  c.vline(85, 16, 64, "[");
+  c.vline(66, -3, 1, "}").hline(64, 68, -1, "}"); // a cross on the peak (clipped at the top)
+  c.ellipse(66, 16, 7, 7, "(");
+  c.ellipse(66, 16, 5.5, 5.5, frame === 1 ? "{" : "@");
+  c.ellipse(66, 16, 1.5, 1.5, "(");
+  for (let a = 0; a < 8; a++) c.line(66, 16, Math.round(66 + 5.5 * Math.cos((a * Math.PI) / 4)), Math.round(16 + 5.5 * Math.sin((a * Math.PI) / 4)), "(");
+  archWindow(c, 51, 28, 5, 14, "@", frame, 0);
+  archWindow(c, 76, 28, 5, 14, "@", frame, 1);
+  archWindow(c, 61, 40, 10, 24, "(", 0); // the great door, shut and dark
+  c.rect(63, 50, 6, 14, "(");
+  c.set(64, 54, "}").set(67, 54, "}");
+
+  // a dark keep on the right (the Grey Fox stands in front of it), one window lit high up
+  c.rect(90, 4, 38, 62, ")");
+  for (let y = 8; y < 64; y += 5) for (let x = 90 + ((y / 5) % 2) * 4; x < W; x += 8) c.hline(x, x + 5, y, "(");
+  c.vline(90, 4, 64, "[");
+  for (let x = 90; x < W; x += 6) c.rect(x, 1, 3, 3, ")");
+  archWindow(c, 116, 10, 4, 10, "@", frame, 2);
+
+  // left: a low cloister wall of grey stone with arches
+  c.rect(0, 42, 46, 24, "<");
+  for (let y = 45; y < 64; y += 3) for (let x = (y % 2) * 3; x < 46; x += 6) c.hline(x, x + 3, y, ">");
+  c.hline(0, 45, 42, ">");
+  for (const x of [6, 22, 38]) archWindow(c, x, 47, 5, 13, x === 22 ? "@" : "]", frame, x);
+
+  // torches with violet flames
+  torch(c, 14, 40, frame);
+  torch(c, 43, 38, (frame + 1) % 3);
+  torch(c, 92, 36, (frame + 2) % 3);
+
+  // ground: dark cobbles with grey highlights, and a low violet mist drifting
+  c.rect(0, 64, W, 8, "<");
+  for (let y = 65; y < H; y += 2) for (let x = (y % 4) * 2; x < W; x += 5) c.hline(x, x + 2, y, ">");
+  c.hline(0, W - 1, 64, "}");
+  for (let x = 0; x < W; x++) {
+    const m = Math.round(68 + Math.sin((x + frame * 3) * 0.15) * 1.5);
+    if ((x + frame) % 2 === 0) c.set(x, m, "{");
+    if (x % 3 === 0) c.set(x, m + 1, "]");
+  }
+
+  // iron fence in front, on the left: posts with spear tips and two rails
+  for (let x = 2; x < 44; x += 6) {
+    c.vline(x, 50, 66, "(");
+    c.set(x, 49, "(").set(x - 1, 51, "(").set(x + 1, 51, "(");
+    c.set(x, 48, ">");
+  }
+  c.hline(0, 44, 54, "(").hline(0, 44, 62, "(");
+  return c;
+}
+
 const SCENES: Record<string, (frame: number) => PixelCanvas> = {
   "word-treasury": treasureCave,
   "number-the-stars": harbour,
@@ -778,6 +924,7 @@ const SCENES: Record<string, (frame: number) => PixelCanvas> = {
   grammar: workshop,
   spelling: meadow,
   "short-stories": library,
+  "grey-fox": castle,
 };
 
 const cache = new Map<string, Sprite>();

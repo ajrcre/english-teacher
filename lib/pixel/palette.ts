@@ -46,6 +46,7 @@ export const PALETTE: Record<string, string> = {
   V: "#776a9c", // purple
   u: "#4b416b", // deep purple
   m: "#2d2744", // shadow purple
+  "*": "#e0463c", // glowing red (the Grey Fox's eyes: the one bright red, so they stand out)
 
   // ---- scenery shades (backdrops) ----
   "0": "#0b1424", // deepest night
@@ -78,6 +79,19 @@ export const PALETTE: Record<string, string> = {
   U: "#8d3f45", // curtain red
   X: "#5e2a33", // curtain shadow
   Z: "#c77a6a", // curtain light
+  // the Grey Fox's castle: purple night, black and grey stone, violet glows
+  "(": "#120d1c", // night black
+  ")": "#1e1630", // darkest purple
+  "[": "#2c2142", // dark purple stone
+  "]": "#3f3259", // purple stone
+  "{": "#574776", // light purple stone
+  "}": "#7a6a98", // stone highlight
+  "<": "#34303c", // dark grey stone
+  ">": "#4d4857", // grey stone
+  "~": "#4a2550", // plum sky
+  "^": "#6b3566", // cloud plum
+  "=": "#8c4f7c", // cloud light
+  "@": "#a06ad0", // violet glow (windows, magic torch flames)
 };
 
 export const TRANSPARENT = ".";

@@ -1,8 +1,10 @@
 import { ESTIMATED_SECONDS, LLM_GRADED_TYPES, type Item, type ItemType } from "@/lib/content/schema";
-import { BOSS_RULES } from "@/lib/gamification/collection";
+import { starEligible } from "@/lib/game/starCatch";
+import { BOSS_RULES, TEST_BOSS_RULES } from "@/lib/gamification/collection";
 import { addDays, dayStart } from "@/lib/time";
 
-export type SessionMode = "review" | "explore" | "lesson" | "mistakes" | "boss";
+/** "test-boss": the Grey Fox, fought on the switched-on class test's questions. */
+export type SessionMode = "review" | "explore" | "lesson" | "mistakes" | "boss" | "test-boss";
 
 export interface CatalogEntry {
   item: Item;
@@ -97,8 +99,16 @@ export function allowedNewItems(input: Pick<BuildInput, "catalog" | "progress" |
  * LLM-graded (battles should be quick), mistakes first, then the least practised.
  */
 export function bossPool(catalog: readonly CatalogEntry[], progress: ReadonlyMap<string, ProgressLite>, lessonId: string): CatalogEntry[] {
+  return seenQuickPool(
+    catalog.filter((c) => c.lessonId === lessonId),
+    progress,
+  );
+}
+
+/** Quick (never LLM-graded) questions the student has met, mistakes first, then the least practised. */
+export function seenQuickPool(catalog: readonly CatalogEntry[], progress: ReadonlyMap<string, ProgressLite>): CatalogEntry[] {
   return catalog
-    .filter((c) => c.lessonId === lessonId && !LLM_GRADED_TYPES.has(c.item.type) && progress.has(c.item.id))
+    .filter((c) => !LLM_GRADED_TYPES.has(c.item.type) && progress.has(c.item.id))
     .sort((a, b) => {
       const pa = progress.get(a.item.id)!;
       const pb = progress.get(b.item.id)!;
@@ -125,6 +135,25 @@ export function bossEligibility(catalog: readonly CatalogEntry[], progress: Read
   // A lesson with too few quick questions never gets a boss.
   const possible = inLesson.filter((c) => !LLM_GRADED_TYPES.has(c.item.type)).length >= BOSS_RULES.minItems;
   return { available: possible && seen >= needed && hp >= BOSS_RULES.minItems, seen, needed: possible ? needed : 0, hp };
+}
+
+/**
+ * The Grey Fox (test-prep boss) on a catalog already narrowed to the test's questions: he appears
+ * once the student has met a share of them and there are enough quick questions for his lives.
+ * A battle holds his lives plus the mistakes allowed, so it can always be won.
+ */
+export function testBossEligibility(testCatalog: readonly CatalogEntry[], progress: ReadonlyMap<string, ProgressLite>): BossEligibility {
+  const seen = testCatalog.filter((c) => progress.has(c.item.id)).length;
+  const needed = Math.max(TEST_BOSS_RULES.hp, Math.ceil(testCatalog.length * TEST_BOSS_RULES.unlockSeenShare));
+  const pool = foxPool(testCatalog, progress).length;
+  return { available: seen >= needed && pool >= TEST_BOSS_RULES.hp, seen, needed, hp: TEST_BOSS_RULES.hp };
+}
+
+export const testBossBattleSize = () => TEST_BOSS_RULES.hp + TEST_BOSS_RULES.hearts - 1;
+
+/** The Grey Fox's questions: met before, and playable as his Star Catch (multiple choice that fits on stars). */
+export function foxPool(testCatalog: readonly CatalogEntry[], progress: ReadonlyMap<string, ProgressLite>): CatalogEntry[] {
+  return seenQuickPool(testCatalog, progress).filter((c) => c.item.type === "mcq" && starEligible(c.item));
 }
 
 class PlanAccumulator {
@@ -169,6 +198,21 @@ class PlanAccumulator {
       if (this.tryAdd(c, isNew)) added++;
     }
   }
+}
+
+/** Takes one question from each lesson in turn, so a round of several topics has some of each. */
+export function interleaveByLesson(list: readonly CatalogEntry[]): CatalogEntry[] {
+  const byLesson = new Map<string, CatalogEntry[]>();
+  for (const c of list) {
+    const l = byLesson.get(c.lessonId);
+    if (l) l.push(c);
+    else byLesson.set(c.lessonId, [c]);
+  }
+  if (byLesson.size < 2) return [...list];
+  const queues = [...byLesson.values()];
+  const out: CatalogEntry[] = [];
+  for (let i = 0; out.length < list.length; i++) for (const q of queues) if (i < q.length) out.push(q[i]);
+  return out;
 }
 
 /**
@@ -234,9 +278,10 @@ export function buildSession(input: BuildInput): SessionPlan {
       break;
     }
     case "lesson": {
-      const inLesson = catalog.filter((c) => c.lessonId === input.lessonId);
+      // One lesson, or (with no lessonId) the chosen topics the catalog was narrowed to.
+      const inLesson = input.lessonId ? catalog.filter((c) => c.lessonId === input.lessonId) : catalog;
       acc.fill(inLesson.filter(isDue).sort(reviewOrder), false);
-      acc.fill(inLesson.filter(isUnseen).sort(byOrder), true);
+      acc.fill(interleaveByLesson(inLesson.filter(isUnseen).sort(byOrder)), true);
       acc.fill(inLesson.filter(notMastered).sort(leastRecent), false);
       acc.fill(inLesson.filter((c) => !!seen(c)).sort(leastRecent), false);
       break;
@@ -245,6 +290,11 @@ export function buildSession(input: BuildInput): SessionPlan {
       const battle = new PlanAccumulator(Infinity, input.secondsByType);
       for (const c of bossPool(catalog, progress, input.lessonId ?? "").slice(0, BOSS_RULES.maxItems)) battle.tryAdd(c, false);
       return { mode: "boss", entries: battle.entries, estimatedSeconds: battle.seconds, newCount: 0 };
+    }
+    case "test-boss": {
+      const battle = new PlanAccumulator(Infinity, input.secondsByType);
+      for (const c of foxPool(catalog, progress).slice(0, testBossBattleSize())) battle.tryAdd(c, false);
+      return { mode: "test-boss", entries: battle.entries, estimatedSeconds: battle.seconds, newCount: 0 };
     }
     case "mistakes": {
       const flagged = catalog.filter((c) => {

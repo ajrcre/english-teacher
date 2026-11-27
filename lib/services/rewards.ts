@@ -25,7 +25,7 @@ export interface ShopView {
   balance: number;
   shields: number;
   maxShields: number;
-  items: { id: string; kind: string; title: string; description: string; price: number; owned: boolean; equipped: boolean; soldOut: boolean }[];
+  items: { id: string; kind: string; title: string; description: string; price: number; earnedBy?: string; owned: boolean; equipped: boolean; soldOut: boolean }[];
 }
 
 /** The star shop, the sticker album and equipping what was bought. */
@@ -51,6 +51,7 @@ export class RewardsService {
   async buy(studentId: string, itemId: string): Promise<ShopView> {
     const item = SHOP_BY_ID.get(itemId);
     if (!item) throw new RewardError(404, "That item isn't in the shop");
+    if (item.earnedBy) throw new RewardError(409, `${item.earnedBy}: it can't be bought`);
     if (item.kind === "shield") {
       const stats = await this.repos.progress.getStats(studentId);
       if (stats.shields >= XP_RULES.maxShields) throw new RewardError(409, "You already have the most shields you can carry");

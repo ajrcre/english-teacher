@@ -6,6 +6,8 @@ import { AdventureMap, type MapPlace } from "@/components/map/AdventureMap";
 import { PixelSprite } from "@/components/pixel/PixelSprite";
 import { PLACES } from "@/components/map/layout";
 import { StudentHeader } from "@/components/StudentHeader";
+import { TopicPicker, type TopicGroup } from "@/components/TopicPicker";
+import { GREY_FOX } from "@/lib/pixel/sprites/greyFox";
 import { stickerArt } from "@/lib/pixel/sprites/stickers";
 import { chests, pixelStar } from "@/lib/pixel/sprites/ui";
 import { DAILY_RULES } from "@/lib/services/practice";
@@ -24,6 +26,14 @@ export default async function HomePage() {
   const places: MapPlace[] = units
     .filter((u) => u.id in PLACES)
     .map((u) => ({ id: u.id, name: u.title, tagline: u.tagline, lit: u.lessons.filter((l) => l.total > 0 && l.mastered >= l.total).length, total: u.lessons.length, mastery: u.total ? u.mastered / u.total : 0 }));
+  // The test's topics, grouped by unit (in the test's order).
+  const testGroups: TopicGroup[] = [];
+  for (const l of test?.lessons ?? []) {
+    let g = testGroups.find((x) => x.title === l.unitTitle);
+    if (!g) testGroups.push((g = { id: l.unitTitle, title: l.unitTitle, lessons: [] }));
+    g.lessons.push(l);
+  }
+  const allGroups: TopicGroup[] = units.map((u) => ({ id: u.id, title: u.title, lessons: u.lessons.map((l) => ({ id: l.id, title: l.title, total: l.total, mastered: l.mastered })) }));
   const startId = student.focusUnit && student.focusUnit in PLACES ? student.focusUnit : "the-giver";
 
   return (
@@ -49,6 +59,41 @@ export default async function HomePage() {
               {test.mastered} of {test.total} questions mastered · {Math.max(0, test.seen - test.mastered)} still being learned · {Math.max(0, test.total - test.seen)} not started
             </p>
             <p className="mt-1 text-sm text-ink-300">Your rounds now use only the topics on this test.{test.notInApp.length > 0 && ` Not practised here: ${test.notInApp.join(", ")}.`}</p>
+            {test.boss && (
+              <div className="pixel-panel mt-4 flex items-center gap-3 p-3 font-pixel sm:gap-4">
+                <PixelSprite sprite={GREY_FOX.sprite} scale={2} fps={3} className={cx("shrink-0", !test.boss.available && "opacity-60")} title={GREY_FOX.name} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs uppercase tracking-widest text-[#cf9c55]">Test boss · {test.boss.hp} lives</p>
+                  <p className="text-xl leading-tight text-[#ece4d6]">{GREY_FOX.name}</p>
+                  <p className="mt-0.5 text-sm leading-snug text-[#a99cc4]">
+                    {test.boss.defeated > 0
+                      ? "Beaten! His E hat is yours. Fight him again any time."
+                      : test.boss.available
+                        ? "He's waiting, with his E hat on. Beat him to win it!"
+                        : `Meet ${Math.max(0, test.boss.needed - test.boss.seen)} more test questions to face him (${test.boss.seen}/${test.boss.needed}).`}
+                  </p>
+                </div>
+                {test.boss.available ? (
+                  <Link href="/practice?mode=test-boss" className="pixel-btn shrink-0 px-3 text-base">
+                    ⚔ Fight
+                  </Link>
+                ) : (
+                  <span className="shrink-0 text-2xl" aria-label="Locked">
+                    🔒
+                  </span>
+                )}
+              </div>
+            )}
+            {testGroups.length > 0 && (
+              <details className="group mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                <summary className="cursor-pointer list-none font-semibold text-amber-300 marker:hidden">
+                  <span className="mr-1 inline-block transition group-open:rotate-90">▸</span> Practise only some of the test topics
+                </summary>
+                <div className="mt-3">
+                  <TopicPicker groups={testGroups} storageKey={`test:${test.id}`} defaultAll tone="amber" />
+                </div>
+              </details>
+            )}
           </section>
         )}
 
@@ -126,6 +171,15 @@ export default async function HomePage() {
                   <p className="mt-2 text-xs text-ink-400">Pick what your class is studying now.</p>
                 </>
               )}
+              <details className="group mt-4 border-t border-white/10 pt-3">
+                <summary className="cursor-pointer list-none font-semibold text-amber-300 marker:hidden">
+                  <span className="mr-1 inline-block transition group-open:rotate-90">▸</span> Choose topics to practise
+                </summary>
+                <p className="mt-1 text-xs text-ink-400">Tick a few topics from any unit and practise just those.</p>
+                <div className="mt-2">
+                  <TopicPicker groups={allGroups} storageKey="all" scroll />
+                </div>
+              </details>
             </div>
           </div>
         </section>

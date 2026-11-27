@@ -67,7 +67,9 @@ export type RewardEvent =
   | { kind: "level_up"; level: number; title: string }
   | { kind: "badge"; id: string }
   | { kind: "boss_defeated"; first: boolean; heartsLeft: number }
-  | { kind: "chest"; contents: ChestContents };
+  | { kind: "chest"; contents: ChestContents }
+  /** A hat won in battle (the Grey Fox's E hat). */
+  | { kind: "hat"; id: string };
 
 export interface Rewards {
   xp: number;

@@ -1,10 +1,10 @@
 import { toClientItem, type ClientItem, type ItemResponse } from "@/lib/content/client";
 import { testById, type TestDef } from "@/content/tests";
 import type { Catalog } from "@/lib/content/catalog";
-import { daysUntil, testIsActive, testItemIds } from "@/lib/content/testScope";
+import { daysUntil, testIsActive, testItemIds, testLessonIds } from "@/lib/content/testScope";
 import { LLM_GRADED_TYPES, type Item, type ItemType } from "@/lib/content/schema";
 import type { ProgressRow, Repositories, StatsRow } from "@/lib/db/repositories";
-import { BOSS_RULES, type ChestContents } from "@/lib/gamification/collection";
+import { BOSS_RULES, TEST_BOSS_RULES, testBossKey, type ChestContents } from "@/lib/gamification/collection";
 import { GamificationEngine, type Rewards, type StatsState } from "@/lib/gamification/engine";
 import { levelInfo, type LevelInfo } from "@/lib/gamification/levels";
 import { GraderUnavailableError } from "@/lib/grading/graders/llmGraders";
@@ -12,7 +12,7 @@ import type { GraderRegistry } from "@/lib/grading/registry";
 import type { GradeResult, Verdict } from "@/lib/grading/types";
 import { logger } from "@/lib/logger";
 import type { ProgressState, Scheduler } from "@/lib/scheduling/leitner";
-import { bossEligibility, buildSession, type BossEligibility, type ProgressLite, type SessionMode } from "@/lib/scheduling/sessionBuilder";
+import { bossEligibility, buildSession, testBossEligibility, type BossEligibility, type ProgressLite, type SessionMode } from "@/lib/scheduling/sessionBuilder";
 import { dayKey } from "@/lib/time";
 import { grantChest, RewardError } from "./rewards";
 
@@ -176,22 +176,36 @@ export class PracticeService {
 
   async startSession(
     studentId: string,
-    opts: { mode: SessionMode; lessonId?: string | null; focusUnitId?: string | null },
+    opts: { mode: SessionMode; lessonId?: string | null; lessonIds?: readonly string[] | null; focusUnitId?: string | null },
   ): Promise<{ mode: SessionMode; items: (ClientItem & { lessonId: string; unitId: string; isNew: boolean })[]; estimatedSeconds: number; daily: DailyStatus; seed: string }> {
     const now = this.clock();
     const rows = await this.repos.progress.allProgress(studentId);
     const progress = new Map<string, ProgressLite>(rows.map((r) => [r.itemId, r]));
-    const [daily, pace, scope] = await Promise.all([this.dailyStatus(studentId, rows), this.paceByType(studentId), opts.mode === "lesson" || opts.mode === "boss" ? null : this.activeScope(studentId)]);
+    // Topics the student picked to practise together (lesson mode with several lessons).
+    const chosen = opts.mode === "lesson" && opts.lessonIds?.length ? new Set(opts.lessonIds) : null;
+    const usesScope = opts.mode !== "boss" && (opts.mode !== "lesson" || !!chosen);
+    const [daily, pace, scope] = await Promise.all([this.dailyStatus(studentId, rows), this.paceByType(studentId), usesScope ? this.activeScope(studentId) : null]);
+    let catalog = this.catalog.entries;
+    if (chosen) {
+      // Chosen topics: a topic that is on the switched-on test brings only its test questions
+      // (some lessons are tested only in part); any other topic comes whole.
+      const onTest = scope ? testLessonIds(scope.test) : null;
+      catalog = catalog.filter((e) => chosen.has(e.lessonId) && (!scope || !onTest!.has(e.lessonId) || scope.ids.has(e.item.id)));
+    } else if (opts.mode === "test-boss" && !scope) {
+      catalog = []; // no test switched on: no Grey Fox
+    } else if (scope) {
+      // With a test switched on, rounds use only what is on the test. Opening a lesson yourself is always allowed.
+      catalog = catalog.filter((e) => scope.ids.has(e.item.id));
+    }
     const plan = buildSession({
       mode: opts.mode,
-      // With a test switched on, rounds use only what is on the test. Opening a lesson yourself is always allowed.
-      catalog: scope ? this.catalog.entries.filter((e) => scope.ids.has(e.item.id)) : this.catalog.entries,
+      catalog,
       testPrep: !!scope,
       progress,
       now,
       today: daily.today,
       focusUnitId: opts.focusUnitId,
-      lessonId: opts.lessonId,
+      lessonId: chosen ? undefined : opts.lessonId,
       newItemsToday: daily.newItemsToday,
       secondsByType: pace,
     });
@@ -201,6 +215,7 @@ export class PracticeService {
       return { ...toClientItem(ref.item, seed), lessonId: e.lessonId, unitId: ref.unitId, isNew: e.isNew };
     });
     if (opts.mode === "boss" && opts.lessonId) await this.repos.rewards.startBossBattle(studentId, opts.lessonId, now);
+    if (opts.mode === "test-boss" && scope && items.length) await this.repos.rewards.startBossBattle(studentId, testBossKey(scope.test.id), now);
     logger.info("session started", { studentId, mode: opts.mode, items: items.length, estimatedSeconds: plan.estimatedSeconds });
     return { mode: opts.mode, items, estimatedSeconds: plan.estimatedSeconds, daily, seed };
   }
@@ -325,7 +340,7 @@ export class PracticeService {
   async completeRound(studentId: string, input: { mode: SessionMode; answered: number }): Promise<{ rewards: Rewards; stats: StatsSummary; daily: DailyStatus; counted: boolean }> {
     const today = this.today();
     const statsRow = await this.repos.progress.getStats(studentId);
-    if (input.mode === "boss" || input.answered < DAILY_RULES.goalRoundMinAnswers) {
+    if (input.mode === "boss" || input.mode === "test-boss" || input.answered < DAILY_RULES.goalRoundMinAnswers) {
       return { rewards: { xp: 0, stars: 0, badges: [], events: [] }, stats: summarize(toStatsState(statsRow)), daily: await this.dailyStatus(studentId), counted: false };
     }
     const day = await this.repos.progress.bumpDay(studentId, today, { roundsCompleted: 1 });
@@ -412,6 +427,72 @@ export class PracticeService {
     return { rewards, stats: summarize(stats), heartsLeft, first, rewarded };
   }
 
+  /** The Grey Fox for the student's switched-on test: can he be fought yet, and has he been beaten? Null without a test. */
+  async testBossStatus(studentId: string, rows?: ProgressRow[]): Promise<(BossEligibility & { testId: string; defeated: number }) | null> {
+    const scope = await this.activeScope(studentId);
+    if (!scope) return null;
+    const all = rows ?? (await this.repos.progress.allProgress(studentId));
+    const progress = new Map(all.map((r) => [r.itemId, r]));
+    const record = await this.repos.rewards.boss(studentId, testBossKey(scope.test.id));
+    return { ...testBossEligibility(this.catalog.entries.filter((e) => scope.ids.has(e.item.id)), progress), testId: scope.test.id, defeated: record?.timesDefeated ?? 0 };
+  }
+
+  /**
+   * Claims a victory over the Grey Fox, checked from the recorded answers like any boss: his
+   * `hp` right answers since the battle started, within the time window, with fewer than
+   * `hearts` mistakes. The first win drops his E hat, which Nova puts on straight away.
+   */
+  async completeTestBoss(studentId: string): Promise<{ rewards: Rewards; stats: StatsSummary; heartsLeft: number; first: boolean; rewarded: boolean }> {
+    const status = await this.testBossStatus(studentId);
+    if (!status) throw new RewardError(409, "There's no test switched on");
+    const now = this.clock();
+    const today = this.today();
+    const key = testBossKey(status.testId);
+    const record = await this.repos.rewards.boss(studentId, key);
+    const windowStart = now.getTime() - TEST_BOSS_RULES.windowMinutes * 60_000;
+    if (!record?.battleStartedAt || record.battleStartedAt.getTime() < windowStart) throw new RewardError(409, "Start a battle with the Grey Fox first");
+    let correct = 0;
+    let wrong = 0;
+    for (const v of await this.repos.rewards.recentVerdictsByMode(studentId, "test-boss", record.battleStartedAt)) {
+      if (v === "correct") correct++;
+      else wrong++;
+    }
+    if (correct < TEST_BOSS_RULES.hp) throw new RewardError(409, "The battle isn't finished yet");
+    if (wrong >= TEST_BOSS_RULES.hearts) throw new RewardError(409, "Out of hearts — try the battle again");
+    const heartsLeft = TEST_BOSS_RULES.hearts - wrong;
+
+    const first = record.timesDefeated === 0;
+    const rewarded = first || record.lastRewardDay !== today;
+    const statsRow = await this.repos.progress.getStats(studentId);
+    if (!rewarded) {
+      await this.repos.rewards.recordBossWin(studentId, key, heartsLeft, null);
+      return { rewards: { xp: 0, stars: 0, badges: [], events: [{ kind: "boss_defeated", first: false, heartsLeft }] }, stats: summarize(toStatsState(statsRow)), heartsLeft, first, rewarded };
+    }
+    const rows = await this.repos.progress.allProgress(studentId);
+    const earned = new Set((await this.repos.progress.earnedBadges(studentId)).map((b) => b.badgeId));
+    const day = await this.repos.progress.getDay(studentId, today);
+    const { stats, rewards } = this.engine.process(
+      { type: "boss_defeated", first, heartsLeft, lessonsMasteredTotal: this.masteredLessons(rows).size },
+      toStatsState(statsRow),
+      { today, alreadyEarned: earned, roundsToday: day.roundsCompleted },
+    );
+    if (first) {
+      // His hat falls off: it's Nova's now, and she wears it at once (like a hat from the shop).
+      const owned = (await this.repos.rewards.inventory(studentId)).some((i) => i.itemId === TEST_BOSS_RULES.prize);
+      if (!owned) await this.repos.rewards.addItem(studentId, TEST_BOSS_RULES.prize, "hat");
+      await this.repos.users.updateStudent(studentId, { hat: TEST_BOSS_RULES.prize });
+      rewards.events.push({ kind: "hat", id: TEST_BOSS_RULES.prize });
+    }
+    await Promise.all([
+      this.repos.progress.saveStats(studentId, stats),
+      this.repos.progress.addBadges(studentId, rewards.badges),
+      this.repos.progress.bumpDay(studentId, today, { xp: rewards.xp }),
+      this.repos.rewards.recordBossWin(studentId, key, heartsLeft, today),
+    ]);
+    logger.info("grey fox defeated", { studentId, testId: status.testId, first, heartsLeft });
+    return { rewards, stats: summarize(stats), heartsLeft, first, rewarded };
+  }
+
   /** Data for the constellation map: per-lesson mastery and overall stats. */
   async overview(studentId: string) {
     const rows = await this.repos.progress.allProgress(studentId);
@@ -442,7 +523,9 @@ export class PracticeService {
       return { id: u.id, title: u.title, tagline: u.tagline, note: u.note, accent: u.accent, lessons, total, mastered: masteredTotal };
     });
     const scope = await this.activeScope(studentId);
+    const testBoss = scope ? await this.testBossStatus(studentId, rows) : null;
     const test = scope && {
+      boss: testBoss,
       id: scope.test.id,
       title: scope.test.title,
       date: scope.test.date,
@@ -451,6 +534,14 @@ export class PracticeService {
       mastered: rows.filter((r) => scope.ids.has(r.itemId) && this.scheduler.isMastered(r)).length,
       seen: rows.filter((r) => scope.ids.has(r.itemId)).length,
       notInApp: [...scope.test.notInApp],
+      /** The test's topics, with progress counted on the questions the test covers. */
+      lessons: scope.test.rules.flatMap((r) => {
+        const ref = this.catalog.lessonById.get(r.lessonId);
+        if (!ref) return [];
+        const ids = ref.lesson.items.map((i) => i.id).filter((id) => scope.ids.has(id));
+        const mine = rows.filter((row) => ids.includes(row.itemId));
+        return [{ id: r.lessonId, title: ref.lesson.title, unitTitle: ref.unit.title, total: ids.length, seen: mine.length, mastered: mine.filter((row) => this.scheduler.isMastered(row)).length }];
+      }),
     };
     return { units, stats: summarize(toStatsState(statsRow)), statsRaw: toStatsState(statsRow), daily, test, badges: badges.map((b) => ({ id: b.badgeId, earnedAt: b.earnedAt })) };
   }

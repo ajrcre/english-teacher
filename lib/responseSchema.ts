@@ -15,4 +15,4 @@ export const itemResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("proofread"), text: short }),
 ]);
 
-export const sessionModeSchema = z.enum(["review", "explore", "lesson", "mistakes", "boss"]);
+export const sessionModeSchema = z.enum(["review", "explore", "lesson", "mistakes", "boss", "test-boss"]);

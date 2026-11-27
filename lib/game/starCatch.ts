@@ -231,6 +231,38 @@ export function starFallMs(approach: number): number {
   return Math.round(approach * 1.1);
 }
 
+/**
+ * The Grey Fox's Star Catch (only in his battle): the answer stars wait at the top for the
+ * reading time, tremble for the last moment, then drop straight and fast; meanwhile grey stars
+ * fall that must not be caught.
+ */
+export const FOX_STAR_RULES = {
+  /** Time for an answer star to drop from the top to Nova's basket, once it lets go (ms). */
+  dropMs: 450,
+  /** Grey stars take a little longer, so they can be dodged. */
+  greyDropMs: 700,
+  /** A grey star every so often while the answers tremble (ms, random in this range). */
+  greyEveryMs: [1200, 1800] as const,
+  /** The stars hang still while the question is read, and tremble only this long before they drop (ms). */
+  shakeMs: 1500,
+  /** Shaking harder in the last moments before the drop (ms). */
+  warnMs: 600,
+};
+
+/** The answer a caught grey star sends: not an option, so it's graded as wrong. */
+export const GREY_STAR = "(grey star)";
+
+/** Where a grey star falls: half the time near Nova (to dodge), otherwise anywhere. */
+export function foxGreyX(rand: () => number, novaX: number, w: number): number {
+  const x = rand() < 0.5 ? novaX + (rand() - 0.5) * 36 : 16 + rand() * (w - 32);
+  return Math.round(Math.max(16, Math.min(w - 16, x)));
+}
+
+/** Where Nova may stand in a field `w` wide: a tapped point is clamped to this. */
+export function catcherX(x: number, w: number): number {
+  return Math.max(12, Math.min(w - 12, x));
+}
+
 /** Horizontal centres for n answer stars across a field `w` wide, and a stagger for each. */
 export function starColumns(n: number, w: number): { x: number; dy: number }[] {
   const margin = 18;

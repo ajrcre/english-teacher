@@ -4,7 +4,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { loopStrip, spriteFrames } from "@/components/pixel/spriteCanvas";
 import { playSfx } from "@/components/sound";
 import type { ClientItem } from "@/lib/content/client";
-import { approachMs, laneFromKey, laneGround } from "@/lib/game/runner";
+import {
+  approachMs,
+  laneAt,
+  laneFromKey,
+  laneGround,
+  runnerLayout,
+  RUNNER_FIELD,
+} from "@/lib/game/runner";
+import { fieldHeight, isControl, toField } from "@/lib/game/stage";
 import { PALETTE } from "@/lib/pixel/palette";
 import { backdropFor } from "@/lib/pixel/sprites/backdrops";
 import { hatOf } from "@/lib/pixel/sprites/hats";
@@ -19,6 +27,7 @@ import {
 } from "@/lib/pixel/sprites/runner";
 import { cx } from "@/lib/ui";
 import { RichSentence, questionTitle } from "../inputs";
+import { useField } from "./useField";
 
 export type RunnerResult = {
   verdict: "correct" | "partial" | "incorrect";
@@ -27,10 +36,11 @@ export type RunnerResult = {
 
 type McqItem = Extract<ClientItem, { type: "mcq" }>;
 
-/** Logical pixel size of the game (scaled up crisply to the screen width). */
+/**
+ * Logical width of the game (scaled up crisply to fill the screen). The height, the sky band and
+ * the lanes are fitted to the screen when a question starts (see runnerLayout).
+ */
 const W = 160;
-const SKY = 40;
-const LANE_H = 28;
 const BAND_TOP = 16;
 const NOVA_X = 16;
 const CONTACT_X = NOVA_X + 13;
@@ -80,7 +90,19 @@ export function LaneRunner({
   onFinished: (verdict: "correct" | "partial" | "incorrect") => void;
 }) {
   const lanes = item.options.length;
-  const H = SKY + lanes * LANE_H + 4;
+  const { areaRef, field, box } = useField(W, (area) =>
+    runnerLayout(
+      fieldHeight(
+        area,
+        W,
+        0,
+        RUNNER_FIELD.maxSky +
+          lanes * RUNNER_FIELD.maxLaneH +
+          RUNNER_FIELD.floor,
+      ),
+      lanes,
+    ),
+  );
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const labelRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [lane, setLane] = useState(() =>
@@ -138,7 +160,8 @@ export function LaneRunner({
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    if (!canvas || !ctx || !field) return;
+    const { sky: SKY, laneH: LANE_H, h: H } = field;
     ctx.imageSmoothingEnabled = false;
     const reduced =
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -433,35 +456,53 @@ export function LaneRunner({
     };
     // The game restarts only for a new question, new option order, or a new hat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id, item.options.join("\u0000"), unitId, sprites]);
+  }, [item.id, item.options.join("\u0000"), unitId, sprites, field]);
 
-  // Touch: swipe up/down to change lane, or tap a lane.
-  const touch = useRef<{ y: number; t: number } | null>(null);
-  const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    touch.current = { y: e.clientY, t: performance.now() };
+  // Touch or mouse, anywhere on the game (not on its buttons): Nova runs to the lane at that
+  // height, and follows a finger dragged up and down. Above the lanes is the top lane, below
+  // them the bottom one. A tap while paused carries on.
+  const steering = useRef(false);
+  const steerAt = (e: React.PointerEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !field) return;
+    const p = toField(
+      e.clientX,
+      e.clientY,
+      canvas.getBoundingClientRect(),
+      W,
+      field.h,
+    );
+    steer(laneAt(p.y, field.sky, field.laneH, lanes));
   };
-  const onPointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const start = touch.current;
-    touch.current = null;
-    if (!start) return;
-    const dy = e.clientY - start.y;
-    if (Math.abs(dy) > 22) {
-      steer(g.current.lane + (dy > 0 ? 1 : -1));
+  const onPointerDown = (e: React.PointerEvent<HTMLElement>) => {
+    if (isControl(e.target)) return;
+    if (g.current.paused) {
+      togglePause();
       return;
     }
-    const r = e.currentTarget.getBoundingClientRect();
-    const ly = ((e.clientY - r.top) / r.height) * H - SKY;
-    if (ly >= 0) steer(Math.floor(ly / LANE_H));
+    steering.current = true;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    steerAt(e);
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (steering.current) steerAt(e);
+  };
+  const stopSteering = () => {
+    steering.current = false;
   };
 
   return (
     <section
-      className="mt-4 font-pixel"
+      className="mt-2 flex min-h-0 flex-1 touch-none select-none flex-col font-pixel"
       aria-label="Answer runner"
       data-item={item.id}
       data-lane={lane}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={stopSteering}
+      onPointerCancel={stopSteering}
     >
-      <div className="pixel-panel px-4 py-3 text-[#ece4d6]">
+      <div className="pixel-panel px-4 py-3 text-[#ece4d6]" data-no-steer>
         <p className="text-xs uppercase tracking-widest text-[#a99cc4]">
           {questionTitle(item)}
         </p>
@@ -474,51 +515,59 @@ export function LaneRunner({
       </div>
 
       <div
-        className="pixel-panel relative mt-3 overflow-hidden"
-        style={{ aspectRatio: `${W} / ${H}` }}
+        className="pixel-panel relative mt-2 min-h-[9rem] flex-1 overflow-hidden"
+        style={{ background: PALETTE[laneGround(unitId).edge] }}
       >
-        <canvas
-          ref={canvasRef}
-          width={W}
-          height={H}
-          className="pixelated block h-full w-full touch-none select-none"
-          onPointerDown={onPointerDown}
-          onPointerUp={onPointerUp}
-          aria-hidden="true"
-        />
-        {item.options.map((o, i) => (
-          <div
-            key={o}
-            ref={(el) => {
-              labelRefs.current[i] = el;
-            }}
-            className={cx(
-              "pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap px-1.5 py-0.5 text-[13px] leading-tight shadow-[0_0_0_2px_#241c2b] sm:text-base",
-              i === lane
-                ? "bg-[#ead39b] text-[#241c2b]"
-                : "bg-[#ddd1bd] text-[#241c2b]",
-            )}
-            style={{ left: "110%", top: "0%" }}
-          >
-            {o}
-          </div>
-        ))}
-        {combo >= 2 && (
-          <span className="absolute right-2 top-1 text-sm text-[#ead39b] [text-shadow:1px_1px_0_#241c2b]">
-            ×{combo}
-          </span>
-        )}
-        {banner && (
-          <div
-            className={cx(
-              "pointer-events-none absolute inset-x-0 top-[18%] text-center text-2xl [text-shadow:2px_2px_0_#241c2b] sm:text-3xl",
-              banner.good ? "text-[#f6e7b8]" : "text-[#cf9f9b]",
-            )}
-            role="status"
-          >
-            {banner.text}
-          </div>
-        )}
+        <div ref={areaRef} className="absolute inset-0">
+          {field && box && (
+            <div
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+              style={{ width: box.w, height: box.h }}
+              data-field
+            >
+              <canvas
+                ref={canvasRef}
+                width={W}
+                height={field.h}
+                className="pixelated block h-full w-full"
+                aria-hidden="true"
+              />
+              {item.options.map((o, i) => (
+                <div
+                  key={o}
+                  ref={(el) => {
+                    labelRefs.current[i] = el;
+                  }}
+                  className={cx(
+                    "pointer-events-none absolute -translate-x-1/2 -translate-y-full whitespace-nowrap px-1.5 py-0.5 text-[13px] leading-tight shadow-[0_0_0_2px_#241c2b] sm:text-base",
+                    i === lane
+                      ? "bg-[#ead39b] text-[#241c2b]"
+                      : "bg-[#ddd1bd] text-[#241c2b]",
+                  )}
+                  style={{ left: "110%", top: "0%" }}
+                >
+                  {o}
+                </div>
+              ))}
+              {combo >= 2 && (
+                <span className="absolute right-2 top-1 text-sm text-[#ead39b] [text-shadow:1px_1px_0_#241c2b]">
+                  ×{combo}
+                </span>
+              )}
+              {banner && (
+                <div
+                  className={cx(
+                    "pointer-events-none absolute inset-x-0 top-[18%] text-center text-2xl [text-shadow:2px_2px_0_#241c2b] sm:text-3xl",
+                    banner.good ? "text-[#f6e7b8]" : "text-[#cf9f9b]",
+                  )}
+                  role="status"
+                >
+                  {banner.text}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         {paused && (
           <div
             className="absolute inset-0 grid place-items-center bg-[#0d1a2bcc] text-2xl text-[#ead39b]"
@@ -529,7 +578,7 @@ export function LaneRunner({
         )}
       </div>
 
-      <div className="mt-3 flex items-center justify-center gap-2">
+      <div className="mt-2 flex items-center justify-center gap-2">
         <button
           type="button"
           className="pixel-btn pixel-btn-ghost w-14"
@@ -575,9 +624,8 @@ export function LaneRunner({
           {paused ? "▶" : "❚❚"}
         </button>
       </div>
-      <p className="mt-2 text-center text-xs text-[#a99cc4]">
-        Steer into the right gate: ▲▼, swipe, tap a lane or keys 1–{lanes} · GO
-        to run now
+      <p className="mt-1.5 text-center text-xs text-[#a99cc4]">
+        Tap or drag to a lane · GO to run now
       </p>
 
       {/* Screen readers: the gates as plain buttons */}

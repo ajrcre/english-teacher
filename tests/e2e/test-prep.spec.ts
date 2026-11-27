@@ -1,5 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { tests } from "@/content/tests";
+import { units } from "@/content/units";
+import { buildCatalog } from "@/lib/content/catalog";
+
+const catalog = buildCatalog(units);
+
+// Its own client address, so this test's signup doesn't use up the other tests' signup rate limit.
+test.use({ extraHTTPHeaders: { "x-forwarded-for": `10.5.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}` } });
 
 // These flows answer multiple-choice questions on cards; the runner game has its own spec.
 test.beforeEach(async ({ page }) => {
@@ -41,6 +48,18 @@ test("a parent switches on test prep; the student sees the countdown and practis
   await expect(banner).toContainText(/days to go|Tomorrow|Test day/);
   await expect(banner).toContainText("0 of 101 questions mastered");
   await expect(banner).toContainText("Unseen");
+
+  // Practise only some of the test topics: tick two, and the round has only their questions.
+  const [a, b] = upcoming!.rules.slice(0, 2).map((r) => r.lessonId);
+  await banner.getByText("Practise only some of the test topics").click();
+  await banner.getByRole("button", { name: "Clear" }).click();
+  for (const id of [a, b]) await banner.getByRole("checkbox", { name: catalog.lessonById.get(id)!.lesson.title }).check();
+  await banner.getByRole("button", { name: "Practise these 2 topics" }).click();
+  await page.waitForURL(/mode=lesson&lessons=/);
+  await expect(page.getByText("Your 2 topics")).toBeVisible();
+  const first = await page.locator("[data-item]").first().getAttribute("data-item", { timeout: 30_000 });
+  expect([a, b]).toContain(catalog.itemById.get(first!)!.lessonId);
+  await page.goto("/home");
 
   // The first round only contains test material: it starts with a vocabulary / punctuation / tense / novel question.
   await page.goto("/practice?mode=review");
