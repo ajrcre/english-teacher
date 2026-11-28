@@ -53,6 +53,10 @@ async function answerAndContinue(page: Page, sentence: string, correct: boolean)
 
 /** Each test creates its own family so tests are independent. */
 async function setupFamily(page: Page) {
+  // Signups are rate-limited per client IP (10 an hour); give each test its own address
+  // so repeated runs (e.g. --repeat-each) don't trip the limiter.
+  const ip = `10.${Math.floor(Math.random() * 256)}.${Math.floor(Math.random() * 256)}.${1 + Math.floor(Math.random() * 254)}`;
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": ip });
   const email = `p${Date.now()}${Math.floor(Math.random() * 1e6)}@example.com`;
   await page.goto("/parent/signup");
   await page.fill('input[name="name"]', "Dana");
