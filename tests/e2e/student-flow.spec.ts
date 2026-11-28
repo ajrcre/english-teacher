@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { giverVocab3to4 } from "@/content/units/theGiverVocab";
 
 /** Close any celebration (badge / level-up) dialogs that are open. */
 async function dismissCelebrations(page: Page) {
@@ -11,15 +12,43 @@ async function dismissCelebrations(page: Page) {
   }
 }
 
-async function answerFirstChoiceAndContinue(page: Page) {
-  await page.waitForTimeout(150);
-  await page.locator("button.choice:not([disabled])").first().click();
+/** Sentence text as it reads on screen: blanks and bold markers dropped, spaces collapsed. */
+const normalise = (s: string) => s.replace(/_{3,}/g, " ").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+
+/** Correct option for each cloze sentence in the "giver-ch3-4-vocab" lesson. */
+const rightAnswer = new Map(
+  giverVocab3to4.flatMap((it) => (it.type === "mcq" && it.sentence ? [[normalise(it.sentence), it.options[it.answer]] as const] : [])),
+);
+
+/**
+ * The question card that is waiting for an answer. The previous card stays in the DOM
+ * (with disabled choices) while it animates out, so never read from a plain "section".
+ */
+function liveCard(page: Page) {
+  return page.locator("section", { has: page.locator("button.choice:not([disabled])") });
+}
+
+async function liveQuestion(page: Page) {
+  const card = liveCard(page);
+  await expect(card).toBeVisible();
+  const sentence = normalise(await card.locator("p").nth(1).innerText());
+  const secondChance = (await card.getByText("Second chance").count()) > 0;
+  return { sentence, secondChance };
+}
+
+/** Answers the live cloze question right or wrong on purpose, then moves on. */
+async function answerAndContinue(page: Page, sentence: string, correct: boolean) {
+  const right = rightAnswer.get(sentence);
+  if (!right) throw new Error(`No answer key for "${sentence}" in giverVocab3to4`);
+  const choices = liveCard(page).locator("button.choice:not([disabled])");
+  const rightOption = page.getByText(right, { exact: true });
+  const pick = correct ? choices.filter({ has: rightOption }) : choices.filter({ hasNot: rightOption }).first();
+  await pick.click();
   await page.getByRole("button", { name: "Check answer" }).click();
   await expect(page.getByRole("status")).toBeVisible();
-  const wrong = (await page.getByRole("status").getByText("Not quite").count()) > 0;
+  await expect(page.getByRole("status").getByText("Not quite")).toHaveCount(correct ? 0 : 1);
   await page.getByRole("button", { name: "Continue" }).click();
   await dismissCelebrations(page);
-  return wrong;
 }
 
 /** Each test creates its own family so tests are independent. */
@@ -63,19 +92,21 @@ test("student signs in with family code and PIN, practises, and the mistake come
   await expect(page.getByText("The answer")).toHaveCount(0);
   await expect(page.getByText("Correct!")).toHaveCount(0);
 
-  // Answer until we get one wrong, then check it comes back as a "Second chance".
-  const sentence = () => page.locator("section p").nth(1).innerText();
-  let wrongSentence: string | null = null;
-  for (let i = 0; i < 8 && !wrongSentence; i++) {
-    const current = await sentence();
-    if (await answerFirstChoiceAndContinue(page)) wrongSentence = current;
-  }
-  expect(wrongSentence).not.toBeNull();
+  // Get the first question wrong on purpose, then answer the rest correctly (so no other
+  // retries are queued) until the missed one comes back as a "Second chance".
+  const first = await liveQuestion(page);
+  await answerAndContinue(page, first.sentence, false);
   let seenAgain = false;
-  for (let i = 0; i < 7 && !seenAgain; i++) {
-    await expect(page.locator("section")).toBeVisible();
-    if ((await sentence()) === wrongSentence && (await page.getByText("Second chance").count()) > 0) seenAgain = true;
-    else await answerFirstChoiceAndContinue(page);
+  // The retry is always queued before the end of the round, so keep going until it shows
+  // up or the round ends. The cap only guards against an endless loop.
+  for (let i = 0; i < 25 && !seenAgain; i++) {
+    const card = liveCard(page);
+    const roundOver = page.getByText("Round complete");
+    await expect(card.or(roundOver)).toBeVisible();
+    if (await roundOver.isVisible()) break;
+    const q = await liveQuestion(page);
+    if (q.sentence === first.sentence && q.secondChance) seenAgain = true;
+    else await answerAndContinue(page, q.sentence, true);
   }
   expect(seenAgain).toBe(true);
 });
